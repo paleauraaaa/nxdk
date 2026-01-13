@@ -51,7 +51,7 @@
 static unsigned char*	framebufferMemory = NULL;
 static unsigned char*	_fb = NULL;
 static DWORD			dwEncoderSettings 	= 0;
-static VIDEO_MODE		vmCurrent = { 0, 0, 0, 0 };
+static VIDEO_MODE		vmCurrent = { 0, 0, 0, 0, 0 };
 static int			flickerLevel		= 5;
 static BOOL			flickerSet		= FALSE;
 static BOOL			softenFilter		= FALSE;
@@ -292,10 +292,17 @@ BOOLEAN XVideoListModes(VIDEO_MODE *vm, int bpp, int refresh, void **p)
 	}
 	else
 	{
+		bool is_hd = pVidMode->dwMode & 0x80000000;
+		bool interlaced = TRUE;
+		if (allow_480p && pVidMode->height == 480 && is_hd)
+			interlaced = FALSE;
+		else if (allow_720p && pVidMode->height == 720 && is_hd)
+			interlaced = FALSE;
 		vm->width = pVidMode->width;
 		vm->height = pVidMode->height;
 		vm->bpp = bpp;
 		vm->refresh = refresh;
+		vm->interlaced = interlaced;
 		return TRUE;
 	}
 }
@@ -412,6 +419,7 @@ BOOL XVideoSetMode(int width, int height, int bpp, int refresh)
 		vmCurrent.height = vm.height;
 		vmCurrent.bpp = vm.bpp;
 		vmCurrent.refresh = vm.refresh;
+		vmCurrent.interlaced = vm.interlaced;
 		return TRUE;
 	}
 

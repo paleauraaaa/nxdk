@@ -213,7 +213,7 @@ static void pb_load_gr_ctx(int ctx_id);
 static NTAPI VOID pb_shutdown_notification_routine (PHAL_SHUTDOWN_REGISTRATION ShutdownRegistration);
 
 
-
+static int pb_BackBufferCount = 0;
 
 //private functions
 static void pb_vbl_handler(void)
@@ -239,7 +239,7 @@ static void pb_vbl_handler(void)
         VIDEOREG(NV_PGRAPH_INCREMENT)|=NV_PGRAPH_INCREMENT_READ_3D_TRIGGER;
 
         //rotate next back buffer
-        next=(next+1)%3;
+        next=(next+1)%pb_BackBufferCount;
         pb_BackBufferNxtVBL=next;
     }
 
@@ -304,7 +304,7 @@ static void pb_subprog(DWORD subprogID, DWORD paramA, DWORD paramB)
             next=pb_BackBufferNxt;
             pb_BackBufferIndex[next]=paramA;
             pb_BackBufferbReady[next]=1;
-            next=(next+1)%3;
+            next=(next+1)%pb_BackBufferCount;
             pb_BackBufferNxt=next;
             break;
 
@@ -1929,12 +1929,6 @@ void pb_show_depth_screen(void)
     pb_debug_screen_active=1;
 }
 
-
-
-
-
-
-
 void pb_set_viewport(int dwx,int dwy,int width,int height,float zmin,float zmax)
 {
     uint32_t        *p;
@@ -2020,12 +2014,12 @@ int pb_finished(void)
     p=pb_push1(p,NV20_TCL_PRIMITIVE_3D_WAIT_MAKESPACE,0); //wait/makespace (obtains null status)
     p=pb_push1(p,NV20_TCL_PRIMITIVE_3D_PARAMETER_A,pb_back_index); //set param=back buffer index to show up
     p=pb_push1(p,NV20_TCL_PRIMITIVE_3D_FIRE_INTERRUPT,PB_FINISHED); //subprogID PB_FINISHED: gets frame ready to show up soon
-//  p=pb_push1(p,NV20_TCL_PRIMITIVE_3D_STALL_PIPELINE,0); //stall gpu pipeline (not sure it's needed in triple buffering technic)
+    p=pb_push1(p,NV20_TCL_PRIMITIVE_3D_STALL_PIPELINE,0); //stall gpu pipeline (not sure it's needed in triple buffering technic)
     pb_end(p);
 
     //insert in push buffer the commands to trigger selection of next back buffer
     //(because previous ones may not have finished yet, so need to use 0x0100 call)
-    pb_back_index=(pb_back_index+1)%3;
+    pb_back_index=(pb_back_index+1)%pb_BackBufferCount;
     pb_target_back_buffer();
 
     return 0;
@@ -2180,6 +2174,37 @@ void pb_set_color_format(unsigned int fmt, bool swizzled)
     assert(swizzled == false);
 }
 
+int pb_back_buffer_count(int count) {
+    if (count > 2)
+        return -1;
+    if (count == 0)
+        count = 1;
+    pb_BackBufferCount = count;
+    return 0;
+}
+
+void pb_set_fbs_addr(void* addr) {
+    pb_FrameBuffersAddr = (DWORD)addr;
+}
+
+void pb_set_ds_addr(void* addr) {
+    pb_DSAddr = (DWORD)addr;
+}
+
+DWORD pb_fbs_addr(void) {
+    return pb_FrameBuffersAddr;
+}
+
+DWORD pb_fb_addr(int i) {
+    if (i > pb_BackBufferCount)
+        return 0;
+    return pb_FBAddr[i];
+}
+
+DWORD pb_ds_addr(void) {
+    return pb_DSAddr;
+}
+
 int pb_init(void)
 {
     DWORD           old;
@@ -2290,8 +2315,6 @@ int pb_init(void)
     pb_Put=NULL;
 
     pb_PutRunSize=0;
-
-    pb_FrameBuffersAddr=0;
 
 
     pb_DmaBuffer8 = MmAllocateContiguousMemoryEx(32, 0, MAXRAM, 0, PAGE_READWRITE);
@@ -2863,8 +2886,6 @@ int pb_init(void)
     //We will provide functions pb_show_debug_screen() and pb_show_front_screen()
     //in order to let user (developper) toggle between screens at will.
 
-    pb_FrameBuffersAddr=0;
-    pb_DepthStencilAddr=0;
     pb_DepthStencilLast=-2;
 
     vm=XVideoGetMode();
@@ -2909,8 +2930,8 @@ int pb_init(void)
     Width=vm.width;
     Height=vm.height;
 
-    BackBufferCount=2;          //triple buffering technic!
-                        //allows dynamic details adjustment
+    BackBufferCount=pb_BackBufferCount; //triple buffering technic!
+                                        //allows dynamic details adjustment
 
     pb_FrameBuffersCount=BackBufferCount+1; //front buffer + back buffers
     pb_FrameBuffersWidth=Width;
@@ -2955,7 +2976,10 @@ int pb_init(void)
     //Huge alignment enforcement (16 Kb aligned!) for the global size
     FBSize=(FBSize+0x3FFF)&0xFFFFC000;
 
-    FBAddr = (DWORD)MmAllocateContiguousMemoryEx(FBSize, 0, 0x03FFB000, 0x4000, PAGE_READWRITE | PAGE_WRITECOMBINE);
+    if (pb_FrameBuffersAddr != 0)
+        FBAddr = pb_FrameBuffersAddr;
+    else
+        FBAddr = (DWORD)MmAllocateContiguousMemoryEx(FBSize, 0, 0x03FFB000, 0x4000, PAGE_READWRITE | PAGE_WRITECOMBINE);
 
     pb_FBGlobalSize=FBSize;
 
@@ -3027,7 +3051,10 @@ int pb_init(void)
     //Huge alignment enforcement (16 Kb aligned!) for the global size
     DSSize=(DSSize+0x3FFF)&0xFFFFC000;
 
-    DSAddr = (DWORD)MmAllocateContiguousMemoryEx(DSSize, 0, 0x03FFB000, 0x4000, PAGE_READWRITE | PAGE_WRITECOMBINE);
+    if (pb_DepthStencilAddr != 0)
+        DSAddr = pb_DepthStencilAddr;
+    else
+        DSAddr = (DWORD)MmAllocateContiguousMemoryEx(DSSize, 0, 0x03FFB000, 0x4000, PAGE_READWRITE | PAGE_WRITECOMBINE);
 
     pb_DepthStencilAddr=DSAddr;
     if (!DSAddr)

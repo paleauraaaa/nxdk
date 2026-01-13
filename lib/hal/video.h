@@ -56,6 +56,7 @@ typedef struct _VIDEO_MODE
 	int		height;
 	int		bpp;
 	int		refresh;
+	BOOL    interlaced;
 } VIDEO_MODE;
 
 typedef struct _GAMMA_RAMP_ENTRY

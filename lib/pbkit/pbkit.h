@@ -64,6 +64,13 @@ void    pb_kill(void);      //stops Dma engine and releases push buffer
 void    pb_target_extra_buffer(int n);  //to have rendering made into a static extra buffer
 void    pb_target_back_buffer(void);    //to have rendering made into normal rotating back buffer
 
+int pb_back_buffer_count(int count);
+void pb_set_fbs_addr(void* addr);
+void pb_set_ds_addr(void* addr);
+DWORD pb_fbs_addr(void);
+DWORD pb_fb_addr(int i);
+DWORD pb_ds_addr(void);
+
 DWORD   *pb_extra_buffer(int n);    //returns a static extra buffer address
 DWORD   *pb_back_buffer(void);      //returns normal rotating back buffer address
 DWORD   pb_back_buffer_width(void);

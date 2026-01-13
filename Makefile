@@ -76,6 +76,7 @@ include $(NXDK_DIR)/lib/libcxx/Makefile.nxdk
 endif
 
 include $(NXDK_DIR)/lib/net/Makefile
+include $(NXDK_DIR)/lib/d3d8/Makefile
 
 ifneq ($(NXDK_SDL),)
 include $(NXDK_DIR)/lib/sdl/SDL2/Makefile.xbox
