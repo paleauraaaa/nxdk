@@ -1488,8 +1488,24 @@ static void pb_start(void)
     }
 }
 
+void pb_start_at(void* p) {
+    if (pb_disable_gpu==0) //do we really want to send data to GPU?
+    {
+        //asks push buffer Dma engine to detect incoming Dma data (written at pb_Put)
 
+        pb_cache_flush();
+        *(pb_DmaUserAddr+0x40/4)=((DWORD)p)&0x03FFFFFF;
+        //from now any write will be detected
 
+#ifdef DBG
+        if ((*(pb_DmaUserAddr+0x44/4))>0x04000000)
+        {
+            debugPrint("pb_start: wrong GetAddr\n");
+            return;
+        }
+#endif
+    }
+}
 
 static void pb_jump_to_head(void)
 {
@@ -1797,6 +1813,17 @@ uint32_t *pb_begin(void)
     return pb_Put;
 }
 
+uint32_t* pb_begin_at(uint32_t* p) {
+#ifdef DBG
+    if (pb_BeginEndPair==1) debugPrint("pb_begin_at without a pb_end earlier\n");
+    pb_BeginEndPair=1;
+    pb_PushIndex=0;
+    pb_PushNext=(uint32_t*)p;
+    pb_PushStart=(uint32_t*)p;
+#endif
+    return p;
+}
+
 #ifdef LOG
 static FILE *fd;
 static int logging=0;
@@ -1863,6 +1890,72 @@ void pb_end(uint32_t *pEnd)
     pb_Put=pEnd;
 
     pb_start(); //start (or continue) reading and sending data to GPU
+
+    if (pb_trace_mode) //do we want to wait until block data has been sent (for debugging GPU errors)?
+    {
+
+        TimeStamp1=KeTickCount;
+
+        //wait until all begin-end block has been sent to GPU
+        while(pb_busy())
+        {
+            TimeStamp2=KeTickCount;
+            if (TimeStamp2-TimeStamp1>TICKSTIMEOUT)
+            {
+                debugPrint("pb_end: Busy for too long (%lu) (%08x)\n",
+                    ((DWORD)(pb_Put)-(DWORD)(pb_Head)),
+                    VIDEOREG(NV_PFIFO_CACHE1_DMA_GET)
+                    );
+                break;
+            }
+        }
+    }
+}
+
+void pb_end_at(uint32_t *pEnd, uint32_t* pNewStart)
+{
+    DWORD           TimeStamp1;
+    DWORD           TimeStamp2;
+
+    int         i;
+
+#ifdef LOG
+    uint32_t    *p;
+    int         n;
+
+    if (logging)
+    {
+        p=pb_PushStart;
+        while (p!=pEnd)
+        {
+            n=(*p>>18)&0x7FF;
+            fprintf(fd,"0x%08x, ",*(p++));
+            for(i=0;i<n;i++) fprintf(fd,"0x%x, ",*(p++));
+            fprintf(fd,"\n");
+        }
+
+    }
+#endif
+
+#ifdef DBG
+    if (pEnd!=pb_PushNext)
+    {
+        debugPrint("pb_end: input pointer invalid or not following previous write addresses\n");
+        assert(false);
+    }
+    if (pb_BeginEndPair==0)
+    {
+        debugPrint("pb_end without a pb_begin\n");
+        assert(false);
+    }
+    pb_BeginEndPair=0;
+#endif
+
+    //start (or continue) reading and sending data to GPU
+    if (pNewStart)
+        pb_start_at(pNewStart);
+    else 
+        pb_start();
 
     if (pb_trace_mode) //do we want to wait until block data has been sent (for debugging GPU errors)?
     {

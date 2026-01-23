@@ -47,10 +47,13 @@ extern "C" {
 // push buffer size, must be >64Kb and a power of 2
 #define PBKIT_PUSHBUFFER_SIZE 512 * 1024
 
+void pb_start_at(void* p);
+
 // Start a block of pushbuffer commands.
 // There is a hard limit of PBKIT_PUSHBUFFER_SIZE between flushes, so avoid pushing more than PBKIT_PUSHBUFFER_SIZE /
 // 4096 DWORDs per block.
 uint32_t *pb_begin (void);
+uint32_t* pb_begin_at(uint32_t* p);
 
 // Pushes the given command to the given subchannel with nparam following DWORDs as parameters.
 void pb_push_to (DWORD subchannel, uint32_t *p, DWORD command, DWORD nparam);
@@ -136,6 +139,7 @@ uint32_t *pb_push_4x4_matrix (uint32_t *p, DWORD command, const float *m);
 
 // Ends a block of pushbuffer commands that was started via pb_begin, sending queued data to the GPU.
 void pb_end (uint32_t *pEnd);
+void pb_end_at(uint32_t *pEnd, uint32_t* pNewStart);
 
 #if defined(__cplusplus)
 }
