@@ -45,35 +45,50 @@ __attribute__ ((unused))
 static const char* GetRegisterNameString(unsigned int reg_name) {
     switch(reg_name) {
     case REG_ZERO:
-        return "0x0";
+        // return "0x0";
+        return "PS_REGISTER_ZERO";
     case REG_CONSTANT_COLOR0:
-        return "0x1";
+        // return "0x1";
+        return "PS_REGISTER_C0";
     case REG_CONSTANT_COLOR1:
-        return "0x2";
+        // return "0x2";
+        return "PS_REGISTER_C1";
     case REG_FOG:
-        return "0x3";
+        // return "0x3";
+        return "PS_REGISTER_FOG";
     case REG_PRIMARY_COLOR:
-        return "0x4";
+        // return "0x4";
+        return "PS_REGISTER_V0";
     case REG_SECONDARY_COLOR:
-        return "0x5";
+        // return "0x5";
+        return "PS_REGISTER_V1";
     case REG_TEXTURE0:
-        return "0x8";
+        // return "0x8";
+        return "PS_REGISTER_T0";
     case REG_TEXTURE1:
-        return "0x9";
+        // return "0x9";
+        return "PS_REGISTER_T1";
     case REG_TEXTURE2:
-        return "0xa";
+        // return "0xa";
+        return "PS_REGISTER_T2";
     case REG_TEXTURE3:
-        return "0xb";
+        // return "0xb";
+        return "PS_REGISTER_T3";
     case REG_SPARE0:
-        return "0xc";
+        // return "0xc";
+        return "PS_REGISTER_R0";
     case REG_SPARE1:
-        return "0xd";
+        // return "0xd";
+        return "PS_REGISTER_R1";
     case REG_SPARE0_PLUS_SECONDARY_COLOR:
-        return "0xe";
+        // return "0xe";
+        return "PS_REGISTER_V1R0_SUM";
     case REG_E_TIMES_F:
-        return "0xf";
+        // return "0xf";
+        return "PS_REGISTER_EF_PROD";
     case REG_DISCARD:
-        return "0x0";
+        // return "0x0";
+        return "PS_REGISTER_DISCARD";
     case REG_ONE:
         // REG_ONE is a pseudo-register that should have been 
         // mapped to REG_ZERO (with modifier) in MappedRegisterStruct::Init; 

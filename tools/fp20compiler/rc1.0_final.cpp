@@ -103,40 +103,50 @@ void FinalCombinerStruct::Validate()
 
 static void GenerateFinalInput(char var, MappedRegisterStruct reg) {
     int num = (var >= 'E') ? 1 : 0;
-    printf("MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW%d_%c_SOURCE, %s)", num, var, GetRegisterNameString(reg.reg.bits.name));
-    printf(" | MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW%d_%c_ALPHA, %d)", num, var,
-            reg.reg.bits.channel == RCP_ALPHA);
-    printf(" | MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW%d_%c_INVERSE, %d)", num, var,
-            (reg.map == MAP_UNSIGNED_INVERT));
+    //printf("MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW%d_%c_SOURCE, %s)", num, var, GetRegisterNameString(reg.reg.bits.name));
+    printf("%s", GetRegisterNameString(reg.reg.bits.name));
+    // printf(" | MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW%d_%c_ALPHA, %d)", num, var,
+    //         reg.reg.bits.channel == RCP_ALPHA);
+    printf(" | PS_CHANNEL_%s", reg.reg.bits.channel == RCP_ALPHA ? "ALPHA" : "RGB");
+    printf(" | PS_INPUTMAPPING_UNSIGNED_%s", reg.map == MAP_UNSIGNED_INVERT ? "INVERT" : "IDENTITY");
 }
 
 void FinalCombinerStruct::Invoke()
 {
 
-    printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,\n");
+    // printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,\n");
+    printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSABCD, PS_COMBINERINPUTS(\n");
     printf("    ");
     GenerateFinalInput('A', rgb.a);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateFinalInput('B', rgb.b);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateFinalInput('C', rgb.c);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateFinalInput('D', rgb.d);
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    // printf("p += 2;\n");
 
-    printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,\n");
+    // printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,\n");
+    printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSEFG, PS_COMBINERINPUTS(\n");
     printf("    ");
     GenerateFinalInput('E', product.e);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateFinalInput('F', product.f);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateFinalInput('G', alpha.g);
 
-    printf("\n    | MASK(NV097_SET_COMBINER_SPECULAR_FOG_CW1_SPECULAR_CLAMP, %d)", clamp);
+    printf(",\n    %s", clamp > 0 ? "PS_FINALCOMBINERSETTING_CLAMP_SUM" : "0");
 
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    //printf("p += 2;\n");
     // if(clamp)
     //     glCombinerParameteriNV(GL_COLOR_SUM_CLAMP_NV, GL_TRUE);
     // else

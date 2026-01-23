@@ -36,12 +36,16 @@ void CombinersStruct::Invoke()
         const char* final_cmd = NULL;
         switch(cc[i].reg.bits.name) {
         case REG_CONSTANT_COLOR0:
-            general_cmd = "NV097_SET_COMBINER_FACTOR0";
-            final_cmd = "NV097_SET_SPECULAR_FOG_FACTOR + 0";
+            //general_cmd = "NV097_SET_COMBINER_FACTOR0";
+            general_cmd = "D3DRS_PSCONSTANT0_0";
+            //final_cmd = "NV097_SET_SPECULAR_FOG_FACTOR + 0";
+            final_cmd = "D3DRS_PSFINALCOMBINERCONSTANT0";
             break;
         case REG_CONSTANT_COLOR1:
-            general_cmd = "NV097_SET_COMBINER_FACTOR1";
-            final_cmd = "NV097_SET_SPECULAR_FOG_FACTOR + 4";
+            //general_cmd = "NV097_SET_COMBINER_FACTOR1";
+            general_cmd = "D3DRS_PSCONSTANT1_0";
+            //final_cmd = "NV097_SET_SPECULAR_FOG_FACTOR + 4";
+            final_cmd = "D3DRS_PSFINALCOMBINERCONSTANT1";
             break;
         default:
             assert(false);
@@ -62,23 +66,25 @@ void CombinersStruct::Invoke()
         // Also see mode selection in GeneralCombinersStruct::Invoke() and
         // local-constant emitter in GeneralCombinerStruct::Invoke(int stage).
         if (generals.localConsts == 0) {
-            printf("pb_push1(p, %s,", general_cmd);
+            //printf("pb_push1(p, %s,", general_cmd);
+            printf("D3DDevice_SetRenderState(%s", general_cmd);
             printf("\n    MASK(0xFF000000, 0x%02X)", (unsigned char)(cc[i].v[3] * 0xFF));
             printf("\n    | MASK(0x00FF0000, 0x%02X)", (unsigned char)(cc[i].v[0] * 0xFF));
             printf("\n    | MASK(0x0000FF00, 0x%02X)", (unsigned char)(cc[i].v[1] * 0xFF));
             printf("\n    | MASK(0x000000FF, 0x%02X)", (unsigned char)(cc[i].v[2] * 0xFF));
             printf(");\n");
-            printf("p += 2;\n");
+            //printf("p += 2;\n");
         }
 
         // Global-constants are also used in final-combiner
-        printf("pb_push1(p, %s,", final_cmd);
+        //printf("pb_push1(p, %s,", final_cmd);
+        printf("D3DDevice_SetRenderState(%s,", final_cmd);
         printf("\n    MASK(0xFF000000, 0x%02X)", (unsigned char)(cc[i].v[3] * 0xFF));
         printf("\n    | MASK(0x00FF0000, 0x%02X)", (unsigned char)(cc[i].v[0] * 0xFF));
         printf("\n    | MASK(0x0000FF00, 0x%02X)", (unsigned char)(cc[i].v[1] * 0xFF));
         printf("\n    | MASK(0x000000FF, 0x%02X)", (unsigned char)(cc[i].v[2] * 0xFF));
         printf(");\n");
-        printf("p += 2;\n");
+        //printf("p += 2;\n");
     }
 
 

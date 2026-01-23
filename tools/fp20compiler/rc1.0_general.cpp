@@ -60,16 +60,26 @@ void GeneralCombinersStruct::Invoke()
     // }
     // assert(false);
 
-    printf("pb_push1(p, NV097_SET_COMBINER_CONTROL,");
-    printf("\n    MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, %s)",
-        localConsts > 0 ? "NV097_SET_COMBINER_CONTROL_FACTOR0_EACH_STAGE"
-                : "NV097_SET_COMBINER_CONTROL_FACTOR0_SAME_FACTOR_ALL");
-    printf("\n    | MASK(NV097_SET_COMBINER_CONTROL_FACTOR1, %s)",
-        localConsts > 0 ? "NV097_SET_COMBINER_CONTROL_FACTOR1_EACH_STAGE"
-                : "NV097_SET_COMBINER_CONTROL_FACTOR1_SAME_FACTOR_ALL");
-    printf("\n    | MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, %d)", num);
-    printf(");\n");
-    printf("p += 2;\n");
+    //printf("pb_push1(p, NV097_SET_COMBINER_CONTROL,");
+    printf("D3DDevice_SetRenderState(D3DRS_PSCOMBINERCOUNT, PS_COMBINERCOUNT(");
+    printf("\n    %d,", num);
+    //printf("\n    MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, %s)");
+    // localConsts > 0 ? "NV097_SET_COMBINER_CONTROL_FACTOR0_EACH_STAGE"
+    //             : "NV097_SET_COMBINER_CONTROL_FACTOR0_SAME_FACTOR_ALL");
+    printf("\n    %s",
+        localConsts > 0 ? "PS_COMBINERCOUNT_UNIQUE_C0"
+                : "PS_COMBINERCOUNT_SAME_C0");
+    // printf("\n    | MASK(NV097_SET_COMBINER_CONTROL_FACTOR1, %s)",
+    //     localConsts > 0 ? "NV097_SET_COMBINER_CONTROL_FACTOR1_EACH_STAGE"
+    //             : "NV097_SET_COMBINER_CONTROL_FACTOR1_SAME_FACTOR_ALL");
+    printf("\n    | %s",
+        localConsts > 0 ? "PS_COMBINERCOUNT_UNIQUE_C1"
+                : "PS_COMBINERCOUNT_SAME_C1");
+    printf("\n    | PS_COMBINERCOUNT_MUX_MSB");
+    // printf("\n    | MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, %d)", num);
+    // printf(");\n");
+    printf("));\n");
+    // printf("p += 2;\n");
 }
 
 void GeneralCombinerStruct::ZeroOut()
@@ -143,10 +153,12 @@ void GeneralCombinerStruct::Invoke(int stage)
         const char* cmd = NULL;
         switch(cc[i].reg.bits.name) {
         case REG_CONSTANT_COLOR0:
-            cmd = "NV097_SET_COMBINER_FACTOR0";
+            //cmd = "NV097_SET_COMBINER_FACTOR0";
+            cmd = "D3DRS_PSCONSTANT0_";
             break;
         case REG_CONSTANT_COLOR1:
-            cmd = "NV097_SET_COMBINER_FACTOR1";
+            //cmd = "NV097_SET_COMBINER_FACTOR1";
+            cmd = "D3DRS_PSCONSTANT1_";
             break;
         default:
             assert(false);
@@ -158,13 +170,13 @@ void GeneralCombinerStruct::Invoke(int stage)
         assert(cc[i].v[2] >= 0.0f && cc[i].v[2] <= 1.0f);
         assert(cc[i].v[3] >= 0.0f && cc[i].v[3] <= 1.0f);
 
-        printf("pb_push1(p, %s + %d * 4,", cmd, stage);
+        //printf("pb_push1(p, %s + %d * 4,", cmd, stage);
+        printf("D3DDevice_SetRenderState(%s%d,", cmd, stage);
         printf("\n    MASK(0xFF000000, 0x%02X)", (unsigned char)(cc[i].v[3] * 0xFF));
         printf("\n    | MASK(0x00FF0000, 0x%02X)", (unsigned char)(cc[i].v[0] * 0xFF));
         printf("\n    | MASK(0x0000FF00, 0x%02X)", (unsigned char)(cc[i].v[1] * 0xFF));
         printf("\n    | MASK(0x000000FF, 0x%02X)", (unsigned char)(cc[i].v[2] * 0xFF));
         printf(");\n");
-        printf("p += 2;\n");
     }
 
     for (i = 0; i < 2; i++)
@@ -258,29 +270,70 @@ void GeneralFunctionStruct::Validate(int stage, int portion)
 }
 
 static void GenerateInput(int portion, char variable, MappedRegisterStruct reg) {
-    const char* portion_s = portion == RCP_RGB ? "COLOR" : "ALPHA";
-    printf("MASK(NV097_SET_COMBINER_%s_ICW_%c_SOURCE, %s)", portion_s, variable, GetRegisterNameString(reg.reg.bits.name));
-    printf(" | MASK(NV097_SET_COMBINER_%s_ICW_%c_ALPHA, %d)", portion_s, variable,
-            reg.reg.bits.channel == RCP_ALPHA);
-    printf(" | MASK(NV097_SET_COMBINER_%s_ICW_%c_MAP, 0x%x)", portion_s, variable, reg.map);
+    // const char* portion_s = portion == RCP_RGB ? "COLOR" : "ALPHA";
+    const char* portion_s = portion == RCP_RGB ? "RGB" : portion == RCP_BLUE ? "BLUE" : "ALPHA";
+    const char* map;
+    switch (reg.map) {
+      case MAP_UNSIGNED_IDENTITY:
+        map = "UNSIGNED_IDENTITY";
+        break;
+      case MAP_UNSIGNED_INVERT:
+        map = "UNSIGNED_INVERT";
+        break;
+      case MAP_EXPAND_NORMAL:
+        map = "EXPAND_NORMAL";
+        break;
+      case MAP_EXPAND_NEGATE:
+        map = "EXPAND_NEGATE";
+        break;
+      case MAP_HALF_BIAS_NORMAL:
+        map = "HALFBIAS_NORMAL";
+        break;
+      case MAP_HALF_BIAS_NEGATE:
+        map = "HALFBIAS_NEGATE";
+        break;
+      case MAP_SIGNED_IDENTITY:
+        map = "SIGNED_IDENTITY";
+        break;
+      case MAP_SIGNED_NEGATE:
+        map = "SIGNED_NEGATE";
+        break;
+      default:
+        map = NULL;
+        break;
+    }
+
+    //printf("MASK(NV097_SET_COMBINER_%s_ICW_%c_SOURCE, %s)", portion_s, variable, GetRegisterNameString(reg.reg.bits.name));
+    printf("%s", GetRegisterNameString(reg.reg.bits.name));
+    // printf(" | MASK(NV097_SET_COMBINER_%s_ICW_%c_ALPHA, %d)", portion_s, variable,
+    //         reg.reg.bits.channel == RCP_ALPHA);
+    printf(" | PS_CHANNEL_%s", portion_s);
+    // printf(" | MASK(NV097_SET_COMBINER_%s_ICW_%c_MAP, 0x%x)", portion_s, variable, reg.map);
+    printf(" | %s%s", map ? "PS_INPUTMAPPING_" : "0", map ? map : "");
 }
 
 void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
 {
     // GLenum portionEnum = (RCP_RGB == portion) ? GL_RGB : GL_ALPHA;
-    const char* portion_s = (portion == RCP_RGB ? "COLOR" : "ALPHA");
+    // const char* portion_s = (portion == RCP_RGB ? "COLOR" : "ALPHA");
+    const char* portion_s = (portion == RCP_RGB ? "RGB" : "ALPHA");
 
-    printf("pb_push1(p, NV097_SET_COMBINER_%s_ICW + %d * 4,", portion_s, stage);
+    //printf("pb_push1(p, NV097_SET_COMBINER_%s_ICW + %d * 4,", portion_s, stage);
+    printf("D3DDevice_SetRenderState(D3DRS_PS%sINPUTS%d, PS_COMBINERINPUTS(", portion_s, stage);
     printf("\n    ");
     GenerateInput(portion, 'A', op[0].reg[1]);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateInput(portion, 'B', op[0].reg[2]);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateInput(portion, 'C', op[1].reg[1]);
-    printf("\n    | ");
+    // printf("\n    | ");
+    printf(",\n    ");
     GenerateInput(portion, 'D', op[1].reg[2]);
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    // printf("p += 2;\n");
 
     // glCombinerInputNV(GL_COMBINER0_NV + stage,
     //     portionEnum,
@@ -310,34 +363,50 @@ void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
     //     op[1].reg[2].map,
     //     MAP_CHANNEL(op[1].reg[2].reg.bits.channel));
 
-    printf("pb_push1(p, NV097_SET_COMBINER_%s_OCW + %d * 4,\n", portion_s, stage);
-    printf("    MASK(NV097_SET_COMBINER_%s_OCW_AB_DST, %s)\n", portion_s, GetRegisterNameString(op[0].reg[0].reg.bits.name));
-    printf("    | MASK(NV097_SET_COMBINER_%s_OCW_CD_DST, %s)\n", portion_s, GetRegisterNameString(op[1].reg[0].reg.bits.name));
-    printf("    | MASK(NV097_SET_COMBINER_%s_OCW_SUM_DST, %s)\n", portion_s, GetRegisterNameString(op[2].reg[0].reg.bits.name));
-    printf("    | MASK(NV097_SET_COMBINER_%s_OCW_MUX_ENABLE, %d)\n", portion_s, (op[2].op == RCP_MUX));
+    // printf("pb_push1(p, NV097_SET_COMBINER_%s_OCW + %d * 4,\n", portion_s, stage);
+    // printf("    MASK(NV097_SET_COMBINER_%s_OCW_AB_DST, %s)\n", portion_s, GetRegisterNameString(op[0].reg[0].reg.bits.name));
+    // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_CD_DST, %s)\n", portion_s, GetRegisterNameString(op[1].reg[0].reg.bits.name));
+    // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_SUM_DST, %s)\n", portion_s, GetRegisterNameString(op[2].reg[0].reg.bits.name));
+    // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_MUX_ENABLE, %d)\n", portion_s, (op[2].op == RCP_MUX));
+    printf("D3DDevice_SetRenderState(D3DRS_PS%sOUTPUTS%d, PS_COMBINEROUTPUTS(\n", portion_s, stage);
+    printf("    %s,\n", GetRegisterNameString(op[0].reg[0].reg.bits.name));
+    printf("    %s,\n", GetRegisterNameString(op[1].reg[0].reg.bits.name));
+    printf("    %s,\n", GetRegisterNameString(op[2].reg[0].reg.bits.name));
+
 
     const char* scale_s = NULL;
     switch(bs.bits.scale) {
-    case SCALE_NONE: scale_s = "NOSHIFT"; break;
-    case SCALE_BY_TWO: scale_s = "SHIFTLEFTBY1"; break;
-    case SCALE_BY_FOUR: scale_s = "SHIFTLEFTBY2"; break;
-    case SCALE_BY_ONE_HALF: scale_s = "SHIFTRIGHTBY1"; break;
+    // case SCALE_NONE: scale_s = "NOSHIFT"; break;
+    case SCALE_NONE: scale_s = (bs.bits.bias == BIAS_BY_NEGATIVE_ONE_HALF) ? "" : "_IDENTITY"; break;
+    // case SCALE_BY_TWO: scale_s = "SHIFTLEFTBY1"; break;
+    case SCALE_BY_TWO: scale_s = "_SHIFTLEFT_1"; break;
+    // case SCALE_BY_FOUR: scale_s = "SHIFTLEFTBY2"; break;
+    case SCALE_BY_FOUR: scale_s = "_SHIFTLEFT_2"; break;
+    // case SCALE_BY_ONE_HALF: scale_s = "SHIFTRIGHTBY1"; break;
+    case SCALE_BY_ONE_HALF: scale_s = "_SHIFTRIGHT_1"; break;
     default:
         assert(false);
         break;
     }
 
     if (portion == RCP_RGB) {
-        printf("    | MASK(NV097_SET_COMBINER_%s_OCW_AB_DOT_ENABLE, %d)\n", portion_s, op[0].op);
-        printf("    | MASK(NV097_SET_COMBINER_%s_OCW_CD_DOT_ENABLE, %d)\n", portion_s, op[1].op);
+        // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_AB_DOT_ENABLE, %d)\n", portion_s, op[0].op);
+        printf("    %s\n", op[0].op > 0 ? "PS_COMBINEROUTPUT_AB_DOT_PRODUCT" : "PS_COMBINEROUTPUT_AB_MULTIPLY");
+        // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_CD_DOT_ENABLE, %d)\n", portion_s, op[1].op);
+        printf("    | %s\n    | ", op[0].op > 0 ? "PS_COMBINEROUTPUT_CD_DOT_PRODUCT" : "PS_COMBINEROUTPUT_CD_MULTIPLY");
+    } else {
+        printf("    ");
     }
 
-    printf("    | MASK(NV097_SET_COMBINER_%s_OCW_OP, NV097_SET_COMBINER_%s_OCW_OP_%s%s)",
-            portion_s, portion_s, scale_s,
+    // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_OP, NV097_SET_COMBINER_%s_OCW_OP_%s%s)",
+    //         portion_s, portion_s, scale_s,
+    //         (bs.bits.bias == BIAS_BY_NEGATIVE_ONE_HALF) ? "_BIAS" : "");
+    printf("PS_COMBINEROUTPUT%s%s", scale_s,
             (bs.bits.bias == BIAS_BY_NEGATIVE_ONE_HALF) ? "_BIAS" : "");
 
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    //printf("p += 2;\n");
 
     // glCombinerOutputNV(GL_COMBINER0_NV + stage,
     //     portionEnum,

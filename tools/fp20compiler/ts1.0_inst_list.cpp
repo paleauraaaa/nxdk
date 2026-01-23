@@ -56,45 +56,55 @@ void InstList::Invoke()
     printf("\n");
 
     assert(size > 1);
-    printf("pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT,\n    ");
+    // printf("pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT,\n    ");
+    printf("D3DDevice_SetRenderState(D3DRS_PSINPUTTEXTURE, PS_INPUTTEXTURE(\n");
+    printf("    0,\n");
     for (i=1; i<size; i++) {
-        if (i != 1) printf("    | ");
+        //if (i != 1) printf("    | ");
         int previousTexture = 0;
         if (list[i].opcode.bits.dependent)
             previousTexture = (int)list[i].args[0];
-        printf("MASK(NV097_SET_SHADER_OTHER_STAGE_INPUT_STAGE%d, %d)",
-            i, previousTexture);
-        if (i != size-1) printf("\n");
+        printf("    %d", previousTexture);
+        if (i != size-1) printf(",\n");
     }
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    // printf("p += 2;\n");
 
-    printf("pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM,\n    ");
+    //printf("pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM,\n    ");
+    printf("D3DDevice_SetRenderState(D3DRS_PSTEXTUREMODES, PS_TEXTUREMODES(\n    ");
     for (i=0; i<size; i++) {
         const char* op = NULL;
         switch(list[i].opcode.word) {
         case TSP_NOP:
-            op = "PROGRAM_NONE";
+            //op = "PROGRAM_NONE";
+            op = "NONE";
             break;
         case TSP_TEXTURE_1D:
         case TSP_TEXTURE_2D:
-            op = "2D_PROJECTIVE";
+            //op = "2D_PROJECTIVE";
+            op = "PROJECT2D";
             break;
         case TSP_TEXTURE_3D:
-            op = "3D_PROJECTIVE";
+            //op = "3D_PROJECTIVE";
+            op = "PROJECT3D";
         case TSP_TEXTURE_CUBE_MAP:
-            op = "CUBE_MAP";
+            // op = "CUBE_MAP";
+            op = "CUBEMAP";
             break;
         case TSP_CULL_FRAGMENT:
-            op = "CLIP_PLANE";
+            //op = "CLIP_PLANE";
+            op = "CLIPPLANE";
             assert(false);
             break;
         case TSP_PASS_THROUGH:
-            op = "PASS_THROUGH";
+            // op = "PASS_THROUGH";
+            op = "PASSTHRU";
             break;
         case TSP_OFFSET_2D_SCALE:
             assert(i >= 1);
-            op = "BUMPENVMAP_LUMINANCE";
+            // op = "BUMPENVMAP_LUMINANCE";
+            op = "BUMPENVMAP_LUM";
             assert(false); /* Untested */
             break;
         case TSP_OFFSET_2D:
@@ -103,18 +113,21 @@ void InstList::Invoke()
             break;
         case TSP_DEPENDENT_AR:
             assert(i >= 1);
-            op = "DEPENDENT_AR";
+            //op = "DEPENDENT_AR";
+            op = "DPNDNT_AR";
             assert(false); /* Untested */
             break;
         case TSP_DEPENDENT_GB:
             assert(i >= 1);
-            op = "DEPENDENT_GB";
+            //op = "DEPENDENT_GB";
+            op = "DPNDNT_GB";
             assert(false); /* Untested */
             break;
 
         case TSP_DOT_PRODUCT_2D_1_OF_2:
             assert(i == 1 || i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_2D_2_OF_2:
             assert(i >= 2);
@@ -124,7 +137,8 @@ void InstList::Invoke()
 
         case TSP_DOT_PRODUCT_DEPTH_REPLACE_1_OF_2:
             assert(i == 1 || i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_DEPTH_REPLACE_2_OF_2:
             assert(i >= 2);
@@ -134,11 +148,13 @@ void InstList::Invoke()
 
         case TSP_DOT_PRODUCT_3D_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_3D_2_OF_3:
             assert(i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_3D_3_OF_3:
             assert(i == 3);
@@ -148,11 +164,13 @@ void InstList::Invoke()
 
         case TSP_DOT_PRODUCT_CUBE_MAP_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_2_OF_3:
             assert(i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_3_OF_3:
             assert(i == 3);
@@ -162,56 +180,68 @@ void InstList::Invoke()
 
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_EYE_FROM_QS_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_EYE_FROM_QS_2_OF_3:
             assert(i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_EYE_FROM_QS_3_OF_3:
             assert(i == 3);
-            op = "DOT_REFLECT_SPECULAR";
+            //op = "DOT_REFLECT_SPECULAR";
+            op = "DOT_RFLCT_SPEC";
             break;
 
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_CONST_EYE_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_CONST_EYE_2_OF_3:
             assert(i == 2);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_CONST_EYE_3_OF_3:
             assert(i == 3);
-            op = "DOT_REFLECT_SPECULAR_CONST";
+            //op = "DOT_REFLECT_SPECULAR_CONST";
+            op = "DOT_RFLCT_SPEC_CONST";
             assert(false); /* Untested */
             break;
 
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_EYE_FROM_QS_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_EYE_FROM_QS_2_OF_3:
             assert(i == 2);
-            op = "DOT_REFLECT_DIFFUSE";
+            //op = "DOT_REFLECT_DIFFUSE";
+            op = "DOT_RFLCT_DIFF";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_EYE_FROM_QS_3_OF_3:
             assert(i == 3);
-            op = "DOT_REFLECT_SPECULAR";
+            //op = "DOT_REFLECT_SPECULAR";
+            op = "DOT_RFLCT_SPEC";
             assert(false); /* Untested */
             break;
 
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_CONST_EYE_1_OF_3:
             assert(i == 1);
-            op = "DOT_PRODUCT";
+            //op = "DOT_PRODUCT";
+            op = "DOTPRODUCT";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_CONST_EYE_2_OF_3:
             assert(i == 2);
-            op = "DOT_REFLECT_DIFFUSE";
+            //op = "DOT_REFLECT_DIFFUSE";
+            op = "DOT_RFLCT_DIFF";
             break;
         case TSP_DOT_PRODUCT_CUBE_MAP_AND_REFLECT_CUBE_MAP_CONST_EYE_3_OF_3:
             assert(i == 3);
-            op = "DOT_REFLECT_SPECULAR_CONST";
+            //op = "DOT_REFLECT_SPECULAR_CONST";
+            op = "DOT_RFLCT_SPEC_CONST";
             assert(false); /* Untested */
             break;
 
@@ -219,13 +249,13 @@ void InstList::Invoke()
             assert(false);
             break;
         }
-        if (i != 0) printf("    | ");
-        printf("MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE%d, NV097_SET_SHADER_STAGE_PROGRAM_STAGE%d_%s)",
-               i, i, op);
-        if (i != size-1) printf("\n");
+        // if (i != 0) printf("    | ");
+        printf("    PS_TEXTUREMODES_%s", op);
+        if (i != size-1) printf(",\n");
     }
-    printf(");\n");
-    printf("p += 2;\n");
+    // printf(");\n");
+    printf("));\n");
+    // printf("p += 2;\n");
 
     // Process texture stage mode arguments
     for (i=0; i<size; i++) {
@@ -264,6 +294,7 @@ void InstList::Invoke()
             printf("*p++ = 0x%08x; /* NV097_SET_TEXTURE_SET_BUMP_ENV_MAT m[1] */\n", FloatToRaw(matrix[1]));
             printf("*p++ = 0x%08x; /* NV097_SET_TEXTURE_SET_BUMP_ENV_MAT m[2] */\n", FloatToRaw(matrix[2]));
             printf("*p++ = 0x%08x; /* NV097_SET_TEXTURE_SET_BUMP_ENV_MAT m[3] */\n", FloatToRaw(matrix[3]));
+            assert(false); /* Untested (D3D) */
             break;
         }
         case TSP_DOT_PRODUCT_REFLECT_CUBE_MAP_CONST_EYE_1_OF_3:
