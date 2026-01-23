@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 #include <xboxkrnl/xboxkrnl.h>
 #include <hal/debug.h>
 #include <windows.h>
@@ -37,9 +36,7 @@ static const ColoredVertex verts[] = {
     {{ 1.0, -1.0,  1.0}, { 0.0,  0.0,  1.0}},
 };
 
-#define MASK(mask, val) (((val) << (ffs(mask)-1)) & (mask))
-
-static void init_shader(void);
+#define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))
 
 /* Main program function */
 int main(void)
@@ -89,8 +86,6 @@ int main(void)
         return 1;
     }
 
-    /* Load constant rendering things (shaders, geometry) */
-    init_shader();
     num_vertices = sizeof(verts)/sizeof(verts[0]);
 
     /* Setup to determine frames rendered every second */
@@ -98,12 +93,12 @@ int main(void)
     frames_total = frames = fps = 0;
 
     D3DVIEWPORT8 viewport;
-    viewport.X = 0;
-    viewport.Y = 0;
-    viewport.Width = width;
+    viewport.X      = 0;
+    viewport.Y      = 0;
+    viewport.Width  = width;
     viewport.Height = height;
-    viewport.MinZ = 0.0f;
-    viewport.MaxZ = 65536.0f;
+    viewport.MinZ   = 0.0f;
+    viewport.MaxZ   = 65536.0f;
     hr = IDirect3DDevice8_SetViewport(d3ddev, &viewport);
     if(FAILED(hr)) {
         debugPrint("IDirect3DDevice8::SetViewport failed\n");
@@ -153,6 +148,25 @@ int main(void)
         Sleep(2000);
         return 1;
     }
+
+    uint32_t vs_program[] = {
+        #include "vs.inl"
+        /* Required for LoadVertexShaderProgram. */
+        D3DVS_END(),
+    };
+
+    hr = IDirect3DDevice8_LoadVertexShaderProgram(d3ddev, (DWORD*)vs_program, 0);
+    if (FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::LoadVertexShaderProgram failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    /* This may only be included after the device is created, 
+     * and must have d3d8.h included. 
+     */
+    #include "ps.inl"
+
     while(1) {
         hr = IDirect3DDevice8_BeginScene(d3ddev);
         if(FAILED(hr)) {
@@ -160,7 +174,12 @@ int main(void)
             Sleep(2000);
             return 1;
         }
-
+        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::Clear failed\n");
+            Sleep(2000);
+            return 1;
+        }
         /* Send shader constants
          *
          * WARNING: Changing shader source code may impact constant locations!
@@ -221,47 +240,3 @@ int main(void)
     return 0;
 }
 
-/* Load the shader we will render with */
-static void init_shader(void)
-{
-    uint32_t *p;
-    int       i;
-
-    /* Setup vertex shader */
-    uint32_t vs_program[] = {
-        #include "vs.inl"
-    };
-
-    p = pb_begin();
-
-    /* Set run address of shader */
-    p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
-
-    /* Set execution mode */
-    p = pb_push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
-                 MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE, NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM)
-                 | MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE, NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV));
-
-    p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
-
-    pb_end(p);
-
-    /* Set cursor for program upload */
-    p = pb_begin();
-    p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
-    pb_end(p);
-
-    /* Copy program instructions (16-bytes each) */
-    for (i=0; i<sizeof(vs_program)/16; i++) {
-        p = pb_begin();
-        pb_push(p++, NV097_SET_TRANSFORM_PROGRAM, 4);
-        memcpy(p, &vs_program[i*4], 4*4);
-        p+=4;
-        pb_end(p);
-    }
-
-    /* Setup fragment shader */
-    p = pb_begin();
-    #include "ps.inl"
-    pb_end(p);
-}
