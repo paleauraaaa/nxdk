@@ -526,8 +526,8 @@
 #   define NV097_SET_VERTEX_DATA2S                            0x00001900
 #   define NV097_SET_VERTEX_DATA4UB                           0x00001940
 #   define NV097_SET_VERTEX_DATA4S_M                          0x00001980
-#   define NV097_SET_TEXTURE_OFFSET                           0x00001B00
-#   define NV097_SET_TEXTURE_FORMAT                           0x00001B04
+#   define NV097_SET_TEXTURE_OFFSET(n)                        (0x00001B00 + (n)*0x0100)
+#   define NV097_SET_TEXTURE_FORMAT(n)                        (0x00001B04 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA               0x00000003
 #       define NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE            (1 << 2)
 #       define NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE             (1 << 3)
@@ -566,14 +566,26 @@
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5         0x27
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8           0x28
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8B8           0x29
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FIXED 0x2A
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FLOAT 0x2B
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FIXED 0x2C
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FLOAT 0x2D
 # define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED 0x2E
+# define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FLOAT 0x2F
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED 0x30
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FLOAT 0x31
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16       0x32
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G16B16         0x33
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y16      0x35
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_G16B16   0x36
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R6G5B5   0x37
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G5B5A1       0x38
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R4G4B4A4       0x39
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8       0x3A
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_B8G8R8A8       0x3B
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8G8B8A8       0x3C
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G5B5A1 0x3D
+#           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R4G4B4A4 0x3E
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8 0x3F
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_B8G8R8A8 0x40
 #           define NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8G8B8A8 0x41
@@ -581,7 +593,7 @@
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_U               0x00F00000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_V               0x0F000000
 #       define NV097_SET_TEXTURE_FORMAT_BASE_SIZE_P               0xF0000000
-#   define NV097_SET_TEXTURE_ADDRESS                          0x00001B08
+#   define NV097_SET_TEXTURE_ADDRESS(n)                          (0x00001B08 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_ADDRESS_U                        0x0000000F
 #       define NV097_SET_TEXTURE_ADDRESS_CYLINDERWRAP_U           0x000000F0
 #       define NV097_SET_TEXTURE_ADDRESS_V                        0x00000F00
@@ -589,27 +601,33 @@
 #       define NV097_SET_TEXTURE_ADDRESS_P                        0x000F0000
 #       define NV097_SET_TEXTURE_ADDRESS_CYLINDERWRAP_P           0x00F00000
 #       define NV097_SET_TEXTURE_ADDRESS_CYLINDERWRAP_Q           0x0F000000
-#   define NV097_SET_TEXTURE_CONTROL0                         0x00001B0C
+#   define NV097_SET_TEXTURE_CONTROL0(n)                         (0x00001B0C + (n)*0x0100)
 #       define NV097_SET_TEXTURE_CONTROL0_ALPHA_KILL_ENABLE      (1 << 2)
 #       define NV097_SET_TEXTURE_CONTROL0_COLOR_KEY_MODE         0x3
 #       define NV097_SET_TEXTURE_CONTROL0_ANISOTROPY             0x30
 #       define NV097_SET_TEXTURE_CONTROL0_ENABLE                 (1 << 30)
 #       define NV097_SET_TEXTURE_CONTROL0_MIN_LOD_CLAMP           0x3FFC0000
 #       define NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP           0x0003FFC0
-#   define NV097_SET_TEXTURE_CONTROL1                         0x00001B10
+#   define NV097_SET_TEXTURE_CONTROL1(n)                         (0x00001B10 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
-#   define NV097_SET_TEXTURE_FILTER                           0x00001B14
+#   define NV097_SET_TEXTURE_FILTER(n)                           (0x00001B14 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
 #       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
+#               define NV097_SET_TEXTURE_FILTER_NONE              0
+#               define NV097_SET_TEXTURE_FILTER_POINT             1
+#               define NV097_SET_TEXTURE_FILTER_LINEAR            2
+#               define NV097_SET_TEXTURE_FILTER_ANISOTROPIC       3
+#               define NV097_SET_TEXTURE_FILTER_QUINCUNX          4
+#               define NV097_SET_TEXTURE_FILTER_GAUSSIAN_CUBIC    5
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
 #       define NV097_SET_TEXTURE_FILTER_ASIGNED                   (1 << 28)
 #       define NV097_SET_TEXTURE_FILTER_RSIGNED                   (1 << 29)
 #       define NV097_SET_TEXTURE_FILTER_GSIGNED                   (1 << 30)
 #       define NV097_SET_TEXTURE_FILTER_BSIGNED                   (1 << 31)
-#   define NV097_SET_TEXTURE_IMAGE_RECT                       0x00001B1C
+#   define NV097_SET_TEXTURE_IMAGE_RECT(n)                       (0x00001B1C + (n)*0x0100)
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF
-#   define NV097_SET_TEXTURE_PALETTE                          0x00001B20
+#   define NV097_SET_TEXTURE_PALETTE(n)                          (0x00001B20 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA              (1 << 0)
 #       define NV097_SET_TEXTURE_PALETTE_LENGTH                   0x0000000C
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_256               0
@@ -617,10 +635,10 @@
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_64                2
 #         define NV097_SET_TEXTURE_PALETTE_LENGTH_32                3
 #       define NV097_SET_TEXTURE_PALETTE_OFFSET                   0xFFFFFFC0
-#   define NV097_SET_TEXTURE_BORDER_COLOR                     0x00001B24
-#   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT                 0x00001B28
-#   define NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE               0x00001B38
-#   define NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET              0x00001B3C
+#   define NV097_SET_TEXTURE_BORDER_COLOR(n)                     (0x00001B24 + (n)*0x0100)
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_MAT(n)                 (0x00001B28 + (n)*0x0100)
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_SCALE(n)               (0x00001B38 + (n)*0x0100)
+#   define NV097_SET_TEXTURE_SET_BUMP_ENV_OFFSET(n)              (0x00001B3C + (n)*0x0100)
 #   define NV097_SET_SEMAPHORE_OFFSET                         0x00001D6C
 #   define NV097_BACK_END_WRITE_SEMAPHORE_RELEASE             0x00001D70
 #   define NV097_SET_ZMIN_MAX_CONTROL                         0x00001D78
