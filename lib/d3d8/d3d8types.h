@@ -21,7 +21,7 @@ typedef HANDLE HMONITOR;
 /*
  * Direct3D Errors
  */
-#define D3D_OK                              S_OK
+#define D3D_OK                                  S_OK
 
 #define D3DERR_WRONGTEXTUREFORMAT               MAKE_D3DHRESULT(2072)
 #define D3DERR_UNSUPPORTEDCOLOROPERATION        MAKE_D3DHRESULT(2073)
@@ -56,7 +56,7 @@ typedef HANDLE HMONITOR;
 #define D3DCREATE_HARDWARE_VERTEXPROCESSING     0x00000040L
 #define D3DCREATE_MIXED_VERTEXPROCESSING        0x00000080L
 
-#define MAX_DEVICE_IDENTIFIER_STRING        512
+#define MAX_DEVICE_IDENTIFIER_STRING 512
 typedef struct _D3DADAPTER_IDENTIFIER8 {
     char            Driver     [MAX_DEVICE_IDENTIFIER_STRING];
     char            Description[MAX_DEVICE_IDENTIFIER_STRING];
@@ -78,108 +78,108 @@ typedef struct _D3DADAPTER_IDENTIFIER8 {
             ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24 ))
 
 typedef enum _D3DFORMAT {
-    D3DFMT_UNKNOWN              = 0xFFFFFFFF,
+    D3DFMT_UNKNOWN      = 0xFFFFFFFF,
 
     /* Swizzled formats */
 
-    D3DFMT_A8R8G8B8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8,
-    D3DFMT_X8R8G8B8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8,
-    D3DFMT_R5G6B5               = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5,
-    D3DFMT_R6G5B5               = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
-    D3DFMT_X1R5G5B5             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5,
-    D3DFMT_A1R5G5B5             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5,
-    D3DFMT_A4R4G4B4             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4,
-    D3DFMT_A8                   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8,
-    D3DFMT_A8B8G8R8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8,
-    D3DFMT_B8G8R8A8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_B8G8R8A8,
-    D3DFMT_R4G4B4A4             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R4G4B4A4,
-    D3DFMT_R5G5B5A1             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G5B5A1,
-    D3DFMT_R8G8B8A8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8G8B8A8,
-    D3DFMT_R8B8                 = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8B8,
-    D3DFMT_G8B8                 = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8,
+    D3DFMT_A8R8G8B8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8,
+    D3DFMT_X8R8G8B8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8,
+    D3DFMT_R5G6B5       = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G6B5,
+    D3DFMT_R6G5B5       = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
+    D3DFMT_X1R5G5B5     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X1R5G5B5,
+    D3DFMT_A1R5G5B5     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5,
+    D3DFMT_A4R4G4B4     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A4R4G4B4,
+    D3DFMT_A8           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8,
+    D3DFMT_A8B8G8R8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8,
+    D3DFMT_B8G8R8A8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_B8G8R8A8,
+    D3DFMT_R4G4B4A4     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R4G4B4A4,
+    D3DFMT_R5G5B5A1     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R5G5B5A1,
+    D3DFMT_R8G8B8A8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8G8B8A8,
+    D3DFMT_R8B8         = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R8B8,
+    D3DFMT_G8B8         = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8,
 
-    D3DFMT_P8                   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8,
+    D3DFMT_P8           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8,
 
-    D3DFMT_L8                   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8,
-    D3DFMT_A8L8                 = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8,
-    D3DFMT_AL8                  = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_AY8,
-    D3DFMT_L16                  = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16,
+    D3DFMT_L8           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_Y8,
+    D3DFMT_A8L8         = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8Y8,
+    D3DFMT_AL8          = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_AY8,
+    D3DFMT_L16          = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16,
 
-    D3DFMT_V8U8                 = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8,
-    D3DFMT_L6V5U5               = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
-    D3DFMT_X8L8V8U8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8,
-    D3DFMT_Q8W8V8U8             = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8,
-    D3DFMT_V16U16               = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G16B16,
+    D3DFMT_V8U8         = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G8B8,
+    D3DFMT_L6V5U5       = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
+    D3DFMT_X8L8V8U8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_X8R8G8B8,
+    D3DFMT_Q8W8V8U8     = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8B8G8R8,
+    D3DFMT_V16U16       = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G16B16,
 
-    D3DFMT_D16_LOCKABLE         = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FIXED,
-    D3DFMT_D16                  = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FIXED,
-    D3DFMT_D24S8                = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FIXED,
-    D3DFMT_F16                  = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FLOAT,
-    D3DFMT_F24S8                = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FLOAT,
+    D3DFMT_D16_LOCKABLE = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FIXED,
+    D3DFMT_D16          = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FIXED,
+    D3DFMT_D24S8        = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FIXED,
+    D3DFMT_F16          = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_Y16_FLOAT,
+    D3DFMT_F24S8        = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_DEPTH_X8_Y24_FLOAT,
 
     /* YUV formats */
 
-    D3DFMT_YUY2                 = NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8,
-    D3DFMT_UYVY                 = NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_YB8CR8YA8CB8,
+    D3DFMT_YUY2         = NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_CR8YB8CB8YA8,
+    D3DFMT_UYVY         = NV097_SET_TEXTURE_FORMAT_COLOR_LC_IMAGE_YB8CR8YA8CB8,
 
     /* Compressed formats */
 
-    D3DFMT_DXT1                 = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5,
-    D3DFMT_DXT2                 = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8,
-    D3DFMT_DXT3                 = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8,
-    D3DFMT_DXT4                 = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
-    D3DFMT_DXT5                 = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
+    D3DFMT_DXT1         = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5,
+    D3DFMT_DXT2         = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8,
+    D3DFMT_DXT3         = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT23_A8R8G8B8,
+    D3DFMT_DXT4         = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
+    D3DFMT_DXT5         = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
 
     /* Linear formats */
 
-    D3DFMT_LIN_A1R5G5B5         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A1R5G5B5,
-    D3DFMT_LIN_A4R4G4B4         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A4R4G4B4,
-    D3DFMT_LIN_A8               = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8,
-    D3DFMT_LIN_A8B8G8R8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8,
-    D3DFMT_LIN_A8R8G8B8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8,
-    D3DFMT_LIN_B8G8R8A8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_B8G8R8A8,
-    D3DFMT_LIN_G8B8             = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_G8B8,
-    D3DFMT_LIN_R4G4B4A4         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R4G4B4A4,
-    D3DFMT_LIN_R5G5B5A1         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G5B5A1,
-    D3DFMT_LIN_R5G6B5           = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5,
-    D3DFMT_LIN_R6G5B5           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
-    D3DFMT_LIN_R8B8             = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8B8,
-    D3DFMT_LIN_R8G8B8A8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8G8B8A8,
-    D3DFMT_LIN_X1R5G5B5         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X1R5G5B5,
-    D3DFMT_LIN_X8R8G8B8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8,
+    D3DFMT_LIN_A1R5G5B5 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A1R5G5B5,
+    D3DFMT_LIN_A4R4G4B4 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A4R4G4B4,
+    D3DFMT_LIN_A8       = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8,
+    D3DFMT_LIN_A8B8G8R8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8,
+    D3DFMT_LIN_A8R8G8B8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8,
+    D3DFMT_LIN_B8G8R8A8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_B8G8R8A8,
+    D3DFMT_LIN_G8B8     = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_G8B8,
+    D3DFMT_LIN_R4G4B4A4 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R4G4B4A4,
+    D3DFMT_LIN_R5G5B5A1 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G5B5A1,
+    D3DFMT_LIN_R5G6B5   = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R5G6B5,
+    D3DFMT_LIN_R6G5B5   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
+    D3DFMT_LIN_R8B8     = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8B8,
+    D3DFMT_LIN_R8G8B8A8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_R8G8B8A8,
+    D3DFMT_LIN_X1R5G5B5 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X1R5G5B5,
+    D3DFMT_LIN_X8R8G8B8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8,
 
-    D3DFMT_LIN_A8L8             = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8Y8,
-    D3DFMT_LIN_AL8              = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_AY8,
-    D3DFMT_LIN_L16              = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y16,
-    D3DFMT_LIN_L8               = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y8,
+    D3DFMT_LIN_A8L8     = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8Y8,
+    D3DFMT_LIN_AL8      = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_AY8,
+    D3DFMT_LIN_L16      = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y16,
+    D3DFMT_LIN_L8       = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_Y8,
 
-    D3DFMT_LIN_V16U16           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G16B16,
-    D3DFMT_LIN_V8U8             = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_G8B8,
-    D3DFMT_LIN_L6V5U5           = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
-    D3DFMT_LIN_X8L8V8U8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8,
-    D3DFMT_LIN_Q8W8V8U8         = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8,
+    D3DFMT_LIN_V16U16   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_G16B16,
+    D3DFMT_LIN_V8U8     = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_G8B8,
+    D3DFMT_LIN_L6V5U5   = NV097_SET_TEXTURE_FORMAT_COLOR_SZ_R6G5B5,
+    D3DFMT_LIN_X8L8V8U8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8,
+    D3DFMT_LIN_Q8W8V8U8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8,
 
-    D3DFMT_LIN_D24S8            = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED,
-    D3DFMT_LIN_F24S8            = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FLOAT,
-    D3DFMT_LIN_D16              = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED,
-    D3DFMT_LIN_F16              = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FLOAT,
+    D3DFMT_LIN_D24S8    = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED,
+    D3DFMT_LIN_F24S8    = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FLOAT,
+    D3DFMT_LIN_D16      = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED,
+    D3DFMT_LIN_F16      = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FLOAT,
 
-    D3DFMT_VERTEXDATA           = 100,
-    D3DFMT_INDEX16              = 101,
+    D3DFMT_VERTEXDATA   = 100, // Arbitrary constants,
+    D3DFMT_INDEX16      = 101, // not used by the hardware.
 
-    D3DFMT_FORCE_DWORD          =0x7fffffff
+    D3DFMT_FORCE_DWORD  =0x7fffffff
 } D3DFORMAT;
 
-#define D3DPRESENTFLAG_LOCKABLE_BACKBUFFER      0x00000001
-#define D3DPRESENTFLAG_WIDESCREEN               0x00000010
-#define D3DPRESENTFLAG_INTERLACED               0x00000020
-#define D3DPRESENTFLAG_PROGRESSIVE              0x00000040
-#define D3DPRESENTFLAG_FIELD                    0x00000080
-#define D3DPRESENTFLAG_10X11PIXELASPECTRATIO    0x00000100
-#define D3DPRESENTFLAG_EMULATE_REFRESH_RATE     0x00000200  
+#define D3DPRESENTFLAG_LOCKABLE_BACKBUFFER   0x00000001
+#define D3DPRESENTFLAG_WIDESCREEN            0x00000010
+#define D3DPRESENTFLAG_INTERLACED            0x00000020
+#define D3DPRESENTFLAG_PROGRESSIVE           0x00000040
+#define D3DPRESENTFLAG_FIELD                 0x00000080
+#define D3DPRESENTFLAG_10X11PIXELASPECTRATIO 0x00000100
+#define D3DPRESENTFLAG_EMULATE_REFRESH_RATE  0x00000200  
 
-#define D3DPRESENT_RATE_DEFAULT         0x00000000
-#define D3DPRESENT_RATE_UNLIMITED       0x00000000
+#define D3DPRESENT_RATE_DEFAULT              0x00000000
+#define D3DPRESENT_RATE_UNLIMITED            0x00000000
 
 typedef struct _D3DDISPLAYMODE {
     UINT            Width;
@@ -317,7 +317,6 @@ typedef enum _D3DTEXTUREFILTERTYPE {
 #define D3DPRESENT_INTERVAL_ONE         0x00000001L
 #define D3DPRESENT_INTERVAL_TWO         0x00000002L
 #define D3DPRESENT_INTERVAL_THREE       0x00000004L
-#define D3DPRESENT_INTERVAL_FOUR        0x00000008L
 #define D3DPRESENT_INTERVAL_IMMEDIATE   0x80000000L
 
 //
@@ -646,23 +645,82 @@ typedef struct IDirect3DSurface8 IDirect3DSurface8, *LPDIRECT3DSURFACE8;
 
 
 typedef struct _D3DPRESENT_PARAMETERS_ {
+    // The following three fields must be valid for a display mode returned 
+    // from IDirect3D8::EnumAdapterModes.
     UINT                BackBufferWidth;
     UINT                BackBufferHeight;
     D3DFORMAT           BackBufferFormat;
+    // Must be 0, 1, or 2. 0 will be treated as 1.
     UINT                BackBufferCount;
 
+    // Currently ignored.
     D3DMULTISAMPLE_TYPE MultiSampleType;
-
+    // Currently ignored.
     D3DSWAPEFFECT       SwapEffect;
+    // Ignored, must be NULL.
     HWND                hDeviceWindow;
+    // Must be FALSE.
     BOOL                Windowed;
+    // Must be FALSE if DepthStencilSurface is non-NULL.
     BOOL                EnableAutoDepthStencil;
+    // Must be D3DFMT_D24S8.
     D3DFORMAT           AutoDepthStencilFormat;
+    // Must be (D3DCREATE_HARDWARE_VERTEXPROCESSING | 
+    //          D3DCREATE_HARDWARE_PUREDEVICE)
     DWORD               Flags;
 
+    // Must be valid for the same display mode as BackBufferWidth,
+    // BackBufferHeight, and BackBufferFormat were, or 0.
     UINT                FullScreen_RefreshRateInHz;
+
+    // Must be a valid D3DPRESENT_INTERVAL.
+    // D3DPRESENT_INTERVAL_DEFAULT will be treated as 
+    // D3DPRESENT_INTERVAL_IMMEDIATE.
     UINT                FullScreen_PresentationInterval;
 
+    // If non-NULL, BufferSurfaces will supply the initial front and back 
+    // buffer(s). The lifetime of these will not be managed by D3D, so it is 
+    // the user's responsibility to ensure they live at least as long as the
+    // device does, and that they are freed if necessary. 
+    // If NULL, D3D will create and manage its own framebuffers
+    // on device creation. 
+    //
+    // D3D does not support "mixing" framebuffers,
+    // so if BufferSurfaces[0] is non-NULL, BufferSurfaces[1] must be
+    // non-NULL. If BackBufferCount == 2, BackBufferSurfaces[2] also must be
+    // non-NULL. If BufferSurfaces[0] is NULL, the other surface(s) must
+    // be NULL.
+    //
+    // If non-NULL, all BufferSurfaces must have been created with the same 
+    // width, height, and format as specified by BackBufferWidth, 
+    // BackBufferHeight, and BackBufferFormat.
+    // 
+    // BufferSurfaces[0] will be the initial back buffer and therefore the 
+    // first surface drawn to. If BackBufferCount < 2, BufferSurfaces[1] will 
+    // be the initial front buffer. If BackBufferCount == 2, BufferSurfaces[1]
+    // will be the second back buffer, and BufferSurfaces[2] will be the 
+    // initial front buffer.
+    // 
+    // D3D will not present the initial front buffer in either case, so its 
+    // contents are irrelevant and will not be drawn.
+    //
+    // The contiguous memory regions used by all BufferSurfaces *should* be 
+    // contiguous with one another (i.e., coming from the same allocation, 
+    // and with no gaps in between). 
+    // Non-contiguous regions would require either the use of one tile per 
+    // surface or the non-use of tiles for framebuffers altogether.
+    //
+    // As an implementation detail, device creation currently does
+    // not handle the case of non-contiguous BufferSurfaces and will fail.
+    //
+    // DepthStencilSurface need not be contiguous with BufferSurfaces, and it
+    // is permitted to be NULL or non-NULL independent of the BufferSurfaces. 
+    // If DepthStencilSurface is non-NULL and EnableAutoDepthStencil == TRUE, 
+    // device creation will fail. 
+    // If non-NULL, DepthStencilSurface must have been created with dimensions
+    // at least as large as BackBufferWidth * BackBufferHeight, and its format
+    // must be a valid format as given by IDirect3D8::CheckDepthStencilMatch
+    // (currently only D3DFMT_D24S8).
     IDirect3DSurface8  *BufferSurfaces[3];
     IDirect3DSurface8  *DepthStencilSurface;
 
@@ -725,6 +783,195 @@ typedef struct _D3DPixelShaderDef {
    DWORD    PSC1Mapping;               // Mapping of c1 regs to D3D constants
    DWORD    PSFinalCombinerConstants;  // Final combiner constant mapping
 } D3DPIXELSHADERDEF;
+
+typedef enum _D3DSHADEMODE {
+    D3DSHADE_FLAT               = NV097_SET_SHADE_MODEL_FLAT,
+    D3DSHADE_GOURAUD            = NV097_SET_SHADE_MODEL_SMOOTH,
+    D3DSHADE_FORCE_DWORD        = 0x7fffffff, /* force 32-bit size enum */
+} D3DSHADEMODE;
+
+typedef enum _D3DFILLMODE {
+    D3DFILL_POINT               = NV097_SET_FRONT_POLYGON_MODE_V_POINT,
+    D3DFILL_WIREFRAME           = NV097_SET_FRONT_POLYGON_MODE_V_LINE,
+    D3DFILL_SOLID               = NV097_SET_FRONT_POLYGON_MODE_V_FILL,
+    D3DFILL_FORCE_DWORD         = 0x7fffffff, /* force 32-bit size enum */
+} D3DFILLMODE;
+
+typedef enum _D3DBLEND {
+    D3DBLEND_ZERO = NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO,
+    D3DBLEND_ONE = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE,
+    D3DBLEND_SRCCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_COLOR,
+    D3DBLEND_INVSRCCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_COLOR,
+    D3DBLEND_SRCALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA,
+    D3DBLEND_INVSRCALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_ALPHA,
+    D3DBLEND_DESTALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA,
+    D3DBLEND_INVDESTALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_ALPHA,
+    D3DBLEND_DESTCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_DST_COLOR,
+    D3DBLEND_INVDESTCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_COLOR,
+    D3DBLEND_SRCALPHASAT = NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA_SATURATE,
+    D3DBLEND_CONSTANTCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_COLOR,
+    D3DBLEND_INVCONSTANTCOLOR 
+        = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_COLOR,
+    D3DBLEND_CONSTANTALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA,
+    D3DBLEND_INVCONSTANTALPHA 
+        = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA,
+
+    D3DBLEND_FORCE_DWORD        = 0x7fffffff, /* force 32-bit size enum */
+} D3DBLEND;
+
+typedef enum _D3DBLENDOP {
+    D3DBLENDOP_ADD               = NV097_SET_BLEND_EQUATION_V_FUNC_ADD,
+    D3DBLENDOP_SUBTRACT          = NV097_SET_BLEND_EQUATION_V_FUNC_SUBTRACT,
+    D3DBLENDOP_REVSUBTRACT       = NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT,
+    D3DBLENDOP_MIN               = NV097_SET_BLEND_EQUATION_V_MIN,
+    D3DBLENDOP_MAX               = NV097_SET_BLEND_EQUATION_V_MAX,
+    D3DBLENDOP_ADDSIGNED         = NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED,
+    D3DBLENDOP_REVSUBTRACTSIGNED = NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED,
+    D3DBLENDOP_FORCE_DWORD       = 0x7fffffff, /* force 32-bit size enum */
+} D3DBLENDOP;
+
+typedef enum _D3DCULL {
+    D3DCULL_NONE                = 0,
+    D3DCULL_CW                  = NV097_SET_FRONT_FACE_V_CW,
+    D3DCULL_CCW                 = NV097_SET_FRONT_FACE_V_CW,
+    D3DCULL_FORCE_DWORD         = 0x7fffffff, /* force 32-bit size enum */
+} D3DCULL;
+
+typedef enum _D3DFRONT {                
+    D3DFRONT_CW                 = NV097_SET_FRONT_FACE_V_CW,
+    D3DFRONT_CCW                = NV097_SET_FRONT_FACE_V_CCW,
+    D3DFRONT_FORCE_DWORD        = 0x7fffffff, /* force 32-bit size enum */
+} D3DFRONT;
+
+typedef enum _D3DCMPFUNC {
+    D3DCMP_NEVER                = NV097_SET_SHADOW_COMPARE_FUNC_NEVER,
+    D3DCMP_LESS                 = NV097_SET_SHADOW_COMPARE_FUNC_LESS,
+    D3DCMP_EQUAL                = NV097_SET_SHADOW_COMPARE_FUNC_EQUAL,
+    D3DCMP_LESSEQUAL            = NV097_SET_SHADOW_COMPARE_FUNC_LEQUAL,
+    D3DCMP_GREATER              = NV097_SET_SHADOW_COMPARE_FUNC_GREATER,
+    D3DCMP_NOTEQUAL             = NV097_SET_SHADOW_COMPARE_FUNC_NOTEQUAL,
+    D3DCMP_GREATEREQUAL         = NV097_SET_SHADOW_COMPARE_FUNC_GEQUAL,
+    D3DCMP_ALWAYS               = NV097_SET_SHADOW_COMPARE_FUNC_ALWAYS,
+    D3DCMP_FORCE_DWORD          = 0x7fffffff, /* force 32-bit size enum */
+} D3DCMPFUNC;
+
+typedef enum _D3DSTENCILOP {
+    D3DSTENCILOP_KEEP           = NV097_SET_STENCIL_OP_V_KEEP,
+    D3DSTENCILOP_ZERO           = NV097_SET_STENCIL_OP_V_ZERO,
+    D3DSTENCILOP_REPLACE        = NV097_SET_STENCIL_OP_V_REPLACE,
+    D3DSTENCILOP_INCRSAT        = NV097_SET_STENCIL_OP_V_INCRSAT,
+    D3DSTENCILOP_DECRSAT        = NV097_SET_STENCIL_OP_V_DECRSAT,
+    D3DSTENCILOP_INVERT         = NV097_SET_STENCIL_OP_V_INVERT,
+    D3DSTENCILOP_INCR           = NV097_SET_STENCIL_OP_V_INCR,
+    D3DSTENCILOP_DECR           = NV097_SET_STENCIL_OP_V_DECR,
+    D3DSTENCILOP_FORCE_DWORD    = 0x7fffffff, /* force 32-bit size enum */
+} D3DSTENCILOP;
+
+typedef enum _D3DFOGMODE {
+    D3DFOG_NONE                 = 0,
+    D3DFOG_EXP                  = NV097_SET_FOG_MODE_V_EXP,
+    D3DFOG_EXP2                 = NV097_SET_FOG_MODE_V_EXP2,
+    D3DFOG_LINEAR               = NV097_SET_FOG_MODE_V_LINEAR,
+    D3DFOG_EXP_ABS              = NV097_SET_FOG_MODE_V_EXP_ABS,
+    D3DFOG_EXP2_ABS             = NV097_SET_FOG_MODE_V_EXP2_ABS,
+    D3DFOG_LINEAR_ABS           = NV097_SET_FOG_MODE_V_LINEAR_ABS,
+    D3DFOG_FORCE_DWORD          = 0x7fffffff, /* force 32-bit size enum */
+} D3DFOGMODE;
+
+typedef enum _D3DSWATHWIDTH {                   // Xbox extension
+    D3DSWATH_8                  = 0,
+    D3DSWATH_16                 = 1,
+    D3DSWATH_32                 = 2,
+    D3DSWATH_64                 = 3,
+    D3DSWATH_128                = 4,
+    D3DSWATH_OFF                = 0xf,
+    D3DSWATH_FORCE_DWORD        = 0x7fffffff, /* force 32-bit size enum */
+} D3DSWATHWIDTH;
+
+typedef enum _D3DLOGICOP {                      // Xbox extension
+    D3DLOGICOP_NONE             = 0,
+    D3DLOGICOP_CLEAR            = NV097_SET_LOGIC_OP_V_CLEAR,
+    D3DLOGICOP_AND              = NV097_SET_LOGIC_OP_V_AND,
+    D3DLOGICOP_AND_REVERSE      = NV097_SET_LOGIC_OP_V_AND_REVERSE,
+    D3DLOGICOP_COPY             = NV097_SET_LOGIC_OP_V_COPY,
+    D3DLOGICOP_AND_INVERTED     = NV097_SET_LOGIC_OP_V_AND_INVERTED,
+    D3DLOGICOP_NOOP             = NV097_SET_LOGIC_OP_V_NOOP,
+    D3DLOGICOP_XOR              = NV097_SET_LOGIC_OP_V_XOR,
+    D3DLOGICOP_OR               = NV097_SET_LOGIC_OP_V_OR,
+    D3DLOGICOP_NOR              = NV097_SET_LOGIC_OP_V_NOR,
+    D3DLOGICOP_EQUIV            = NV097_SET_LOGIC_OP_V_EQUIV,
+    D3DLOGICOP_INVERT           = NV097_SET_LOGIC_OP_V_INVERT,
+    D3DLOGICOP_OR_REVERSE       = NV097_SET_LOGIC_OP_V_OR_REVERSE,
+    D3DLOGICOP_COPY_INVERTED    = NV097_SET_LOGIC_OP_V_COPY_INVERTED,
+    D3DLOGICOP_OR_INVERTED      = NV097_SET_LOGIC_OP_V_OR_INVERTED,
+    D3DLOGICOP_NAND             = NV097_SET_LOGIC_OP_V_NAND,
+    D3DLOGICOP_SET              = NV097_SET_LOGIC_OP_V_SET,
+    D3DLOGICOP_FORCE_DWORD      = 0x7fffffff, /* force 32-bit size enum */
+} D3DLOGICOP;
+
+typedef enum _D3DZBUFFERTYPE {
+    D3DZB_FALSE                 = 0,
+    D3DZB_TRUE                  = 1, // Z buffering
+    D3DZB_USEW                  = 2, // W buffering
+    D3DZB_FORCE_DWORD           = 0x7fffffff, /* force 32-bit size enum */
+} D3DZBUFFERTYPE;
+
+// The D3DVERTEXBLENDFLAGS type is used with D3DRS_VERTEXBLEND state.
+//
+typedef enum _D3DVERTEXBLENDFLAGS
+{
+    D3DVBF_DISABLE           = 0,     // Disable vertex blending
+    D3DVBF_1WEIGHTS          = 1,     // 2 matrix blending
+    D3DVBF_2WEIGHTS          = 3,     // 3 matrix blending
+    D3DVBF_3WEIGHTS          = 5,     // 4 matrix blending
+    D3DVBF_2WEIGHTS2MATRICES = 2,     // Xbox extension
+    D3DVBF_3WEIGHTS3MATRICES = 4,     // Xbox extension
+    D3DVBF_4WEIGHTS4MATRICES = 6,     // Xbox extension
+
+    D3DVBF_MAX               = 7,
+    D3DVBF_FORCE_DWORD       = 0x7fffffff, // force 32-bit size enum
+} D3DVERTEXBLENDFLAGS;
+
+// Values for material source
+typedef enum _D3DMATERIALCOLORSOURCE
+{
+    D3DMCS_MATERIAL         = 0,            // Color from material is used
+    D3DMCS_COLOR1           = 1,            // Diffuse vertex color is used
+    D3DMCS_COLOR2           = 2,            // Specular vertex color is used
+    D3DMCS_FORCE_DWORD      = 0x7fffffff,   // force 32-bit size enum
+} D3DMATERIALCOLORSOURCE;
+
+//
+// Values for D3DRS_DEPTHCLIPCONTROL renderstate (Xbox extension)
+//
+#define D3DDCC_CULLPRIMITIVE 0x001
+#define D3DDCC_CLAMP         0x010
+#define D3DDCC_IGNORE_W_SIGN 0x100
+
+/* Flags to construct D3DRS_COLORWRITEENABLE */
+#define D3DCOLORWRITEENABLE_RED     (1L<<16)
+#define D3DCOLORWRITEENABLE_GREEN   (1L<<8)
+#define D3DCOLORWRITEENABLE_BLUE    (1L<<0)
+#define D3DCOLORWRITEENABLE_ALPHA   (1L<<24)
+#define D3DCOLORWRITEENABLE_ALL     0x01010101 // Xbox extension
+
+/* Flags to construct D3DRS_SAMPLEALPHA */
+#define D3DSAMPLEALPHA_TOCOVERAGE   0x0010
+#define D3DSAMPLEALPHA_TOONE        0x0100
+
+// Bias to apply to the texture coordinate set to apply a wrap to.
+#define D3DRENDERSTATE_WRAPBIAS     D3DRS_WRAP0
+
+/* Flags to construct the WRAP render states */
+#define D3DWRAP_U   0x00000010L
+#define D3DWRAP_V   0x00001000L
+#define D3DWRAP_W   0x00100000L
+
+/* Flags to construct the WRAP render states for 1D thru 4D texture coordinates */
+#define D3DWRAPCOORD_0   0x00000010L    // same as D3DWRAP_U
+#define D3DWRAPCOORD_1   0x00001000L    // same as D3DWRAP_V
+#define D3DWRAPCOORD_2   0x00100000L    // same as D3DWRAP_W
+#define D3DWRAPCOORD_3   0x01000000L
 
 typedef enum _D3DRENDERSTATETYPE {
 
@@ -927,14 +1174,14 @@ enum PS_CHANNEL {
 };
 
 enum PS_INPUTMAPPING {
-    PS_INPUTMAPPING_UNSIGNED_IDENTITY= 0x00L, // max(0,x)         OK for final combiner
-    PS_INPUTMAPPING_UNSIGNED_INVERT=   0x20L, // 1 - max(0,x)     OK for final combiner
-    PS_INPUTMAPPING_EXPAND_NORMAL=     0x40L, // 2*max(0,x) - 1   invalid for final combiner
-    PS_INPUTMAPPING_EXPAND_NEGATE=     0x60L, // 1 - 2*max(0,x)   invalid for final combiner
-    PS_INPUTMAPPING_HALFBIAS_NORMAL=   0x80L, // max(0,x) - 1/2   invalid for final combiner
-    PS_INPUTMAPPING_HALFBIAS_NEGATE=   0xa0L, // 1/2 - max(0,x)   invalid for final combiner
-    PS_INPUTMAPPING_SIGNED_IDENTITY=   0xc0L, // x                invalid for final combiner
-    PS_INPUTMAPPING_SIGNED_NEGATE=     0xe0L, // -x               invalid for final combiner
+    PS_INPUTMAPPING_UNSIGNED_IDENTITY= NV097_SET_COMBINER_ALPHA_ICW_A_MAP_UNSIGNED_IDENTITY, // max(0,x)         OK for final combiner
+    PS_INPUTMAPPING_UNSIGNED_INVERT=   (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_UNSIGNED_INVERT * 2) << 4, // 1 - max(0,x)     OK for final combiner
+    PS_INPUTMAPPING_EXPAND_NORMAL=     (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NORMAL * 2) << 4, // 2*max(0,x) - 1   invalid for final combiner
+    PS_INPUTMAPPING_EXPAND_NEGATE=     (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NORMAL * 2) << 4, // 1 - 2*max(0,x)   invalid for final combiner
+    PS_INPUTMAPPING_HALFBIAS_NORMAL=   (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_HALFBIAS_NORMAL * 2) << 4, // max(0,x) - 1/2   invalid for final combiner
+    PS_INPUTMAPPING_HALFBIAS_NEGATE=   (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_HALFBIAS_NEGATE * 2) << 4, // 1/2 - max(0,x)   invalid for final combiner
+    PS_INPUTMAPPING_SIGNED_IDENTITY=   (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_SIGNED_IDENTITY * 2) << 4, // x                invalid for final combiner
+    PS_INPUTMAPPING_SIGNED_NEGATE=     (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_SIGNED_NEGATE * 2) << 4, // -x               invalid for final combiner
 };
 
 enum PS_REGISTER {
@@ -998,7 +1245,7 @@ typedef struct _D3DSURFACE_DESC {
     UINT                Width;
     UINT                Height;
 } D3DSURFACE_DESC;
-
+                         // elem count                data type
 #define D3DVSDT_FLOAT1      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F) // 1D float expanded to (value, 0., 0., 1.)
 #define D3DVSDT_FLOAT2      ((2 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F) // 2D float expanded to (value, value, 0., 1.)
 #define D3DVSDT_FLOAT3      ((3 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F) // 3D float expanded to (value, value, value, 1.)
@@ -1025,9 +1272,9 @@ typedef struct _D3DSURFACE_DESC {
 #define D3DVSDT_PBYTE2      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL) // 2D packed byte expanded to (value, value, 0., 1.)
 #define D3DVSDT_PBYTE3      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL) // 3D packed byte expanded to (value, value, value, 1.)
 #define D3DVSDT_PBYTE4      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL) // 4D packed byte expanded to (value, value, value, value)
-#define D3DVSDT_FLOAT2H     0x72    // 2D homogeneous float expanded to (value, value,0., value.)
-                                    // Useful for projective texture coordinates.
-#define D3DVSDT_NONE        0x02    // No stream data
+#define D3DVSDT_FLOAT2H     ((7 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)      // 2D homogeneous float expanded to (value, value,0., value.)
+                                                                                        // Useful for projective texture coordinates.
+#define D3DVSDT_NONE        (0        | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)      // No stream data
 
 // pixel/vertex shader end token
 #define D3DPS_END()  0x0000FFFF
@@ -1083,80 +1330,110 @@ typedef enum _D3DTEXTURESTAGESTATETYPE {
 } D3DTEXTURESTAGESTATETYPE;
 
 #define PS_COMBINERINPUTS(a,b,c,d) ((DWORD)(((a)<<24)|((b)<<16)|((c)<<8)|(d)))
-#define PS_COMBINEROUTPUTS(ab,cd,mux_sum,flags) ((DWORD)(((flags)<<12)|((mux_sum)<<8)|((ab)<<4)|(cd)))
+#define PS_COMBINEROUTPUTS(ab,cd,mux_sum,flags) \
+    ((DWORD)(((flags)<<12)|((mux_sum)<<8)|((ab)<<4)|(cd)))
 
-enum PS_COMBINEROUTPUT
-{
-    PS_COMBINEROUTPUT_IDENTITY=            0x00L, // y = x
-    PS_COMBINEROUTPUT_BIAS=                0x08L, // y = x - 0.5
-    PS_COMBINEROUTPUT_SHIFTLEFT_1=         0x10L, // y = x*2
-    PS_COMBINEROUTPUT_SHIFTLEFT_1_BIAS=    0x18L, // y = (x - 0.5)*2
-    PS_COMBINEROUTPUT_SHIFTLEFT_2=         0x20L, // y = x*4
-    PS_COMBINEROUTPUT_SHIFTRIGHT_1=        0x30L, // y = x/2
+enum PS_COMBINEROUTPUT {
+    PS_COMBINEROUTPUT_IDENTITY =            
+        NV097_SET_COMBINER_ALPHA_OCW_OP_NOSHIFT, // y = x
+    PS_COMBINEROUTPUT_BIAS =                
+        NV097_SET_COMBINER_ALPHA_OCW_OP_NOSHIFT_BIAS, // y = x - 0.5
+    PS_COMBINEROUTPUT_SHIFTLEFT_1 =         
+        NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY1, // y = x*2
+    PS_COMBINEROUTPUT_SHIFTLEFT_1_BIAS =    
+        NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY1_BIAS, // y = (x - 0.5)*2
+    PS_COMBINEROUTPUT_SHIFTLEFT_2 =        
+         NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY2, // y = x*4
+    PS_COMBINEROUTPUT_SHIFTRIGHT_1 =        
+        NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTRIGHTBY1, // y = x/2
 
-    PS_COMBINEROUTPUT_AB_BLUE_TO_ALPHA=    0x80L, // RGB only
+    PS_COMBINEROUTPUT_AB_BLUE_TO_ALPHA =    
+        (NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_AB >> 12) & 0x80, // RGB only
 
-    PS_COMBINEROUTPUT_CD_BLUE_TO_ALPHA=    0x40L, // RGB only
+    PS_COMBINEROUTPUT_CD_BLUE_TO_ALPHA =    
+        NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD >> 12, // RGB only
 
-    PS_COMBINEROUTPUT_AB_MULTIPLY=         0x00L,
-    PS_COMBINEROUTPUT_AB_DOT_PRODUCT=      0x02L, // RGB only
+    PS_COMBINEROUTPUT_AB_MULTIPLY = 0x00L,
+    PS_COMBINEROUTPUT_AB_DOT_PRODUCT =      
+        NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE >> 12, // RGB only
 
-    PS_COMBINEROUTPUT_CD_MULTIPLY=         0x00L,
-    PS_COMBINEROUTPUT_CD_DOT_PRODUCT=      0x01L, // RGB only
+    PS_COMBINEROUTPUT_CD_MULTIPLY = 0x00L,
+    PS_COMBINEROUTPUT_CD_DOT_PRODUCT =      
+        NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE >> 12, // RGB only
 
-    PS_COMBINEROUTPUT_AB_CD_SUM=           0x00L, // 3rd output is AB+CD
-    PS_COMBINEROUTPUT_AB_CD_MUX=           0x04L, // 3rd output is MUX(AB,CD) based on R0.a
+    PS_COMBINEROUTPUT_AB_CD_SUM = 0x00L, // 3rd output is AB+CD
+    PS_COMBINEROUTPUT_AB_CD_MUX =           
+        NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE >> 12, // 3rd output is MUX(AB,CD) based on R0.a
 };
 
 #define PS_COMBINERCOUNT(count, flags) ((DWORD)(((flags)<<8)|(count)))
 // count is 1-8, flags contains one or more values from PS_COMBINERCOUNTFLAGS
 
 enum PS_COMBINERCOUNTFLAGS {
-    PS_COMBINERCOUNT_MUX_LSB=     0x0000L, // mux on r0.a lsb
-    PS_COMBINERCOUNT_MUX_MSB=     0x0001L, // mux on r0.a msb
+    PS_COMBINERCOUNT_MUX_LSB    = 0x0000L, // mux on r0.a lsb
+    PS_COMBINERCOUNT_MUX_MSB    = 0x0001L, // mux on r0.a msb
 
-    PS_COMBINERCOUNT_SAME_C0=     0x0000L, // c0 same in each stage
-    PS_COMBINERCOUNT_UNIQUE_C0=   0x0010L, // c0 unique in each stage
+    PS_COMBINERCOUNT_SAME_C0   = 0x0000L, // c0 same in each stage
+    PS_COMBINERCOUNT_UNIQUE_C0 = 0x0010L, // c0 unique in each stage
 
-    PS_COMBINERCOUNT_SAME_C1=     0x0000L, // c1 same in each stage
-    PS_COMBINERCOUNT_UNIQUE_C1=   0x0100L  // c1 unique in each stage
+    PS_COMBINERCOUNT_SAME_C1   = 0x0000L, // c1 same in each stage
+    PS_COMBINERCOUNT_UNIQUE_C1 = 0x0100L  // c1 unique in each stage
 };
 
 #define PS_INPUTTEXTURE(t0,t1,t2,t3) ((DWORD)(((t3)<<20)|((t2)<<16)))
 
-#define PS_TEXTUREMODES(t0,t1,t2,t3) ((DWORD)(((t3)<<15)|((t2)<<10)|((t1)<<5)|(t0)))
-enum PS_TEXTUREMODES {                                 // valid in stage 0 1 2 3
-    PS_TEXTUREMODES_NONE=                 0x00L, // * * * *
-    PS_TEXTUREMODES_PROJECT2D=            0x01L, // * * * *
-    PS_TEXTUREMODES_PROJECT3D=            0x02L, // * * * *
-    PS_TEXTUREMODES_CUBEMAP=              0x03L, // * * * *
-    PS_TEXTUREMODES_PASSTHRU=             0x04L, // * * * *
-    PS_TEXTUREMODES_CLIPPLANE=            0x05L, // * * * *
-    PS_TEXTUREMODES_BUMPENVMAP=           0x06L, // - * * *
-    PS_TEXTUREMODES_BUMPENVMAP_LUM=       0x07L, // - * * *
-    PS_TEXTUREMODES_BRDF=                 0x08L, // - - * *
-    PS_TEXTUREMODES_DOT_ST=               0x09L, // - - * *
-    PS_TEXTUREMODES_DOT_ZW=               0x0aL, // - - * *
-    PS_TEXTUREMODES_DOT_RFLCT_DIFF=       0x0bL, // - - * -
-    PS_TEXTUREMODES_DOT_RFLCT_SPEC=       0x0cL, // - - - *
-    PS_TEXTUREMODES_DOT_STR_3D=           0x0dL, // - - - *
-    PS_TEXTUREMODES_DOT_STR_CUBE=         0x0eL, // - - - *
-    PS_TEXTUREMODES_DPNDNT_AR=            0x0fL, // - * * *
-    PS_TEXTUREMODES_DPNDNT_GB=            0x10L, // - * * *
-    PS_TEXTUREMODES_DOTPRODUCT=           0x11L, // - * * -
-    PS_TEXTUREMODES_DOT_RFLCT_SPEC_CONST= 0x12L, // - - - *
-    // 0x13-0x1f reserved
+#define PS_TEXTUREMODES(t0,t1,t2,t3) \
+    ((DWORD)(((t3)<<15)|((t2)<<10)|((t1)<<5)|(t0)))
+enum PS_TEXTUREMODES {
+    PS_TEXTUREMODES_NONE                 
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PROGRAM_NONE,
+    PS_TEXTUREMODES_PROJECT2D            
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_2D_PROJECTIVE, 
+    PS_TEXTUREMODES_PROJECT3D            
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_3D_PROJECTIVE, 
+    PS_TEXTUREMODES_CUBEMAP              
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CUBE_MAP, 
+    PS_TEXTUREMODES_PASSTHRU             
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PASS_THROUGH, 
+    PS_TEXTUREMODES_CLIPPLANE            
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CLIP_PLANE, 
+    PS_TEXTUREMODES_BUMPENVMAP           
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP, 
+    PS_TEXTUREMODES_BUMPENVMAP_LUM       
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP_LUMINANCE, 
+    PS_TEXTUREMODES_BRDF                 
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BRDF, 
+    PS_TEXTUREMODES_DOT_ST               
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ST, 
+    PS_TEXTUREMODES_DOT_ZW               
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,
+    PS_TEXTUREMODES_DOT_RFLCT_DIFF       
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_DIFFUSE, 
+    PS_TEXTUREMODES_DOT_RFLCT_SPEC       
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR, 
+    PS_TEXTUREMODES_DOT_STR_3D           
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D, 
+    PS_TEXTUREMODES_DOT_STR_CUBE         
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_CUBE, 
+    PS_TEXTUREMODES_DPNDNT_AR            
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_AR, 
+    PS_TEXTUREMODES_DPNDNT_GB            
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_GB, 
+    PS_TEXTUREMODES_DOTPRODUCT           
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PRODUCT, 
+    PS_TEXTUREMODES_DOT_RFLCT_SPEC_CONST 
+        = NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST
 };
 
-#define D3DCLEAR_TARGET            0x000000f0l  /* Clear target surface */
-#define D3DCLEAR_ZBUFFER           0x00000001l  /* Clear target z buffer */
-#define D3DCLEAR_STENCIL           0x00000002l  /* Clear stencil planes */
+#define D3DCLEAR_ZBUFFER           NV097_CLEAR_SURFACE_Z       /* Clear target z buffer */
+#define D3DCLEAR_STENCIL           NV097_CLEAR_SURFACE_STENCIL /* Clear stencil planes */
+#define D3DCLEAR_ZSTENCIL          NV097_CLEAR_SURFACE_ZSTENCIL
 
-// The following are Xbox extensions
-#define D3DCLEAR_TARGET_R          0x00000010l  /* Clear target surface R component */
-#define D3DCLEAR_TARGET_G          0x00000020l  /* Clear target surface G component */
-#define D3DCLEAR_TARGET_B          0x00000040l  /* Clear target surface B component */
-#define D3DCLEAR_TARGET_A          0x00000080l  /* Clear target surface A component */
+#define D3DCLEAR_TARGET            NV097_CLEAR_SURFACE_COLOR   /* Clear target surface */
+#define D3DCLEAR_TARGET_R          NV097_CLEAR_SURFACE_R  /* Clear target surface R component */
+#define D3DCLEAR_TARGET_G          NV097_CLEAR_SURFACE_G  /* Clear target surface G component */
+#define D3DCLEAR_TARGET_B          NV097_CLEAR_SURFACE_B  /* Clear target surface B component */
+#define D3DCLEAR_TARGET_A          NV097_CLEAR_SURFACE_A  /* Clear target surface A component */
 
 #define D3DZ_MAX_D16         65535.0
 #define D3DZ_MAX_D24S8       16777215.0
@@ -1174,5 +1451,64 @@ typedef struct _D3DRECT {
     LONG x2;
     LONG y2;
 } D3DRECT;
+
+#define D3DSCISSORS_MAX 8
+
+/* D3DTILE constants */
+#define D3DTILE_MAXTILES            8
+#define D3DTILE_MAXTAGS             76800
+#define D3DTILE_TAGSIZE             64
+#define D3DTILE_ALIGNMENT           0x4000
+
+/* D3DTILE macro for calculating the end tag for a Z-compressed tile */
+#define D3DTILE_ZENDTAG(pTile) \
+    ((((pTile)->ZStartTag + ((pTile)->Size / D3DTILE_TAGSIZE)) + 255) & ~255)
+
+/* D3DTILE Flags */
+#define D3DTILE_FLAGS_ZBUFFER       0x00000001
+#define D3DTILE_FLAGS_ZCOMPRESS     0x80000000
+#define D3DTILE_FLAGS_Z32BITS       0x04000000
+#define D3DTILE_FLAGS_Z16BITS       0x00000000
+
+/* D3DTILE Pitch values */
+#define D3DTILE_PITCH_0200          0x0200
+#define D3DTILE_PITCH_0300          0x0300
+#define D3DTILE_PITCH_0400          0x0400
+#define D3DTILE_PITCH_0500          0x0500
+#define D3DTILE_PITCH_0600          0x0600
+#define D3DTILE_PITCH_0700          0x0700
+#define D3DTILE_PITCH_0800          0x0800
+#define D3DTILE_PITCH_0A00          0x0A00
+#define D3DTILE_PITCH_0C00          0x0C00
+#define D3DTILE_PITCH_0E00          0x0E00
+#define D3DTILE_PITCH_1000          0x1000
+#define D3DTILE_PITCH_1400          0x1400
+#define D3DTILE_PITCH_1800          0x1800
+#define D3DTILE_PITCH_1C00          0x1C00
+#define D3DTILE_PITCH_2000          0x2000
+#define D3DTILE_PITCH_2800          0x2800
+#define D3DTILE_PITCH_3000          0x3000
+#define D3DTILE_PITCH_3800          0x3800
+#define D3DTILE_PITCH_4000          0x4000
+#define D3DTILE_PITCH_5000          0x5000
+#define D3DTILE_PITCH_6000          0x6000
+#define D3DTILE_PITCH_7000          0x7000
+#define D3DTILE_PITCH_8000          0x8000
+#define D3DTILE_PITCH_A000          0xA000
+#define D3DTILE_PITCH_C000          0xC000
+#define D3DTILE_PITCH_E000          0xE000
+
+typedef struct _D3DTILE {                   
+    DWORD   Flags;
+    void*   pMemory;
+    DWORD   Size;
+    DWORD   Pitch;
+    DWORD   ZStartTag; 
+    DWORD   ZOffset;
+} D3DTILE;
+
+#define D3DTILE_INDEX_FRAMEBUFFER   0
+#define D3DTILE_INDEX_DEPTHSTENCIL  1
+#define D3DTILE_INDEX_MAX           8
 
 #endif // NXDK_HAVE_D3D8TYPES

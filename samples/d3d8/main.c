@@ -162,10 +162,15 @@ int main(void)
         return 1;
     }
 
-    /* This may only be included after the device is created, 
-     * and must have d3d8.h included. 
-     */
-    #include "ps.inl"
+    D3DPIXELSHADERDEF ps_def = {
+        #include "ps.inl"
+    };
+    hr = IDirect3DDevice8_SetPixelShaderProgram(d3ddev, &ps_def);
+    if (FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::SetPixelShaderProgram failed\n");
+        Sleep(2000);
+        return 1;
+    }
 
     while(1) {
         hr = IDirect3DDevice8_BeginScene(d3ddev);
@@ -174,7 +179,7 @@ int main(void)
             Sleep(2000);
             return 1;
         }
-        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
+        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::Clear failed\n");
             Sleep(2000);

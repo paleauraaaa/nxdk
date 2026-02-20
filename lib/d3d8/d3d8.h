@@ -329,6 +329,9 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (*DrawPrimitive)(LPDIRECT3DDEVICE8 pThis, 
                              D3DPRIMITIVETYPE PrimitiveType, 
                              UINT StartVertex, UINT PrimitiveCount);
+    HRESULT (*DrawVertices)(LPDIRECT3DDEVICE8 pThis, 
+                            D3DPRIMITIVETYPE PrimitiveType, 
+                            UINT StartVertex, UINT VertexCount);
     HRESULT (*SetViewport)(LPDIRECT3DDEVICE8 pThis, 
                            CONST D3DVIEWPORT8* pViewport);
     HRESULT (*SetVertexShaderInputDirect)(
@@ -360,6 +363,9 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (*Clear)(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
                      CONST D3DRECT* pRects, DWORD Flags, D3DCOLOR Color, 
                      float Z, DWORD Stencil);
+    HRESULT (*SetScissors)(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
+                           BOOL Exclusive, CONST D3DRECT *pRects);
+    HRESULT (*SetTile)(LPDIRECT3DDEVICE8 pThis, DWORD Index, CONST D3DTILE* pTile);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
 
 struct IDirect3DDevice8 INHERITS(IUnknown) {
@@ -378,6 +384,8 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
     virtual HRESULT BeginScene() = 0;
     virtual HRESULT EndScene() = 0;
     virtual HRESULT Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) = 0;
+    virtual HRESULT DrawVertices(D3DPRIMITIVETYPE PrimitiveType, 
+                                 UINT StartVertex, UINT VertexCount) = 0;
     virtual HRESULT DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, 
                                   UINT StartVertex, UINT PrimitiveCount) = 0;
     virtual HRESULT SetViewport(CONST D3DVIEWPORT8* pViewport) = 0;
@@ -405,6 +413,9 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
         CONST D3DPIXELSHADERDEF *pPSDef) = 0;
     virtual HRESULT Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags, 
                           D3DCOLOR Color, float Z, DWORD Stencil) = 0;
+    virtual HRESULT SetScissors(DWORD Count, BOOL Exclusive, 
+                                CONST D3DRECT *pRects) = 0;
+    virtual HRESULT SetTile(DWORD Index, CONST D3DTILE* pTile) = 0;
 #endif // __cplusplus
 };
 
@@ -430,6 +441,9 @@ HRESULT IDirect3DDevice8_Present(LPDIRECT3DDEVICE8 pThis,
 HRESULT IDirect3DDevice8_DrawPrimitive(LPDIRECT3DDEVICE8 pThis, 
                                        D3DPRIMITIVETYPE PrimitiveType, 
                                        UINT StartVertex, UINT PrimitiveCount);
+HRESULT IDirect3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis, 
+                                      D3DPRIMITIVETYPE PrimitiveType, 
+                                      UINT StartVertex, UINT VertexCount);
 HRESULT IDirect3DDevice8_SetViewport(LPDIRECT3DDEVICE8 pThis, 
                                      CONST D3DVIEWPORT8* pViewport);
 HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
@@ -449,6 +463,8 @@ HRESULT IDirect3DDevice8_SetPixelShaderProgram(
 HRESULT IDirect3DDevice8_Clear(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
                                CONST D3DRECT* pRects, DWORD Flags,
                                D3DCOLOR Color, float Z, DWORD Stencil);
+HRESULT IDirect3DDevice8_SetScissors(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
+                                     BOOL Exclusive, CONST D3DRECT *pRects);
 
 
 HRESULT D3DDevice_SetRenderState(D3DRENDERSTATETYPE Type, DWORD Value);
