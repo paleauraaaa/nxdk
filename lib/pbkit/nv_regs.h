@@ -286,9 +286,9 @@
 #       define NV097_SET_BLEND_FUNC_DFACTOR_V_ONE_MINUS_CONSTANT_ALPHA 0x8004
 #   define NV097_SET_BLEND_COLOR                              0x0000034C
 #   define NV097_SET_BLEND_EQUATION                           0x00000350
+#       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD                0x8006
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_SUBTRACT           0x800A
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT   0x800B
-#       define NV097_SET_BLEND_EQUATION_V_FUNC_ADD                0x8006
 #       define NV097_SET_BLEND_EQUATION_V_MIN                     0x8007
 #       define NV097_SET_BLEND_EQUATION_V_MAX                     0x8008
 #       define NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED 0xF005
@@ -491,6 +491,22 @@
 #   define NV097_SET_BACK_MATERIAL_ALPHA                      0x000017AC
 #   define NV097_SET_LOGIC_OP_ENABLE                          0x000017BC
 #   define NV097_SET_LOGIC_OP                                 0x000017C0
+#       define NV097_SET_LOGIC_OP_V_CLEAR                       0x1500
+#       define NV097_SET_LOGIC_OP_V_AND                         0x1501
+#       define NV097_SET_LOGIC_OP_V_AND_REVERSE                 0x1502
+#       define NV097_SET_LOGIC_OP_V_COPY                        0x1503
+#       define NV097_SET_LOGIC_OP_V_AND_INVERTED                0x1504
+#       define NV097_SET_LOGIC_OP_V_NOOP                        0x1505
+#       define NV097_SET_LOGIC_OP_V_XOR                         0x1506
+#       define NV097_SET_LOGIC_OP_V_OR                          0x1507
+#       define NV097_SET_LOGIC_OP_V_NOR                         0x1508
+#       define NV097_SET_LOGIC_OP_V_EQUIV                       0x1509
+#       define NV097_SET_LOGIC_OP_V_INVERT                      0x150A
+#       define NV097_SET_LOGIC_OP_V_OR_REVERSE                  0x150B
+#       define NV097_SET_LOGIC_OP_V_COPY_INVERTED               0x150C
+#       define NV097_SET_LOGIC_OP_V_OR_INVERTED                 0x150D
+#       define NV097_SET_LOGIC_OP_V_NAND                        0x150E
+#       define NV097_SET_LOGIC_OP_V_SET                         0x150F
 #   define NV097_SET_LIGHT_TWO_SIDE_ENABLE                    0x000017C4
 #   define NV097_CLEAR_REPORT_VALUE                           0x000017C8
 #       define NV097_CLEAR_REPORT_VALUE_TYPE                      0xFFFFFFFF
@@ -652,6 +668,7 @@
 #   define NV097_CLEAR_SURFACE                                0x00001D94
 #       define NV097_CLEAR_SURFACE_Z                              (1 << 0)
 #       define NV097_CLEAR_SURFACE_STENCIL                        (1 << 1)
+#       define NV097_CLEAR_SURFACE_ZSTENCIL                       0x00000003
 #       define NV097_CLEAR_SURFACE_COLOR                          0x000000F0
 #       define NV097_CLEAR_SURFACE_R                                (1 << 4)
 #       define NV097_CLEAR_SURFACE_G                                (1 << 5)
@@ -664,7 +681,7 @@
 #       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_AB        0xFFF80000
 #       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_AB_DISABLE  0
 #       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_AB_AB_DST_ENABLE 1
-#       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD        (1<<18)
+#       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD        (1 << 18)
 #       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD_DISABLE  0
 #       define NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD_CD_DST_ENABLE 1
 #       define NV097_SET_COMBINER_COLOR_OCW_OP                    0x00038000
@@ -676,7 +693,7 @@
 #           define NV097_SET_COMBINER_COLOR_OCW_OP_SHIFTRIGHTBY1    6
 #       define NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE            (1 << 14)
 #       define NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE         (1 << 13)
-#       define NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE         (1<<12)
+#       define NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE         (1 << 12)
 #       define NV097_SET_COMBINER_COLOR_OCW_SUM_DST               0x00000F00
 #       define NV097_SET_COMBINER_COLOR_OCW_AB_DST                0x000000F0
 #       define NV097_SET_COMBINER_COLOR_OCW_CD_DST                0x0000000F
@@ -757,11 +774,13 @@
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BRDF           0x08
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ST         0x09
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW         0x0A
+#           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_DIFFUSE  0x0B
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR 0x0C
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D     0x0D
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_CUBE   0x0E
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_AR   0x0F
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_GB   0x10
+#           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PRODUCT    0x11
 #           define NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST 0x12
 #   define NV097_SET_DOT_RGBMAPPING                           0X00001E74
 #   define NV097_SET_SHADER_OTHER_STAGE_INPUT                 0x00001E78
