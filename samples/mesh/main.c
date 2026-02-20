@@ -142,25 +142,71 @@ int main(void)
         /* Enable texture stage 0 */
         /* FIXME: Use constants instead of the hardcoded values below */
         p = pb_begin();
-        p = pb_push2(p,NV20_TCL_PRIMITIVE_3D_TX_OFFSET(0),(DWORD)texture.addr & 0x03ffffff,0x0001122a); //set stage 0 texture address & format
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_NPOT_PITCH(0),texture.pitch<<16); //set stage 0 texture pitch (pitch<<16)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_NPOT_SIZE(0),(texture.width<<16)|texture.height); //set stage 0 texture width & height ((witdh<<16)|height)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_WRAP(0),0x00030303);//set stage 0 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_ENABLE(0),0x4003ffc0); //set stage 0 texture enable flags
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_FILTER(0),0x04074000); //set stage 0 texture filters (AA!)
+        p = pb_push2(p, NV097_SET_TEXTURE_OFFSET(0), (DWORD)texture.addr & 0x03ffffff,
+            MASK(NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS, 1) |
+            MASK(NV097_SET_TEXTURE_FORMAT_COLOR, NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8R8G8B8) |
+            MASK(NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY, 2) |
+            MASK(NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE, NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE_COLOR) |
+            MASK(NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA, 2)
+            //0x0001122a
+        ); //set stage 0 texture address & format
+        p = pb_push1(p, NV097_SET_TEXTURE_CONTROL1(0), 
+                        MASK(NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH, texture.pitch)); //set stage 0 texture pitch (pitch<<16)
+        p = pb_push1(p, NV097_SET_TEXTURE_IMAGE_RECT(0), MASK(NV097_SET_TEXTURE_IMAGE_RECT_WIDTH, texture.width) |
+                                                         MASK(NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT,texture.height)); //set stage 0 texture width & height ((witdh<<16)|height)
+        p = pb_push1(p, NV097_SET_TEXTURE_ADDRESS(0),
+            MASK(NV097_SET_TEXTURE_ADDRESS_P, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_V, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_U, 3)
+            //0x00030303
+        ); //set stage 0 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
+        p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0(0),
+            MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x0003ffc0) |
+            NV097_SET_TEXTURE_CONTROL0_ENABLE
+            //0x4003ffc0
+        ); //set stage 0 texture enable flags
+        p = pb_push1(p, NV097_SET_TEXTURE_FILTER(0),
+            MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MAG_QUINCUNX) |
+            0x00074000 // ??
+            //0x04074000
+        ); //set stage 0 texture filters (AA!)
         pb_end(p);
 
         /* Disable other texture stages */
         p = pb_begin();
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_ENABLE(1),0x0003ffc0);//set stage 1 texture enable flags (bit30 disabled)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_ENABLE(2),0x0003ffc0);//set stage 2 texture enable flags (bit30 disabled)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_ENABLE(3),0x0003ffc0);//set stage 3 texture enable flags (bit30 disabled)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_WRAP(1),0x00030303);//set stage 1 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_WRAP(2),0x00030303);//set stage 2 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_WRAP(3),0x00030303);//set stage 3 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_FILTER(1),0x02022000);//set stage 1 texture filters (no AA, stage not even used)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_FILTER(2),0x02022000);//set stage 2 texture filters (no AA, stage not even used)
-        p = pb_push1(p,NV20_TCL_PRIMITIVE_3D_TX_FILTER(3),0x02022000);//set stage 3 texture filters (no AA, stage not even used)
+        p = pb_push1(p,NV097_SET_TEXTURE_CONTROL0(1), MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x3ffc0));//set stage 1 texture enable flags (bit30 disabled)
+        p = pb_push1(p,NV097_SET_TEXTURE_CONTROL0(2), MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x3ffc0));//set stage 2 texture enable flags (bit30 disabled)
+        p = pb_push1(p,NV097_SET_TEXTURE_CONTROL0(3), MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x3ffc0));//set stage 3 texture enable flags (bit30 disabled)
+        p = pb_push1(p,NV097_SET_TEXTURE_ADDRESS(1),
+            MASK(NV097_SET_TEXTURE_ADDRESS_P, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_V, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_U, 3)); //set stage 1 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
+        p = pb_push1(p,NV097_SET_TEXTURE_ADDRESS(2),
+            MASK(NV097_SET_TEXTURE_ADDRESS_P, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_V, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_U, 3)); //set stage 2 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
+        p = pb_push1(p,NV097_SET_TEXTURE_ADDRESS(3),
+            MASK(NV097_SET_TEXTURE_ADDRESS_P, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_V, 3) |
+            MASK(NV097_SET_TEXTURE_ADDRESS_U, 3)); //set stage 3 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
+        p = pb_push1(p,NV097_SET_TEXTURE_FILTER(1), 
+            MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MAG_LINEAR) |
+            MASK(NV097_SET_TEXTURE_FILTER_MIN, NV097_SET_TEXTURE_FILTER_MIN_LINEAR) |
+            0x00002000 // ??
+            // 0x02022000
+        ); //set stage 1 texture filters (no AA, stage not even used)
+        p = pb_push1(p,NV097_SET_TEXTURE_FILTER(2),
+            MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MAG_LINEAR) |
+            MASK(NV097_SET_TEXTURE_FILTER_MIN, NV097_SET_TEXTURE_FILTER_MIN_LINEAR) |
+            0x00002000 // ??
+            // 0x02022000
+        ); //set stage 2 texture filters (no AA, stage not even used)
+        p = pb_push1(p,NV097_SET_TEXTURE_FILTER(3),
+            MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MAG_LINEAR) |
+            MASK(NV097_SET_TEXTURE_FILTER_MIN, NV097_SET_TEXTURE_FILTER_MIN_LINEAR) |
+            0x00002000 // ??
+            // 0x02022000
+        ); //set stage 3 texture filters (no AA, stage not even used)
         pb_end(p);
 
         /* Send shader constants
