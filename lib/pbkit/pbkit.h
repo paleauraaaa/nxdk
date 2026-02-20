@@ -55,6 +55,13 @@ int pb_finished(void);  //prepare screen swapping at VBlank (do it at frame end)
 
 void pb_wait_until_gr_not_busy(void);
 DWORD pb_wait_until_tiles_not_busy(void);
+void pb_assign_tile(int     tile_index,
+                    DWORD   tile_addr,
+                    DWORD   tile_size,
+                    DWORD   tile_pitch,
+                    DWORD   tile_z_start_tag,
+                    DWORD   tile_z_offset,
+                    DWORD   tile_flags);
 
 void    pb_extra_buffers(int n);//requests additional back buffers (default is 0) (call it before pb_init)
 void    pb_size(DWORD size);    //sets push buffer size (default is 512Kb) (call it before pb_init)
