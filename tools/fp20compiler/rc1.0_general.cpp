@@ -60,8 +60,9 @@ void GeneralCombinersStruct::Invoke()
     // }
     // assert(false);
 
-    //printf("pb_push1(p, NV097_SET_COMBINER_CONTROL,");
-    printf("D3DDevice_SetRenderState(D3DRS_PSCOMBINERCOUNT, PS_COMBINERCOUNT(");
+    // printf("pb_push1(p, NV097_SET_COMBINER_CONTROL,");
+    // printf("D3DDevice_SetRenderState(D3DRS_PSCOMBINERCOUNT, PS_COMBINERCOUNT(");
+    printf(".PSCombinerCount = PS_COMBINERCOUNT(");
     printf("\n    %d,", num);
     //printf("\n    MASK(NV097_SET_COMBINER_CONTROL_FACTOR0, %s)");
     // localConsts > 0 ? "NV097_SET_COMBINER_CONTROL_FACTOR0_EACH_STAGE"
@@ -77,8 +78,9 @@ void GeneralCombinersStruct::Invoke()
                 : "PS_COMBINERCOUNT_SAME_C1");
     printf("\n    | PS_COMBINERCOUNT_MUX_MSB");
     // printf("\n    | MASK(NV097_SET_COMBINER_CONTROL_ITERATION_COUNT, %d)", num);
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     // printf("p += 2;\n");
 }
 
@@ -153,12 +155,14 @@ void GeneralCombinerStruct::Invoke(int stage)
         const char* cmd = NULL;
         switch(cc[i].reg.bits.name) {
         case REG_CONSTANT_COLOR0:
-            //cmd = "NV097_SET_COMBINER_FACTOR0";
-            cmd = "D3DRS_PSCONSTANT0_";
+            // cmd = "NV097_SET_COMBINER_FACTOR0";
+            // cmd = "D3DRS_PSCONSTANT0_";
+            cmd = ".PSConstant0";
             break;
         case REG_CONSTANT_COLOR1:
-            //cmd = "NV097_SET_COMBINER_FACTOR1";
-            cmd = "D3DRS_PSCONSTANT1_";
+            // cmd = "NV097_SET_COMBINER_FACTOR1";
+            // cmd = "D3DRS_PSCONSTANT1_";
+            cmd = ".PSConstant1";
             break;
         default:
             assert(false);
@@ -170,13 +174,15 @@ void GeneralCombinerStruct::Invoke(int stage)
         assert(cc[i].v[2] >= 0.0f && cc[i].v[2] <= 1.0f);
         assert(cc[i].v[3] >= 0.0f && cc[i].v[3] <= 1.0f);
 
-        //printf("pb_push1(p, %s + %d * 4,", cmd, stage);
-        printf("D3DDevice_SetRenderState(%s%d,", cmd, stage);
+        // printf("pb_push1(p, %s + %d * 4,", cmd, stage);
+        // printf("D3DDevice_SetRenderState(%s%d,", cmd, stage);
+        printf("%s[%d] =", cmd, stage);
         printf("\n    MASK(0xFF000000, 0x%02X)", (unsigned char)(cc[i].v[3] * 0xFF));
         printf("\n    | MASK(0x00FF0000, 0x%02X)", (unsigned char)(cc[i].v[0] * 0xFF));
         printf("\n    | MASK(0x0000FF00, 0x%02X)", (unsigned char)(cc[i].v[1] * 0xFF));
         printf("\n    | MASK(0x000000FF, 0x%02X)", (unsigned char)(cc[i].v[2] * 0xFF));
-        printf(");\n");
+        // printf(");\n");
+        // printf("),\n");
     }
 
     for (i = 0; i < 2; i++)
@@ -316,10 +322,12 @@ void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
 {
     // GLenum portionEnum = (RCP_RGB == portion) ? GL_RGB : GL_ALPHA;
     // const char* portion_s = (portion == RCP_RGB ? "COLOR" : "ALPHA");
-    const char* portion_s = (portion == RCP_RGB ? "RGB" : "ALPHA");
+    // const char* portion_s = (portion == RCP_RGB ? "RGB" : "ALPHA");
+    const char* portion_s = (portion == RCP_RGB ? "RGB" : "Alpha");
 
     //printf("pb_push1(p, NV097_SET_COMBINER_%s_ICW + %d * 4,", portion_s, stage);
-    printf("D3DDevice_SetRenderState(D3DRS_PS%sINPUTS%d, PS_COMBINERINPUTS(", portion_s, stage);
+    //printf("D3DDevice_SetRenderState(D3DRS_PS%sINPUTS%d, PS_COMBINERINPUTS(", portion_s, stage);
+    printf(".PS%sInputs[%d] = PS_COMBINERINPUTS(", portion_s, stage);
     printf("\n    ");
     GenerateInput(portion, 'A', op[0].reg[1]);
     // printf("\n    | ");
@@ -331,8 +339,9 @@ void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
     // printf("\n    | ");
     printf(",\n    ");
     GenerateInput(portion, 'D', op[1].reg[2]);
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     // printf("p += 2;\n");
 
     // glCombinerInputNV(GL_COMBINER0_NV + stage,
@@ -368,7 +377,8 @@ void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
     // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_CD_DST, %s)\n", portion_s, GetRegisterNameString(op[1].reg[0].reg.bits.name));
     // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_SUM_DST, %s)\n", portion_s, GetRegisterNameString(op[2].reg[0].reg.bits.name));
     // printf("    | MASK(NV097_SET_COMBINER_%s_OCW_MUX_ENABLE, %d)\n", portion_s, (op[2].op == RCP_MUX));
-    printf("D3DDevice_SetRenderState(D3DRS_PS%sOUTPUTS%d, PS_COMBINEROUTPUTS(\n", portion_s, stage);
+    //printf("D3DDevice_SetRenderState(D3DRS_PS%sOUTPUTS%d, PS_COMBINEROUTPUTS(\n", portion_s, stage);
+    printf(".PS%sOutputs[%d] = PS_COMBINEROUTPUTS(\n", portion_s, stage);
     printf("    %s,\n", GetRegisterNameString(op[0].reg[0].reg.bits.name));
     printf("    %s,\n", GetRegisterNameString(op[1].reg[0].reg.bits.name));
     printf("    %s,\n", GetRegisterNameString(op[2].reg[0].reg.bits.name));
@@ -404,9 +414,10 @@ void GeneralFunctionStruct::Invoke(int stage, int portion, BiasScaleEnum bs)
     printf("PS_COMBINEROUTPUT%s%s", scale_s,
             (bs.bits.bias == BIAS_BY_NEGATIVE_ONE_HALF) ? "_BIAS" : "");
 
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
-    //printf("p += 2;\n");
+    // printf("));\n");
+    // printf("p += 2;\n");
 
     // glCombinerOutputNV(GL_COMBINER0_NV + stage,
     //     portionEnum,

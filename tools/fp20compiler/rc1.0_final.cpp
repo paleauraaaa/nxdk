@@ -115,7 +115,8 @@ void FinalCombinerStruct::Invoke()
 {
 
     // printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW0,\n");
-    printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSABCD, PS_COMBINERINPUTS(\n");
+    // printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSABCD, PS_COMBINERINPUTS(\n");
+    printf(".PSFinalCombinerInputsABCD = PS_COMBINERINPUTS(\n");
     printf("    ");
     GenerateFinalInput('A', rgb.a);
     // printf("\n    | ");
@@ -127,12 +128,14 @@ void FinalCombinerStruct::Invoke()
     // printf("\n    | ");
     printf(",\n    ");
     GenerateFinalInput('D', rgb.d);
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     // printf("p += 2;\n");
 
     // printf("pb_push1(p, NV097_SET_COMBINER_SPECULAR_FOG_CW1,\n");
-    printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSEFG, PS_COMBINERINPUTS(\n");
+    // printf("D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSEFG, PS_COMBINERINPUTS(\n");
+    printf(".PSFinalCombinerInputsEFG = PS_COMBINERINPUTS(\n");
     printf("    ");
     GenerateFinalInput('E', product.e);
     // printf("\n    | ");
@@ -144,8 +147,9 @@ void FinalCombinerStruct::Invoke()
 
     printf(",\n    %s", clamp > 0 ? "PS_FINALCOMBINERSETTING_CLAMP_SUM" : "0");
 
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     //printf("p += 2;\n");
     // if(clamp)
     //     glCombinerParameteriNV(GL_COLOR_SUM_CLAMP_NV, GL_TRUE);

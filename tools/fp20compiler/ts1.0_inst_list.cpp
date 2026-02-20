@@ -50,6 +50,8 @@ void InstList::Invoke()
 {
     int i;
 
+    assert(size == 4);
+
     printf("#pragma push_macro(\"MASK\")\n");
     printf("#undef MASK\n");
     printf("#define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))\n");
@@ -57,7 +59,8 @@ void InstList::Invoke()
 
     assert(size > 1);
     // printf("pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT,\n    ");
-    printf("D3DDevice_SetRenderState(D3DRS_PSINPUTTEXTURE, PS_INPUTTEXTURE(\n");
+    // printf("D3DDevice_SetRenderState(D3DRS_PSINPUTTEXTURE, PS_INPUTTEXTURE(\n");
+    printf(".PSInputTexture = PSINPUTTEXTURE(\n");
     printf("    0,\n");
     for (i=1; i<size; i++) {
         //if (i != 1) printf("    | ");
@@ -67,12 +70,14 @@ void InstList::Invoke()
         printf("    %d", previousTexture);
         if (i != size-1) printf(",\n");
     }
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     // printf("p += 2;\n");
 
-    //printf("pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM,\n    ");
-    printf("D3DDevice_SetRenderState(D3DRS_PSTEXTUREMODES, PS_TEXTUREMODES(\n    ");
+    // printf("pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM,\n    ");
+    // printf("D3DDevice_SetRenderState(D3DRS_PSTEXTUREMODES, PS_TEXTUREMODES(\n    ");
+    printf(".PSTextureModes = PS_TEXTUREMODES(\n");
     for (i=0; i<size; i++) {
         const char* op = NULL;
         switch(list[i].opcode.word) {
@@ -253,8 +258,9 @@ void InstList::Invoke()
         printf("    PS_TEXTUREMODES_%s", op);
         if (i != size-1) printf(",\n");
     }
+    printf("),\n");
     // printf(");\n");
-    printf("));\n");
+    // printf("));\n");
     // printf("p += 2;\n");
 
     // Process texture stage mode arguments
