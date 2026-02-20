@@ -366,6 +366,8 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (*SetScissors)(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
                            BOOL Exclusive, CONST D3DRECT *pRects);
     HRESULT (*SetTile)(LPDIRECT3DDEVICE8 pThis, DWORD Index, CONST D3DTILE* pTile);
+    HRESULT (*SetTexture)(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
+                          LPDIRECT3DBASETEXTURE8 pTexture);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
 
 struct IDirect3DDevice8 INHERITS(IUnknown) {
@@ -374,16 +376,17 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
     virtual HRESULT CreateImageSurface(UINT Width, UINT Height,
                                        D3DFORMAT Format, 
                                        LPDIRECT3DSURFACE8* ppSurface) = 0;
-    virtual HRESULT CreateDepthStencilSurface(UINT Width, UINT Height, 
-                                              D3DFORMAT Format, 
-                                              D3DMULTISAMPLE_TYPE MultiSampleType,
-                                              LPDIRECT3DSURFACE8* ppSurface) = 0;
+    virtual HRESULT CreateDepthStencilSurface(
+        UINT Width, UINT Height, D3DFORMAT Format, 
+        D3DMULTISAMPLE_TYPE MultiSampleType, 
+        LPDIRECT3DSURFACE8* ppSurface) = 0;
     virtual HRESULT CreateVertexBuffer(
         UINT Length, DWORD Usage, DWORD FVF, 
         D3DPOOL Pool, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer) = 0;
     virtual HRESULT BeginScene() = 0;
     virtual HRESULT EndScene() = 0;
-    virtual HRESULT Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) = 0;
+    virtual HRESULT Present(CONST RECT* pSourceRect, 
+                            CONST RECT* pDestRect) = 0;
     virtual HRESULT DrawVertices(D3DPRIMITIVETYPE PrimitiveType, 
                                  UINT StartVertex, UINT VertexCount) = 0;
     virtual HRESULT DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType, 
@@ -416,6 +419,8 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
     virtual HRESULT SetScissors(DWORD Count, BOOL Exclusive, 
                                 CONST D3DRECT *pRects) = 0;
     virtual HRESULT SetTile(DWORD Index, CONST D3DTILE* pTile) = 0;
+    virtual HRESULT SetTexture(DWORD Stage, 
+                               LPDIRECT3DBASETEXTURE8 pTexture) = 0;
 #endif // __cplusplus
 };
 
@@ -465,9 +470,11 @@ HRESULT IDirect3DDevice8_Clear(LPDIRECT3DDEVICE8 pThis, DWORD Count,
                                D3DCOLOR Color, float Z, DWORD Stencil);
 HRESULT IDirect3DDevice8_SetScissors(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
                                      BOOL Exclusive, CONST D3DRECT *pRects);
-
-
 HRESULT D3DDevice_SetRenderState(D3DRENDERSTATETYPE Type, DWORD Value);
+HRESULT IDirect3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index, 
+                                 CONST D3DTILE* pTile);
+HRESULT IDirect3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
+                                    LPDIRECT3DBASETEXTURE8 pTexture);
 
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;

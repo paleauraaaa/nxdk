@@ -629,17 +629,24 @@
 #   define NV097_SET_TEXTURE_FILTER(n)                           (0x00001B14 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
 #       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
-#               define NV097_SET_TEXTURE_FILTER_NONE              0
-#               define NV097_SET_TEXTURE_FILTER_POINT             1
-#               define NV097_SET_TEXTURE_FILTER_LINEAR            2
-#               define NV097_SET_TEXTURE_FILTER_ANISOTROPIC       3
-#               define NV097_SET_TEXTURE_FILTER_QUINCUNX          4
-#               define NV097_SET_TEXTURE_FILTER_GAUSSIAN_CUBIC    5
+#               define NV097_SET_TEXTURE_FILTER_MIN_NONE              0
+#               define NV097_SET_TEXTURE_FILTER_MIN_POINT             1
+#               define NV097_SET_TEXTURE_FILTER_MIN_LINEAR            2
+#               define NV097_SET_TEXTURE_FILTER_MIN_ANISOTROPIC       3
+#               define NV097_SET_TEXTURE_FILTER_MIN_QUINCUNX          4
+#               define NV097_SET_TEXTURE_FILTER_MIN_GAUSSIAN_CUBIC    5
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
-#       define NV097_SET_TEXTURE_FILTER_ASIGNED                   (1 << 28)
-#       define NV097_SET_TEXTURE_FILTER_RSIGNED                   (1 << 29)
-#       define NV097_SET_TEXTURE_FILTER_GSIGNED                   (1 << 30)
-#       define NV097_SET_TEXTURE_FILTER_BSIGNED                   (1 << 31)
+#               define NV097_SET_TEXTURE_FILTER_MAG_NONE              0
+#               define NV097_SET_TEXTURE_FILTER_MAG_POINT             1
+#               define NV097_SET_TEXTURE_FILTER_MAG_LINEAR            2
+#               define NV097_SET_TEXTURE_FILTER_MAG_ANISOTROPIC       3
+#               define NV097_SET_TEXTURE_FILTER_MAG_QUINCUNX          4
+#               define NV097_SET_TEXTURE_FILTER_MAG_GAUSSIAN_CUBIC    5
+#       define NV097_SET_TEXTURE_FILTER_SIGN                      0xF0000000
+#               define NV097_SET_TEXTURE_FILTER_ASIGNED          (1 << 28)
+#               define NV097_SET_TEXTURE_FILTER_RSIGNED          (1 << 29)
+#               define NV097_SET_TEXTURE_FILTER_GSIGNED          (1 << 30)
+#               define NV097_SET_TEXTURE_FILTER_BSIGNED          (1 << 31)
 #   define NV097_SET_TEXTURE_IMAGE_RECT(n)                       (0x00001B1C + (n)*0x0100)
 #       define NV097_SET_TEXTURE_IMAGE_RECT_WIDTH                 0xFFFF0000
 #       define NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT                0x0000FFFF

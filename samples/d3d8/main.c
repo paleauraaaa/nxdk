@@ -43,7 +43,6 @@ int main(void)
 {
     uint32_t *p;
     int       i, status;
-    int       width, height;
     int       start, last, now;
     int       fps, frames, frames_total;
 
@@ -61,8 +60,6 @@ int main(void)
         Sleep(2000);
         return 1;
     }
-    width = mode.Width;
-    height = mode.Height;
 
     D3DPRESENT_PARAMETERS d3dpp;
     memset(&d3dpp, 0, sizeof(d3dpp));
@@ -95,8 +92,8 @@ int main(void)
     D3DVIEWPORT8 viewport;
     viewport.X      = 0;
     viewport.Y      = 0;
-    viewport.Width  = width;
-    viewport.Height = height;
+    viewport.Width  = mode.Width;
+    viewport.Height = mode.Height;
     viewport.MinZ   = 0.0f;
     viewport.MaxZ   = 65536.0f;
     hr = IDirect3DDevice8_SetViewport(d3ddev, &viewport);
@@ -151,7 +148,8 @@ int main(void)
 
     uint32_t vs_program[] = {
         #include "vs.inl"
-        /* Required for LoadVertexShaderProgram. */
+
+        /* Required by LoadVertexShaderProgram. */
         D3DVS_END(),
     };
 
@@ -185,17 +183,6 @@ int main(void)
             Sleep(2000);
             return 1;
         }
-        /* Send shader constants
-         *
-         * WARNING: Changing shader source code may impact constant locations!
-         * Check the intermediate file (*.inl) for the expected locations after
-         * changing the code.
-         */
-        p = pb_begin();
-
-        /* Set shader constants cursor at C0 */
-        p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, 96);
-        pb_end(p);
 
         /* Begin drawing triangles */
         hr = IDirect3DDevice8_DrawPrimitive(d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);

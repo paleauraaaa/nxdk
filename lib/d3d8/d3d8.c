@@ -218,54 +218,46 @@ BOOL D3DPushBuffer_IsFull(LPDIRECT3DPUSHBUFFER8 pThis) {
 HRESULT D3DPushBuffer_Push1(
     D3DPushBuffer* pThis, DWORD dwData)
 {
-    if (pThis->SizeNeeded > pThis->Size - 1) {
-        pThis->SizeNeeded += 1;
+    pThis->SizeNeeded++;
+    if (pThis->SizeNeeded > pThis->Size - 1)
         return D3DERR_BUFFERTOOSMALL;
-    }
 
     *(pThis->p++) = dwData;
-    pThis->SizeNeeded += 1;
     return D3D_OK;
 }
 
 HRESULT D3DPushBuffer_PushCmd(
     D3DPushBuffer* pThis, DWORD cmd, DWORD dwData)
 {
-    if (pThis->SizeNeeded > pThis->Size - 2) {
-        pThis->SizeNeeded += 2;
+    pThis->SizeNeeded += 2;
+    if (pThis->SizeNeeded > pThis->Size - 2)
         return D3DERR_BUFFERTOOSMALL;
-    }
 
     pThis->p = (PDWORD)pb_push1((uint32_t*)pThis->p, cmd, dwData);
-    pThis->SizeNeeded += 2;
     return D3D_OK;
 }
 
 HRESULT D3DPushBuffer_PushN(
     D3DPushBuffer* pThis, DWORD dwData, SIZE_T n)
 {
-    if (pThis->SizeNeeded > pThis->Size - n) {
-        pThis->SizeNeeded += n;
+    pThis->SizeNeeded += n;
+    if (pThis->SizeNeeded > pThis->Size - n)
         return D3DERR_BUFFERTOOSMALL;
-    }
 
     memset(pThis->p, dwData, n * sizeof(DWORD));
     pThis->p += n;
-    pThis->SizeNeeded += n;
     return D3D_OK;
 }
 
 HRESULT D3DPushBuffer_PushA(
     D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n)
 {
-    if (pThis->SizeNeeded > pThis->Size - n) {
-        pThis->SizeNeeded += n;
+    pThis->SizeNeeded += n;
+    if (pThis->SizeNeeded > pThis->Size - n)
         return D3DERR_BUFFERTOOSMALL;
-    }
 
     memcpy(pThis->p, pdwData, n * sizeof(DWORD));
     pThis->p += n;
-    pThis->SizeNeeded += n;
     return D3D_OK;
 }
 // ============================================================================
@@ -273,7 +265,23 @@ HRESULT D3DPushBuffer_PushA(
 struct D3DSurface;
 typedef struct D3DSurface D3DSurface;
 
+struct D3DBaseTexture;
+typedef struct D3DBaseTexture D3DBaseTexture;
+
 // ============================================================================
+typedef struct D3DTextureStageState {
+    DWORD Address;
+    BOOL  AddressDirty;
+    DWORD Filter;
+    BOOL  FilterDirty;
+    DWORD Control0;
+    BOOL  Control0Dirty;
+    DWORD Format;
+    BOOL  FormatDirty;
+    DWORD Offset;
+    BOOL  OffsetDirty;
+} D3DTextureStageState;
+
 typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     IDirect3DDevice8 iface;
     D3DRefcount refcount;
@@ -291,6 +299,10 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     BOOL bUserSuppliedDepthStencilSurface;
     DWORD Control0;
     UINT PresentInterval;
+    D3DTextureStageState TextureStageState[D3DTSS_MAXSTAGES];
+    BOOL TextureStageStateDirty[D3DTSS_MAXSTAGES]
+                               [D3DTSS_DEFERRED_TEXTURE_STATE_MAX];
+    D3DBaseTexture* pTexture[D3DTSS_MAXSTAGES];
 #ifdef __cplusplus
     ULONG AddRef() override {
         return D3DDevice_AddRef();
@@ -753,8 +765,6 @@ typedef struct D3DLock {
 } D3DLock;
 
 // ============================================================================
-struct D3DBaseTexture;
-typedef struct D3DBaseTexture D3DBaseTexture;
 typedef struct D3DSurface IMPLEMENTS(IDirect3DSurface8) {
     IDirect3DSurface8 iface;
     D3DResourceInner  resource;
@@ -1399,12 +1409,15 @@ HRESULT D3DDevice_Push1(DWORD dwData) {
 }
 
 HRESULT D3DDevice_PushCmd(DWORD cmd, DWORD dwData) {
+#if NXDK_DEBUG
     if (g_d3ddev.current_pb == NULL)
         return D3DERR_NOTAVAILABLE;
-
+#endif // NXDK_DEBUG
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_SendKickoff();
+#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
+#endif // NXDK_DEBUG
     }
     return D3DPushBuffer_PushCmd(g_d3ddev.current_pb, cmd, dwData);
 }
@@ -1756,6 +1769,11 @@ HRESULT Direct3D_CreateDevice(
     hr = D3DDevice_PushCmd(NV097_SET_CONTROL0, g_d3ddev.Control0);
     if (FAILED(hr)) return hr;
 
+    for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
+        g_d3ddev.pTexture[Stage] = NULL;
+        memset(&g_d3ddev.TextureStageState[Stage], 0, sizeof(g_d3ddev.TextureStageState[Stage]));
+    }
+
     hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_EXECUTION_MODE, 
             MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE, 
                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM)
@@ -1958,17 +1976,46 @@ HRESULT IDirect3DDevice8_Present(LPDIRECT3DDEVICE8 pThis,
 HRESULT D3DDevice_DrawVertices(D3DPRIMITIVETYPE PrimitiveType, 
                                UINT StartVertex, UINT VertexCount)
 {
-    D3DDevice_PushCmd(NV097_SET_BEGIN_END, PrimitiveType);
+    HRESULT hr = D3D_OK;
+    for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
+        if (g_d3ddev.TextureStageState[Stage].AddressDirty) {
+            hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_ADDRESS(Stage), g_d3ddev.TextureStageState[Stage].Address);
+            if (FAILED(hr)) return hr;
+            g_d3ddev.TextureStageState[Stage].AddressDirty = FALSE;
+        }
+        if (g_d3ddev.TextureStageState[Stage].FilterDirty) {
+            hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_FILTER(Stage), g_d3ddev.TextureStageState[Stage].Filter);
+            if (FAILED(hr)) return hr;
+            g_d3ddev.TextureStageState[Stage].FilterDirty = FALSE;
+        }
+        if (g_d3ddev.TextureStageState[Stage].Control0Dirty) {
+            hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), g_d3ddev.TextureStageState[Stage].Control0);
+            if (FAILED(hr)) return hr;
+            g_d3ddev.TextureStageState[Stage].Control0Dirty = FALSE;
+        }
+        if (g_d3ddev.TextureStageState[Stage].FormatDirty) {
+            hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_FORMAT(Stage), g_d3ddev.TextureStageState[Stage].Format);
+            if (FAILED(hr)) return hr;
+            g_d3ddev.TextureStageState[Stage].FormatDirty = FALSE;
+        }
+        if (g_d3ddev.TextureStageState[Stage].OffsetDirty) {
+            hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_OFFSET(Stage), g_d3ddev.TextureStageState[Stage].Offset);
+            if (FAILED(hr)) return hr;
+            g_d3ddev.TextureStageState[Stage].OffsetDirty = FALSE;
+        }
+    }
+    hr = D3DDevice_PushCmd(NV097_SET_BEGIN_END, PrimitiveType);
+    if (FAILED(hr)) return hr;
     for (int i = 0; i < VertexCount; i += 256) {
         DWORD Count = VertexCount - i;
         if (Count >= 256) Count = 256;
-        D3DDevice_PushCmd(NV097_DRAW_ARRAYS,
+        hr = D3DDevice_PushCmd(NV097_DRAW_ARRAYS,
             MASK(NV097_DRAW_ARRAYS_COUNT, Count - 1) | 
             MASK(NV097_DRAW_ARRAYS_START_INDEX, StartVertex));
+        if (FAILED(hr)) return hr;
     }
 
-    D3DDevice_PushCmd(NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
-    return D3D_OK;
+    return D3DDevice_PushCmd(NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
 }
 
 HRESULT IDirect3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis, 
@@ -2104,14 +2151,15 @@ HRESULT IDirect3DDevice8_CreateTexture(
                                    Format, ppTexture);
 }
 
-HRESULT D3DDevice_SetTextureStageState(
+HRESULT D3DDevice_SetTextureStageState_Immediate(
     DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
 {
 #if NXDK_DEBUG
-    if (Stage >= 4)
+    if (Type < D3DTSS_DEFERRED_MAX) {
+        assert(false);
         return D3DERR_INVALIDCALL;
+    }
 #endif // NXDK_DEBUG
-
     switch (Type) {
     case D3DTSS_BUMPENVMAT00:
     case D3DTSS_BUMPENVMAT01:
@@ -2133,13 +2181,127 @@ HRESULT D3DDevice_SetTextureStageState(
         return D3DDevice_PushCmd(
             NV20_TCL_PRIMITIVE_3D_RC_COLOR_KEY_COLOR(Stage), Value);
     default:
-        if (Type >= D3DTSS_MAX)
-            return D3DERR_INVALIDCALL;
         // TODO: implement remaining texture stage states
-        else
-            return E_NOTIMPL;
+        return E_NOTIMPL;
     }
+}
+
+HRESULT D3DDevice_SetTextureStageState_Simple(
+    DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
+{
+#if NXDK_DEBUG
+    if (Type >= D3DTSS_DEFERRED_MAX || Type < D3DTSS_DEFERRED_TEXTURE_STATE_MAX) {
+        assert(false);
+        return D3DERR_INVALIDCALL;
+    }
+#endif // NXDK_DEBUG
+    switch (Type) {
+    default:
+        // TODO: implement remaining texture stage states
+        return E_NOTIMPL;
+    }
+}
+
+#define MASK_INPLACE(a, mask, value) \
+    (a) = ((a & (~(mask))) | MASK(mask, value))
+
+#define D3DTSS_DIRTY(stage, type) \
+    g_d3ddev.TextureStageStateDirty[stage][type] = TRUE;
+
+#define D3DTSS_CLEAN(stage, type) \
+    g_d3ddev.TextureStageStateDirty[stage][type] = FALSE;
+
+HRESULT D3DDevice_SetTextureStageState_Deferred(
+    DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
+{
+#if NXDK_DEBUG
+    if (Type >= D3DTSS_DEFERRED_MAX || Type < D3DTSS_DEFERRED_TEXTURE_STATE_MAX) {
+        assert(false);
+        return D3DERR_INVALIDCALL;
+    }
+#endif // NXDK_DEBUG
+    switch (Type) {
+    case D3DTSS_ADDRESSU:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+                     NV097_SET_TEXTURE_ADDRESS_U, Value);
+        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_ADDRESSV:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+                     NV097_SET_TEXTURE_ADDRESS_V, Value);
+        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_ADDRESSW:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+                     NV097_SET_TEXTURE_ADDRESS_P, Value);
+        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_MAGFILTER:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                     NV097_SET_TEXTURE_FILTER_MAG, Value);
+        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_MINFILTER:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                     NV097_SET_TEXTURE_FILTER_MIN, Value);
+        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_MIPMAPLODBIAS:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                     NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS, Value);
+        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_MAXMIPLEVEL:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Format, 
+                     NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS, Value);
+        g_d3ddev.TextureStageState[Stage].FormatDirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_MAXANISOTROPY:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
+                     NV097_SET_TEXTURE_CONTROL0_ANISOTROPY, Value);
+        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_COLORKEYOP:
+        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
+                     NV097_SET_TEXTURE_CONTROL0_COLOR_KEY_MODE, Value);
+        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_COLORSIGN:
+        g_d3ddev.TextureStageState[Stage].Control0 = 
+            (g_d3ddev.TextureStageState[Stage].Control0 & 
+                ~NV097_SET_TEXTURE_FILTER_SIGN) | Value;
+        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        return D3D_OK;
+    case D3DTSS_ALPHAKILL:
+        g_d3ddev.TextureStageState[Stage].Control0 = 
+            (g_d3ddev.TextureStageState[Stage].Control0 &
+                 ~NV097_SET_TEXTURE_CONTROL0_ALPHA_KILL_ENABLE) | Value;
+        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        return D3D_OK;
+    default:
+        // TODO: implement remaining texture stage states
+        return E_NOTIMPL;
+    }
+
+    D3DTSS_DIRTY(Stage, Type);
     return D3D_OK;
+}
+
+HRESULT D3DDevice_SetTextureStageState(
+    DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
+{
+#if NXDK_DEBUG
+    if (Stage >= D3DTSS_MAXSTAGES)
+        return D3DERR_INVALIDCALL;
+    if (Type >= D3DTSS_MAX)
+        return D3DERR_INVALIDCALL;
+#endif // NXDK_DEBUG
+    if (Type >= D3DTSS_DEFERRED_MAX)
+        return D3DDevice_SetTextureStageState_Immediate(Stage, Type, Value);
+    else if (Type >= D3DTSS_DEFERRED_TEXTURE_STATE_MAX)
+        return D3DDevice_SetTextureStageState_Deferred(Stage, Type, Value);
+    else
+        return D3DDevice_SetTextureStageState_Simple(Stage, Type, Value);
 }
 
 HRESULT IDirect3DDevice8_SetTextureStageState(
@@ -2631,6 +2793,77 @@ HRESULT IDirect3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index,
     assert(pThis == &g_d3ddev.iface);
     return D3DDevice_SetTile(Index, pTile);
 }
+
+HRESULT D3DDevice_SetTexture(DWORD Stage, LPDIRECT3DBASETEXTURE8 pTexture) {
+    if (pTexture == NULL) {
+        IDirect3DBaseTexture8_Release(&g_d3ddev.pTexture[Stage]->iface);
+        g_d3ddev.pTexture[Stage] = NULL;
+        return D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
+            MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x3ffc0));
+    }
+
+    IDirect3DBaseTexture8_AddRef(&g_d3ddev.pTexture[Stage]->iface);
+    D3DBaseTexture* pBase = (D3DBaseTexture*)pTexture;
+    g_d3ddev.pTexture[Stage] = pBase;
+
+    D3DRESOURCETYPE Type = IDirect3DBaseTexture8_GetType(pTexture);
+    if (Type != D3DRTYPE_TEXTURE) {
+        if (Type == D3DRTYPE_VOLUMETEXTURE || Type == D3DRTYPE_CUBETEXTURE)
+            return E_NOTIMPL;
+        else
+            return D3DERR_INVALIDCALL;
+    }
+
+    D3DTexture* pTex = (D3DTexture*)pBase;
+    LPDIRECT3DSURFACE8* pSurface = NULL;
+    HRESULT hr = IDirect3DTexture8_GetSurfaceLevel((LPDIRECT3DTEXTURE8)pTex, 0, (LPDIRECT3DSURFACE8*)&pSurface);
+#if NXDK_DEBUG
+    if (FAILED(hr)) return hr;
+#endif // NXDK_DEBUG
+
+    D3DSurface* pSurf = (D3DSurface*)pSurface;
+    D3DResourceInner* pResource = &pSurf->resource;
+    hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_OFFSET(Stage), 
+                           (DWORD)pResource->pContiguousMemory);
+    if (FAILED(hr)) return hr;
+
+    D3DSURFACE_DESC desc;
+    hr = IDirect3DSurface8_GetDesc((LPDIRECT3DSURFACE8)pSurface, &desc);
+#if NXDK_DEBUG
+    if (FAILED(hr)) return hr;
+#endif // NXDK_DEBUG
+
+    hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_IMAGE_RECT(Stage), 
+        MASK(NV097_SET_TEXTURE_IMAGE_RECT_WIDTH,  desc.Width) |
+        MASK(NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT, desc.Height));
+    if (FAILED(hr)) return hr;
+
+    hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
+        NV097_SET_TEXTURE_CONTROL0_ENABLE |
+        MASK(NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP, 0x0003ffc0));
+    if (FAILED(hr)) return hr;
+
+    UINT Pitch = desc.Width * D3D_FormatBytesPerPixel(desc.Format);
+    hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL1(Stage),
+        MASK(NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH, Pitch));
+    if (FAILED(hr)) return hr;
+
+    DWORD dwLevelCount = IDirect3DBaseTexture8_GetLevelCount(pTexture);
+
+    return D3DDevice_PushCmd(NV097_SET_TEXTURE_FORMAT(Stage), 
+        MASK(NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS, dwLevelCount) |
+        MASK(NV097_SET_TEXTURE_FORMAT_COLOR, desc.Format) |
+        MASK(NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY, 2) |
+        MASK(NV097_SET_TEXTURE_FORMAT_BORDER_SOURCE, desc.Usage) |
+        MASK(NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA, 2));
+}
+
+HRESULT IDirect3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
+                                    LPDIRECT3DBASETEXTURE8 pTexture)
+{
+    assert(pThis == &g_d3ddev.iface);
+    return D3DDevice_SetTexture(Stage, pTexture);
+}
 // ============================================================================
 
 static BOOL g_d3dCreated = FALSE;
@@ -2676,6 +2909,7 @@ LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_d3ddevVtbl.Clear                      = IDirect3DDevice8_Clear;
     g_d3ddevVtbl.SetScissors                = IDirect3DDevice8_SetScissors;
     g_d3ddevVtbl.SetTile                    = IDirect3DDevice8_SetTile;
+    g_d3ddevVtbl.SetTexture                 = IDirect3DDevice8_SetTexture;
     g_d3ddev.iface.lpVtbl = &g_d3ddevVtbl;
 
     g_d3dResourceVtbl.AddRef                = IDirect3DResource8_AddRef;
