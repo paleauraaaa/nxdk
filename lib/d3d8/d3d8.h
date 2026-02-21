@@ -140,8 +140,10 @@ struct IDirect3DTexture8 INHERITS(IDirect3DBaseTexture8) {
     LPDIRECT3DTEXTUREVTBL8 lpVtbl;
 #ifdef __cplusplus
     virtual HRESULT GetLevelDesc(UINT Level, D3DSURFACE_DESC* pDesc) = 0;
-    virtual HRESULT GetSurfaceLevel(UINT Level, LPDIRECT3DSURFACE8* ppSurfaceLevel) = 0;
-    virtual HRESULT LockRect(UINT Level, D3DLOCKED_RECT* pLockedRect, const RECT* pRect, DWORD Flags) = 0;
+    virtual HRESULT GetSurfaceLevel(UINT Level, 
+                                    LPDIRECT3DSURFACE8* ppSurfaceLevel) = 0;
+    virtual HRESULT LockRect(UINT Level, D3DLOCKED_RECT* pLockedRect, 
+                             const RECT* pRect, DWORD Flags) = 0;
     virtual HRESULT UnlockRect(UINT Level) = 0;
 #endif // __cplusplus
 };
@@ -154,9 +156,8 @@ DWORD           IDirect3DTexture8_GetLevelCount(LPDIRECT3DTEXTURE8 pThis);
 HRESULT         IDirect3DTexture8_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis, 
                                                UINT Level, 
                                                D3DSURFACE_DESC* pDesc);
-HRESULT         IDirect3DTexture8_GetSurfaceLevel(LPDIRECT3DTEXTURE8 pThis, 
-                                                  UINT Level, 
-                                                  LPDIRECT3DSURFACE8* ppSurfaceLevel);
+HRESULT         IDirect3DTexture8_GetSurfaceLevel(
+    LPDIRECT3DTEXTURE8 pThis, UINT Level, LPDIRECT3DSURFACE8* ppSurfaceLevel);
 HRESULT         IDirect3DTexture8_LockRect(LPDIRECT3DTEXTURE8 pThis, 
                                            UINT Level, 
                                            D3DLOCKED_RECT* pLockedRect, 
@@ -164,6 +165,78 @@ HRESULT         IDirect3DTexture8_LockRect(LPDIRECT3DTEXTURE8 pThis,
                                            DWORD Flags);
 HRESULT         IDirect3DTexture8_UnlockRect(LPDIRECT3DTEXTURE8 pThis, 
                                              UINT Level);  
+// ============================================================================
+
+// ============================================================================
+struct IDirect3DCubeTexture8;
+typedef struct IDirect3DCubeTexture8 IDirect3DCubeTexture8, 
+                                     *LPDIRECT3DCUBETEXTURE8;
+
+typedef struct IDirect3DCubeTextureVtbl8 {
+    /*** IUnknown methods ***/
+    ULONG   (*AddRef)(LPDIRECT3DCUBETEXTURE8 pThis);
+    ULONG   (*Release)(LPDIRECT3DCUBETEXTURE8 pThis);
+
+    /*** IDirect3DResource8 methods ***/
+    D3DRESOURCETYPE (*GetType)(LPDIRECT3DCUBETEXTURE8 pThis);
+    VOID            (*Register)(LPDIRECT3DCUBETEXTURE8 pThis, PVOID pBase);
+    VOID            (*BlockUntilNotBusy)(LPDIRECT3DCUBETEXTURE8 pThis);
+    BOOL            (*IsBusy)(LPDIRECT3DCUBETEXTURE8 pThis);
+
+    /*** IDirect3DBaseTexture8 methods ***/
+    DWORD           (*GetLevelCount)(LPDIRECT3DCUBETEXTURE8 pThis);
+
+    /*** IDirect3DCubeTexture8 methods ***/
+    HRESULT         (*GetLevelDesc)(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                   UINT Level, 
+                                   D3DSURFACE_DESC* pDesc);
+    HRESULT         (*LockRect)(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                D3DCUBEMAP_FACES FaceType, 
+                                UINT Level, 
+                                D3DLOCKED_RECT* pLockedRect, 
+                                const RECT* pRect, 
+                                DWORD Flags);
+    HRESULT         (*UnlockRect)(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                  D3DCUBEMAP_FACES FaceType, 
+                                  UINT Level);
+    HRESULT         (*GetCubeMapSurface)(LPDIRECT3DCUBETEXTURE8 pThis,
+                                         D3DCUBEMAP_FACES FaceType, 
+                                         UINT Level, 
+                                         LPDIRECT3DSURFACE8* ppCubeMapSurface);
+} IDirect3DCubeTextureVtbl8, *LPDIRECT3DCUBETEXTUREVTBL8;
+
+struct IDirect3DCubeTexture8 INHERITS(IDirect3DBaseTexture8) {
+    LPDIRECT3DCUBETEXTUREVTBL8 lpVtbl;
+#ifdef __cplusplus
+    virtual HRESULT GetLevelDesc(UINT Level, D3DSURFACE_DESC* pDesc) = 0;
+    virtual HRESULT LockRect(UINT Level, D3DLOCKED_RECT* pLockedRect, 
+                             const RECT* pRect, DWORD Flags) = 0;
+    virtual HRESULT UnlockRect(UINT Level) = 0;
+    virtual HRESULT GetCubeMapSurface(D3DCUBEMAP_FACES FaceType, UINT Level, 
+                                     LPDIRECT3DSURFACE8* ppCubeMapSurface) = 0;
+#endif // __cplusplus
+};
+
+ULONG           IDirect3DCubeTexture8_AddRef(LPDIRECT3DCUBETEXTURE8 pThis);
+ULONG           IDirect3DCubeTexture8_Release(LPDIRECT3DCUBETEXTURE8 pThis);
+D3DRESOURCETYPE IDirect3DCubeTexture8_GetType(LPDIRECT3DCUBETEXTURE8 pThis);
+VOID            IDirect3DCubeTexture8_Register(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                               PVOID pBase);
+DWORD  IDirect3DCubeTexture8_GetLevelCount(LPDIRECT3DCUBETEXTURE8 pThis);
+HRESULT         IDirect3DCubeTexture8_GetLevelDesc(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                               UINT Level, 
+                                               D3DSURFACE_DESC* pDesc);
+HRESULT         IDirect3DCubeTexture8_LockRect(LPDIRECT3DCUBETEXTURE8 pThis,
+                                               D3DCUBEMAP_FACES FaceType, 
+                                               UINT Level,  
+                                               D3DLOCKED_RECT* pLockedRect, 
+                                               CONST RECT* pRect, DWORD Flags);
+HRESULT         IDirect3DCubeTexture8_UnlockRect(LPDIRECT3DCUBETEXTURE8 pThis, 
+                                                 D3DCUBEMAP_FACES FaceType,
+                                                 UINT Level);  
+HRESULT IDirect3DCubeTexture8_GetCubeMapSurface(LPDIRECT3DCUBETEXTURE8 pThis,
+    D3DCUBEMAP_FACES FaceType, UINT Level, 
+    LPDIRECT3DSURFACE8* ppCubeMapSurface);
 // ============================================================================
 
 // ============================================================================
@@ -216,7 +289,8 @@ HRESULT IDirect3DSurface8_UnlockRect(LPDIRECT3DSURFACE8 pThis);
 
 // ============================================================================
 struct IDirect3DVertexBuffer8;
-typedef struct IDirect3DVertexBuffer8 IDirect3DVertexBuffer8, *LPDIRECT3DVERTEXBUFFER8;
+typedef struct IDirect3DVertexBuffer8 IDirect3DVertexBuffer8, 
+                                      *LPDIRECT3DVERTEXBUFFER8;
 
 typedef struct _D3DVERTEXBUFFER_DESC {
     D3DFORMAT           Format;
@@ -235,8 +309,9 @@ typedef struct IDirect3DVertexBufferVtbl8 {
     BOOL            (*IsBusy)(LPDIRECT3DVERTEXBUFFER8 pThis);
 
     /*** IDirect3DVertexBuffer methods ***/
-    HRESULT         (*GetDesc)(LPDIRECT3DVERTEXBUFFER8 pThis, D3DVERTEXBUFFER_DESC* pDesc);
-    HRESULT         (*Lock)(LPDIRECT3DVERTEXBUFFER8 pThis, UINT OffsetToLock, 
+    HRESULT         (*GetDesc)(LPDIRECT3DVERTEXBUFFER8 pThis, 
+                               D3DVERTEXBUFFER_DESC* pDesc);
+    HRESULT         (*Lock)(LPDIRECT3DVERTEXBUFFER8 pThis, UINT OffsetToLock,
                             UINT SizeToLock, BYTE** ppbData, DWORD Flags);
     HRESULT         (*Unlock)(LPDIRECT3DVERTEXBUFFER8 pThis);
 } IDirect3DVertexBufferVtbl8, *LPDIRECT3DVERTEXBUFFERVTBL8;
@@ -254,9 +329,10 @@ struct IDirect3DVertexBuffer8 INHERITS(IDirect3DResource8) {
 ULONG IDirect3DVertexBuffer8_AddRef(LPDIRECT3DVERTEXBUFFER8 pThis);
 ULONG IDirect3DVertexBuffer8_Release(LPDIRECT3DVERTEXBUFFER8 pThis);
 D3DRESOURCETYPE IDirect3DVertexBuffer8_GetType(LPDIRECT3DVERTEXBUFFER8 pThis);
-VOID IDirect3DVertexBuffer8_Register(LPDIRECT3DVERTEXBUFFER8 pThis, PVOID pBase);
-HRESULT IDirect3DVertexBuffer8_GetContainer(LPDIRECT3DVERTEXBUFFER8 pThis, 
-                                            LPDIRECT3DBASETEXTURE8* ppContainer);
+VOID IDirect3DVertexBuffer8_Register(LPDIRECT3DVERTEXBUFFER8 pThis, 
+                                     PVOID pBase);
+HRESULT IDirect3DVertexBuffer8_GetContainer(
+    LPDIRECT3DVERTEXBUFFER8 pThis, LPDIRECT3DBASETEXTURE8* ppContainer);
 HRESULT IDirect3DVertexBuffer8_GetDesc(LPDIRECT3DVERTEXBUFFER8 pThis, 
                                        D3DVERTEXBUFFER_DESC* pDesc);
 HRESULT IDirect3DVertexBuffer8_Lock(LPDIRECT3DVERTEXBUFFER8 pThis, 
@@ -267,7 +343,8 @@ HRESULT IDirect3DVertexBuffer8_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis);
 
 // ============================================================================
 struct IDirect3DPushBuffer8;
-typedef struct IDirect3DPushBuffer8 IDirect3DPushBuffer8, *LPDIRECT3DPUSHBUFFER8;
+typedef struct IDirect3DPushBuffer8 IDirect3DPushBuffer8, 
+                                    *LPDIRECT3DPUSHBUFFER8;
 
 typedef struct IDirect3DPushBufferVtbl8 {
     /*** IUnknown methods ***/
@@ -347,6 +424,13 @@ typedef struct IDirect3DDeviceVtbl8 {
                              D3DFORMAT Format,
                              D3DPOOL Pool,
                              LPDIRECT3DTEXTURE8* ppTexture);
+    HRESULT (*CreateCubeTexture)(LPDIRECT3DDEVICE8 pThis, 
+                                 UINT EdgeLength, 
+                                 UINT Levels, 
+                                 DWORD Usage, 
+                                 D3DFORMAT Format, 
+                                 D3DPOOL Pool,
+                                 LPDIRECT3DCUBETEXTURE8* ppCubeTexture);
     HRESULT (*SetTextureStageState)(LPDIRECT3DDEVICE8 pThis,
                                  DWORD Stage,
                                  D3DTEXTURESTAGESTATETYPE Type,
@@ -365,7 +449,8 @@ typedef struct IDirect3DDeviceVtbl8 {
                      float Z, DWORD Stencil);
     HRESULT (*SetScissors)(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
                            BOOL Exclusive, CONST D3DRECT *pRects);
-    HRESULT (*SetTile)(LPDIRECT3DDEVICE8 pThis, DWORD Index, CONST D3DTILE* pTile);
+    HRESULT (*SetTile)(LPDIRECT3DDEVICE8 pThis, 
+                       DWORD Index, CONST D3DTILE* pTile);
     HRESULT (*SetTexture)(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
                           LPDIRECT3DBASETEXTURE8 pTexture);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
@@ -404,6 +489,13 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
         D3DFORMAT Format,
         D3DPOOL Pool,
         LPDIRECT3DTEXTURE8* ppTexture) = 0;
+    virtual HRESULT CreateCubeTexture(
+        UINT EdgeLength, 
+        UINT Levels, 
+        DWORD Usage, 
+        D3DFORMAT Format, 
+        D3DPOOL Pool,
+        LPDIRECT3DCUBETEXTURE8* ppCubeTexture) = 0;
     virtual HRESULT SetTextureStageState(
         DWORD Stage,
         D3DTEXTURESTAGESTATETYPE Type,
@@ -426,8 +518,9 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
 
 ULONG IDirect3DDevice8_AddRef(LPDIRECT3DDEVICE8 pThis);
 ULONG IDirect3DDevice8_Release(LPDIRECT3DDEVICE8 pThis);
-HRESULT IDirect3DDevice8_CreateImageSurface(LPDIRECT3DDEVICE8 pThis, UINT Width, 
-                                            UINT Height, D3DFORMAT Format, 
+HRESULT IDirect3DDevice8_CreateImageSurface(LPDIRECT3DDEVICE8 pThis, 
+                                            UINT Width, UINT Height, 
+                                            D3DFORMAT Format, 
                                             LPDIRECT3DSURFACE8* ppSurface);
 HRESULT IDirect3DDevice8_CreateDepthStencilSurface(
     LPDIRECT3DDEVICE8 pThis, UINT Width, UINT Height, D3DFORMAT Format,
@@ -456,6 +549,17 @@ HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
     D3DVERTEXATTRIBUTEFORMAT *pVAF,
     UINT StreamCount, 
     D3DSTREAM_INPUT *pStreamInputs);
+HRESULT IDirect3DDevice8_CreateTexture(LPDIRECT3DDEVICE8 pThis,
+                                        UINT Width,
+                                        UINT Height,
+                                        UINT Levels,
+                                        DWORD Usage,
+                                        D3DFORMAT Format,
+                                        D3DPOOL Pool,
+                                        LPDIRECT3DTEXTURE8* ppTexture);
+HRESULT IDirect3DDevice8_CreateCubeTexture(
+    LPDIRECT3DDEVICE8 pThis, UINT EdgeLength, UINT Levels, DWORD Usage, 
+    D3DFORMAT Format, D3DPOOL Pool, LPDIRECT3DCUBETEXTURE8* ppCubeTexture);
 HRESULT IDirect3DDevice8_SetTextureStageState(
     LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
     D3DTEXTURESTAGESTATETYPE Type, DWORD Value);
