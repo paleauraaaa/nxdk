@@ -35,6 +35,10 @@ extern "C"
 #include "pbkit_print.h"
 #include "pbkit_pushbuffer.h"
 
+#define PB_SETOUTER                 0xB2A
+#define PB_SETNOISE                 0xBAA
+#define PB_FINISHED                 0xFAB
+
 void    pb_show_front_screen(void); //shows scene (allows VBL synced screen swapping)
 void    pb_show_debug_screen(void); //shows debug screen (default openxdk+SDL buffer)
 void    pb_show_depth_screen(void); //shows depth screen (depth stencil buffer)

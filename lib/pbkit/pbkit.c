@@ -54,10 +54,6 @@
 
 #define TICKSTIMEOUT                    100 //if Dma doesn't react in that time, send a warning
 
-#define PB_SETOUTER                 0xB2A
-#define PB_SETNOISE                 0xBAA
-#define PB_FINISHED                 0xFAB
-
 unsigned int pb_ColorFmt = NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8;
 static unsigned int pb_DepthFmt = NV097_SET_SURFACE_FORMAT_ZETA_Z24S8;
 
