@@ -26,6 +26,7 @@
 
 #define NV_KELVIN_PRIMITIVE                              0x0097
 #   define NV097_NO_OPERATION                                 0x00000100
+#   define NV097_FIRE_INTERRUPT                               0x00000100
 #   define NV097_WAIT_FOR_IDLE                                0x00000110
 #   define NV097_SET_FLIP_READ                                0x00000120
 #   define NV097_SET_FLIP_WRITE                               0x00000124
@@ -635,21 +636,25 @@
 #       define NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH             0xFFFF0000
 #   define NV097_SET_TEXTURE_FILTER(n)                           (0x00001B14 + (n)*0x0100)
 #       define NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS           0x00001FFF
-#       define NV097_SET_TEXTURE_FILTER_DITHER_ENABLE             0x00008000
-#       define NV097_SET_TEXTURE_FILTER_MIN                       0x00FF0000
-#               define NV097_SET_TEXTURE_FILTER_MIN_NONE              0
-#               define NV097_SET_TEXTURE_FILTER_MIN_POINT             1
-#               define NV097_SET_TEXTURE_FILTER_MIN_LINEAR            2
-#               define NV097_SET_TEXTURE_FILTER_MIN_ANISOTROPIC       3
-#               define NV097_SET_TEXTURE_FILTER_MIN_QUINCUNX          4
-#               define NV097_SET_TEXTURE_FILTER_MIN_GAUSSIAN_CUBIC    5
+#       define NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL        0x0000E000
+# define NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_QUINCUNX         1
+# define NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_GAUSSIAN_CUBIC   2
+#       define NV097_SET_TEXTURE_FILTER_MIN                       0x003F0000
+#               define NV097_SET_TEXTURE_FILTER_MIN_BOX_LOD0          1
+#               define NV097_SET_TEXTURE_FILTER_MIN_TENT_LOD0         2
+#               define NV097_SET_TEXTURE_FILTER_MIN_BOX_NEARESTLOD    3
+#               define NV097_SET_TEXTURE_FILTER_MIN_TENT_NEARESTLOD   4
+#               define NV097_SET_TEXTURE_FILTER_MIN_BOX_TENT_LOD      5
+#               define NV097_SET_TEXTURE_FILTER_MIN_TENT_TENT_LOD     6
+#             define NV097_SET_TEXTURE_FILTER_MIN_CONVOLUTION_2D_LOD0 7
 #       define NV097_SET_TEXTURE_FILTER_MAG                       0x0F000000
-#               define NV097_SET_TEXTURE_FILTER_MAG_NONE              0
-#               define NV097_SET_TEXTURE_FILTER_MAG_POINT             1
-#               define NV097_SET_TEXTURE_FILTER_MAG_LINEAR            2
-#               define NV097_SET_TEXTURE_FILTER_MAG_ANISOTROPIC       3
-#               define NV097_SET_TEXTURE_FILTER_MAG_QUINCUNX          4
-#               define NV097_SET_TEXTURE_FILTER_MAG_GAUSSIAN_CUBIC    5
+#               define NV097_SET_TEXTURE_FILTER_MAG_BOX_LOD0          1
+#               define NV097_SET_TEXTURE_FILTER_MAG_TENT_LOD0         2
+#               define NV097_SET_TEXTURE_FILTER_MAG_BOX_NEARESTLOD    3
+#               define NV097_SET_TEXTURE_FILTER_MAG_TENT_NEARESTLOD   4
+#               define NV097_SET_TEXTURE_FILTER_MAG_BOX_TENT_LOD      5
+#               define NV097_SET_TEXTURE_FILTER_MAG_TENT_TENT_LOD     6
+#             define NV097_SET_TEXTURE_FILTER_MAG_CONVOLUTION_2D_LOD0 7
 #       define NV097_SET_TEXTURE_FILTER_SIGN                      0xF0000000
 #               define NV097_SET_TEXTURE_FILTER_ASIGNED          (1 << 28)
 #               define NV097_SET_TEXTURE_FILTER_RSIGNED          (1 << 29)
@@ -677,7 +682,13 @@
 #       define NV097_SET_ZMIN_MAX_CONTROL_ZCLAMP_CULL             0
 #       define NV097_SET_ZMIN_MAX_CONTROL_ZCLAMP_CLAMP            (1 << 4)
 #       define NV097_SET_ZMIN_MAX_CONTROL_CULL_IGNORE_W           (1 << 8)
+#   define NV097_SET_MULTISAMPLE                              0x00001D7C
+#       define NV097_SET_MULTISAMPLE_ENABLE                    (1 << 0)
+#       define NV097_SET_MULTISAMPLE_MASK                     0xFFFF0000
 #   define NV097_SET_COMPRESS_ZBUFFER_EN                      0x00001D80
+#   define NV097_SET_CULL_MODE                                0x00001D84
+#       define NV097_SET_CULL_MODE_OCCLUSION                   (1 << 0)
+#       define NV097_SET_CULL_MODE_STENCIL                     (1 << 1)
 #   define NV097_SET_ZSTENCIL_CLEAR_VALUE                     0x00001D8C
 #   define NV097_SET_COLOR_CLEAR_VALUE                        0x00001D90
 #   define NV097_CLEAR_SURFACE                                0x00001D94
