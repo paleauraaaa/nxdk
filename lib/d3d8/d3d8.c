@@ -37,12 +37,20 @@ typedef struct D3DRefcount {
 } D3DRefcount;
 
 ULONG D3DRefcount_AddRef(D3DRefcount* pThis) {
+    // prevent overflow
+    if (pThis->c == ~((ULONG)0)) {
+        assert(false);
+        return pThis->c;
+    }
     return pThis->c++;
 }
 
 ULONG D3DRefcount_Release(D3DRefcount *pThis) {
-    if (pThis->c == 0)
+    // prevent underflow
+    if (pThis->c == 0) {
+        assert(false);
         return 0;
+    }
 
     return pThis->c--;
 }
@@ -238,6 +246,17 @@ HRESULT D3DPushBuffer_PushCmd(
     return D3D_OK;
 }
 
+HRESULT D3DPushBuffer_PushCmd2(
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, DWORD dwData2)
+{
+    pThis->SizeNeeded += 3;
+    if (pThis->SizeNeeded > pThis->Size - 3)
+        return D3DERR_BUFFERTOOSMALL;
+
+    pThis->p = (PDWORD)pb_push2((uint32_t*)pThis->p, cmd, dwData1, dwData2);
+    return D3D_OK;
+}
+
 HRESULT D3DPushBuffer_PushN(
     D3DPushBuffer* pThis, DWORD dwData, SIZE_T n)
 {
@@ -270,14 +289,24 @@ struct D3DBaseTexture;
 typedef struct D3DBaseTexture D3DBaseTexture;
 
 // ============================================================================
+typedef struct D3DRenderState {
+    DWORD CullMode;
+    DWORD MultiSample;
+    DWORD RopZ;
+    DWORD Debug5;
+    DWORD LogicOp;
+} D3DRenderState;
+
 typedef struct D3DTextureStageState {
     DWORD Address;
-    BOOL  AddressDirty;
     DWORD Filter;
-    BOOL  FilterDirty;
     DWORD Control0;
-    BOOL  Control0Dirty;
+    DWORD Dirty;
 } D3DTextureStageState;
+
+#define D3DTSS_ADDRESS_DIRTY   0x00000001
+#define D3DTSS_FILTER_DIRTY    0x00000002
+#define D3DTSS_CONTROL0_DIRTY  0x00000004
 
 typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     IDirect3DDevice8 iface;
@@ -296,9 +325,10 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     BOOL bUserSuppliedDepthStencilSurface;
     DWORD Control0;
     UINT PresentInterval;
+    D3DRenderState RenderState;
     D3DTextureStageState TextureStageState[D3DTSS_MAXSTAGES];
-    BOOL TextureStageStateDirty[D3DTSS_MAXSTAGES]
-                               [D3DTSS_DEFERRED_TEXTURE_STATE_MAX];
+    DWORD Wrap[D3DTSS_MAXSTAGES];
+    DWORD WrapDirty;
     D3DBaseTexture* pTexture[D3DTSS_MAXSTAGES];
 #ifdef __cplusplus
     ULONG AddRef() override {
@@ -307,6 +337,10 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
 
     ULONG Release() override {
         return D3DDevice_Release();
+    }
+
+    VOID BlockUntilVerticalBlank() {
+        D3DDevice_BlockUntilVerticalBlank();
     }
 
     HRESULT CreateImageSurface(UINT Width, UINT Height,
@@ -346,6 +380,18 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     {
         return D3DDevice_CreateTexture(Width, Height, Levels, Usage, Format,
                                        Pool, ppTexture);
+    }
+
+    HRESULT CreateCubeTexture(
+        UINT EdgeLength, 
+        UINT Levels, 
+        DWORD Usage, 
+        D3DFORMAT Format, 
+        D3DPOOL Pool,
+        LPDIRECT3DCUBETEXTURE8* ppCubeTexture) override
+    {
+        return D3DDevice_CreateCubeTexture(EdgeLength, Levels, 
+                                           Format, ppCubeTexture);
     }
 
     HRESULT CreatePushBuffer(
@@ -427,6 +473,14 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
                         CONST D3DRECT *pRects) override 
     {
         return D3DDevice_SetScissors(&this->iface, Count, Exclusive, pRects);
+    }
+
+    HRESULT SetTile(DWORD Index, CONST D3DTILE* pTile) override {
+        return D3DDevice_SetTile(Index, pTile);
+    }
+
+    HRESULT SetTexture(DWORD Stage, LPDIRECT3DBASETEXTURE8 pTexture) override {
+        return D3DDevice_SetTexture(Stage, pTexture);
     }
 #endif // __cplusplus
 } D3DDevice;
@@ -1334,6 +1388,7 @@ HRESULT IDirect3DCubeTexture8_GetCubeMapSurface(
 
 // ============================================================================
 
+// Does not allocate.
 static VOID D3D_CreateResource(D3DRESOURCETYPE type, DWORD Data, 
                                PVOID pContiguousMemory, 
                                D3DResourceInner* pResource) 
@@ -1345,13 +1400,22 @@ static VOID D3D_CreateResource(D3DRESOURCETYPE type, DWORD Data,
     pResource->pContiguousMemory   = pContiguousMemory;
 }
 
-static VOID D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
+
+static HRESULT D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
                               DWORD Usage, 
                               D3DMULTISAMPLE_TYPE MultiSampleType, 
                               PVOID pContiguousMemory,
                               D3DBaseTexture* pContainer,
                               D3DSurface* pSurf) 
 {
+    UINT Size = Width * Height *  D3D_FormatBytesPerPixel(Format);
+    if (pContiguousMemory == NULL) {
+        pContiguousMemory = 
+            D3D_AllocContiguousMemory(Size, D3DSURFACE_ALIGNMENT);
+        
+        if (pContiguousMemory == NULL)
+            return D3DERR_OUTOFVIDEOMEMORY;
+    }
     pSurf->iface.lpVtbl = &g_d3dSurfaceVtbl;
     pSurf->pContainer = pContainer;
     D3D_CreateResource(D3DRTYPE_SURFACE, 0, pContiguousMemory, 
@@ -1369,6 +1433,8 @@ static VOID D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
     pSurf->lock.bLocked = FALSE;
     if (pContiguousMemory != NULL)
         IDirect3DSurface8_Register(&pSurf->iface, pContiguousMemory);
+
+    return D3D_OK;
 }
 
 static HRESULT D3D_CreatePushBuffer(
@@ -1387,15 +1453,20 @@ static HRESULT D3D_CreatePushBuffer(
     pPB->bCpu = bCpu;
     if (bCpu == TRUE) {
         pPB->p = (PDWORD)malloc(Size);
+        if (pPB->p == NULL)
+            return E_OUTOFMEMORY;
         pPB->resource.pContiguousMemory = NULL;
     }
     else {
-        if (pContiguousMemory != NULL)
+        if (pContiguousMemory != NULL) {
             pPB->resource.pContiguousMemory = (PDWORD)pContiguousMemory;
-        else
+        } else {
             pPB->resource.pContiguousMemory = 
                 (PDWORD)D3D_AllocContiguousMemory(Size,
                                                   D3DPUSHBUFFER_ALIGNMENT);
+            if (pPB->resource.pContiguousMemory == NULL)
+                return D3DERR_OUTOFVIDEOMEMORY;
+        }
         pPB->p = pPB->resource.pContiguousMemory;
     }
     return D3D_OK;
@@ -1586,9 +1657,7 @@ HRESULT D3DDevice_KickPushBuffer() {
     }
     
     HRESULT hr = D3DDevice_EndPushBuffer();
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     
     return D3DDevice_BeginPushBuffer(g_d3ddev.current_pb);
 }
@@ -1608,14 +1677,26 @@ HRESULT D3DDevice_PushCmd(DWORD cmd, DWORD dwData) {
 #if NXDK_DEBUG
     if (g_d3ddev.current_pb == NULL)
         return D3DERR_NOTAVAILABLE;
+    if (cmd == 0)
+        return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     return D3DPushBuffer_PushCmd(g_d3ddev.current_pb, cmd, dwData);
+}
+
+HRESULT D3DDevice_PushCmd2(DWORD cmd, DWORD dwData1, DWORD dwData2) {
+#if NXDK_DEBUG
+    if (g_d3ddev.current_pb == NULL)
+        return D3DERR_NOTAVAILABLE;
+#endif // NXDK_DEBUG
+    if (D3DDevice_IsKickoffReady() == TRUE) {
+        HRESULT hr = D3DDevice_KickPushBuffer();
+        if (FAILED(hr)) return hr;
+    }
+    return D3DPushBuffer_PushCmd2(g_d3ddev.current_pb, cmd, dwData1, dwData2);
 }
 
 HRESULT D3DDevice_PushN(DWORD dwData, SIZE_T n) {
@@ -1860,11 +1941,11 @@ HRESULT Direct3D_CreateDevice(
 #endif // NXDK_DEBUG
     
     D3DDISPLAYMODE mode;
-    mode.Width       = pPresentationParameters->BackBufferWidth;
-    mode.Height      = pPresentationParameters->BackBufferHeight;
-    mode.RefreshRate = pPresentationParameters->FullScreen_RefreshRateInHz;
-    mode.Format      = pPresentationParameters->BackBufferFormat;
-    mode.Flags       = pPresentationParameters->Flags;
+    mode.Width          = pPresentationParameters->BackBufferWidth;
+    mode.Height         = pPresentationParameters->BackBufferHeight;
+    mode.RefreshRate    = pPresentationParameters->FullScreen_RefreshRateInHz;
+    mode.Format         = pPresentationParameters->BackBufferFormat;
+    mode.Flags          = pPresentationParameters->Flags;
     int i = 0;
     if (Direct3D_IsDisplayModeValid(&mode, &i) == TRUE) {
         int refresh = pPresentationParameters->FullScreen_RefreshRateInHz;
@@ -2124,43 +2205,43 @@ HRESULT D3DDevice_Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) {
         (g_d3ddev.current_surface + 1) % g_d3ddev.max_surfaces;
     UINT lastVBL = g_d3ddev.lastPresentVBlankCount;
     g_d3ddev.lastPresentVBlankCount = pb_get_vbl_counter();
+    UINT diff = g_d3ddev.lastPresentVBlankCount - lastVBL;
 
-    // If the present interval is immediate, we don't need to worry about
-    // waiting for vblanks and we can bail early.
-    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_IMMEDIATE)
+    // If the interval is immediate, or the interval is *_OR_IMMEDIATE and 
+    // we've surpassed the interval, there's no need to wait for a vblank.
+    if (g_d3ddev.PresentInterval  == D3DPRESENT_INTERVAL_IMMEDIATE || 
+        (g_d3ddev.PresentInterval == 
+            D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE && diff >= 1) ||
+        (g_d3ddev.PresentInterval == 
+            D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE && diff >= 2) ||
+        (g_d3ddev.PresentInterval == 
+            D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE && diff >= 3))
+    {
         return D3D_OK;
+    }
 
-    // The remaining logic will wait for the number of vblanks necessary to
-    // maintain the presentation interval, accounting for the number of vblanks
-    // since the last Present call.
-
-    // Highest valid presentation interval is 3. If the difference is greater
-    // than 3 we don't need to wait for a vblank regardless of the interval.
-    UINT intervalDiff = g_d3ddev.lastPresentVBlankCount - lastVBL;
-    if (intervalDiff > 3)
+    // Otherwise we need to wait for the interval.
+    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_ONE || 
+        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE)
+    {
+        D3DDevice_BlockUntilVerticalBlank();
         return D3D_OK;
+    }
 
-    // If we're still on the same vblank as the last Present call, we need 
-    // to wait regardless of if the interval is 1, 2, or 3.
-    if (intervalDiff == 0)
+    UINT Interval = 0;
+    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_TWO || 
+        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE)
+    {
+        Interval = 2;
+    } else if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_THREE || 
+        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE)
+    {
+       Interval = 3;
+    }
+
+    while(pb_get_vbl_counter() < g_d3ddev.lastPresentVBlankCount + Interval)
         D3DDevice_BlockUntilVerticalBlank();
     
-    // If the interval is 2 or 3, we need to wait if the difference 
-    // was 0 or 1.
-    if (g_d3ddev.PresentInterval >= D3DPRESENT_INTERVAL_TWO && 
-        intervalDiff < 2)
-    {
-        D3DDevice_BlockUntilVerticalBlank();
-    }
-
-    // If the interval was 3, we need to wait unless the difference was
-    // exactly 3.
-    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_THREE && 
-        intervalDiff < 3)
-    {
-        D3DDevice_BlockUntilVerticalBlank();
-    }
-
     return D3D_OK;
 }
 
@@ -2177,25 +2258,28 @@ HRESULT D3DDevice_DrawVertices(D3DPRIMITIVETYPE PrimitiveType,
 {
     HRESULT hr = D3D_OK;
     for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
-        if (g_d3ddev.pTexture[Stage] == NULL)
+        if (g_d3ddev.pTexture[Stage] == NULL || 
+            g_d3ddev.TextureStageState[Stage].Dirty == 0)
+        {
             continue;
-        if (g_d3ddev.TextureStageState[Stage].AddressDirty) {
+        }
+
+        DWORD Dirty = g_d3ddev.TextureStageState[Stage].Dirty;
+        g_d3ddev.TextureStageState[Stage].Dirty = 0;
+
+        if (Dirty & D3DTSS_ADDRESS_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_ADDRESS(Stage), 
                                    g_d3ddev.TextureStageState[Stage].Address);
-            g_d3ddev.TextureStageState[Stage].AddressDirty = FALSE;
             if (FAILED(hr)) return hr;
         }
-        if (g_d3ddev.TextureStageState[Stage].FilterDirty) {
+        if (Dirty & D3DTSS_FILTER_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_FILTER(Stage), 
                                    g_d3ddev.TextureStageState[Stage].Filter);
-            g_d3ddev.TextureStageState[Stage].FilterDirty = FALSE;
             if (FAILED(hr)) return hr;
         }
-        if (g_d3ddev.TextureStageState[Stage].Control0Dirty) {
+        if (Dirty & D3DTSS_CONTROL0_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
-                g_d3ddev.TextureStageState[Stage].Control0 | 
-                NV097_SET_TEXTURE_CONTROL0_ENABLE);
-            g_d3ddev.TextureStageState[Stage].Control0Dirty = FALSE;
+                g_d3ddev.TextureStageState[Stage].Control0);
             if (FAILED(hr)) return hr;
         }
     }
@@ -2205,7 +2289,8 @@ HRESULT D3DDevice_DrawVertices(D3DPRIMITIVETYPE PrimitiveType,
     for (int i = 0; i < VertexCount; i += 256) {
         DWORD Count = VertexCount - i;
         if (Count >= 256) Count = 256;
-        hr = D3DDevice_PushCmd(NV097_DRAW_ARRAYS,
+        hr = D3DDevice_PushCmd(
+            NV2A_SUPPRESS_COMMAND_INCREMENT(NV097_DRAW_ARRAYS),
             MASK(NV097_DRAW_ARRAYS_COUNT, Count - 1) | 
             MASK(NV097_DRAW_ARRAYS_START_INDEX, StartVertex));
         if (FAILED(hr)) return hr;
@@ -2407,22 +2492,6 @@ HRESULT D3DDevice_SetTextureStageState_Immediate(
     }
 }
 
-HRESULT D3DDevice_SetTextureStageState_Simple(
-    DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
-{
-#if NXDK_DEBUG
-    if (Type >= D3DTSS_DEFERRED_MAX || Type < D3DTSS_DEFERRED_TEXTURE_STATE_MAX) {
-        assert(false);
-        return D3DERR_INVALIDCALL;
-    }
-#endif // NXDK_DEBUG
-    switch (Type) {
-    default:
-        // TODO: implement remaining texture stage states
-        return E_NOTIMPL;
-    }
-}
-
 #define MASK_INPLACE(a, mask, value) \
     (a) = ((a & (~(mask))) | MASK(mask, value))
 
@@ -2430,7 +2499,7 @@ HRESULT D3DDevice_SetTextureStageState_Deferred(
     DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
 {
 #if NXDK_DEBUG
-    if (Type >= D3DTSS_DEFERRED_MAX || Type < D3DTSS_DEFERRED_TEXTURE_STATE_MAX) {
+    if (Type >= D3DTSS_DEFERRED_MAX) {
         assert(false);
         return D3DERR_INVALIDCALL;
     }
@@ -2439,54 +2508,90 @@ HRESULT D3DDevice_SetTextureStageState_Deferred(
     case D3DTSS_ADDRESSU:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_U, Value);
-        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_ADDRESSV:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_V, Value);
-        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_ADDRESSW:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_P, Value);
-        g_d3ddev.TextureStageState[Stage].AddressDirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_MAGFILTER:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
-                     NV097_SET_TEXTURE_FILTER_MAG, Value);
-        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        assert(Value > D3DTEXF_NONE);
+        assert(Value < D3DTEXF_MAX);
+        if (Value < D3DTEXF_QUINCUNX) {
+            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                         NV097_SET_TEXTURE_FILTER_MAG, Value);
+        } else {
+            if (Value == D3DTEXF_QUINCUNX) {
+                MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_QUINCUNX);
+            } else {
+                 MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_GAUSSIAN_CUBIC
+                );
+            }
+            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                         NV097_SET_TEXTURE_FILTER_MAG, 
+                         NV097_SET_TEXTURE_FILTER_MAG_CONVOLUTION_2D_LOD0);
+        } 
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
         return D3D_OK;
     case D3DTSS_MINFILTER:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
-                     NV097_SET_TEXTURE_FILTER_MIN, Value);
-        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        assert(Value > D3DTEXF_NONE);
+        assert(Value < D3DTEXF_MAX);
+        if (Value < D3DTEXF_QUINCUNX) {
+            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                         NV097_SET_TEXTURE_FILTER_MIN, Value);
+        } else {
+            if (Value == D3DTEXF_QUINCUNX) {
+                MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_QUINCUNX);
+            } else {
+                 MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
+                    NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_GAUSSIAN_CUBIC
+                );
+            }
+            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                         NV097_SET_TEXTURE_FILTER_MIN, 
+                         NV097_SET_TEXTURE_FILTER_MIN_CONVOLUTION_2D_LOD0);
+        } 
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
         return D3D_OK;
     case D3DTSS_MIPMAPLODBIAS:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
                      NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS, Value);
-        g_d3ddev.TextureStageState[Stage].FilterDirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
         return D3D_OK;
     case D3DTSS_MAXANISOTROPY:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
                      NV097_SET_TEXTURE_CONTROL0_ANISOTROPY, Value);
-        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_COLORKEYOP:
         MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
                      NV097_SET_TEXTURE_CONTROL0_COLOR_KEY_MODE, Value);
-        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_COLORSIGN:
         g_d3ddev.TextureStageState[Stage].Control0 = 
             (g_d3ddev.TextureStageState[Stage].Control0 & 
                 ~NV097_SET_TEXTURE_FILTER_SIGN) | Value;
-        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_ALPHAKILL:
         g_d3ddev.TextureStageState[Stage].Control0 = 
             (g_d3ddev.TextureStageState[Stage].Control0 &
                  ~NV097_SET_TEXTURE_CONTROL0_ALPHA_KILL_ENABLE) | Value;
-        g_d3ddev.TextureStageState[Stage].Control0Dirty = TRUE;
+        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     default:
         // TODO: implement remaining texture stage states
@@ -2494,21 +2599,86 @@ HRESULT D3DDevice_SetTextureStageState_Deferred(
     }
 }
 
+#if NXDK_DEBUG
+HRESULT D3DDevice_SetTextureStageState_Validate(
+    DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value) 
+{
+    if (Stage >= D3DTSS_MAXSTAGES)
+        return D3DERR_INVALIDCALL;
+    if (Type >= D3DTSS_MAX || Type < 0)
+        return D3DERR_INVALIDCALL;
+
+    switch (Type) {
+    case D3DTSS_ADDRESSU:
+    case D3DTSS_ADDRESSV:
+    case D3DTSS_ADDRESSW:
+        if (Value < D3DTADDRESS_WRAP || Value >= D3DTADDRESS_MAX)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_MAGFILTER:
+    case D3DTSS_MINFILTER:
+        if (Value == D3DTEXF_NONE)
+            return D3DERR_INVALIDCALL;
+        [[fallthrough]];
+    case D3DTSS_MIPFILTER:
+        if (Value >= D3DTEXF_MAX)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_MAXMIPLEVEL:
+        if (Value > 15)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_MAXANISOTROPY:
+        if (Value < 1 || Value > 4)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_COLORKEYOP:
+        if (Value >= D3DTCOLORKEYOP_MAX)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_COLORSIGN:
+        if (Value & 0x0FFFFFFF)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_ALPHAKILL:
+        if (Value != D3DTALPHAKILL_DISABLE && Value != D3DTALPHAKILL_ENABLE)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_COLOROP:
+    case D3DTSS_ALPHAOP:
+        if (Value < D3DTOP_DISABLE || Value >= D3DTOP_MAX)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_COLORARG0:
+    case D3DTSS_COLORARG1:
+    case D3DTSS_COLORARG2:
+    case D3DTSS_ALPHAARG0:
+    case D3DTSS_ALPHAARG1:
+    case D3DTSS_ALPHAARG2:
+        if (Value & 0xFFFFFFC0)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DTSS_RESULTARG:
+        if (Value != D3DTA_CURRENT && Value != D3DTA_TEMP)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    default:
+        return D3D_OK;
+    }
+}
+#endif // NXDK_DEBUG
+
 HRESULT D3DDevice_SetTextureStageState(
     DWORD Stage, D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
 {
 #if NXDK_DEBUG
-    if (Stage >= D3DTSS_MAXSTAGES)
-        return D3DERR_INVALIDCALL;
-    if (Type >= D3DTSS_MAX)
-        return D3DERR_INVALIDCALL;
+    HRESULT hr = D3DDevice_SetTextureStageState_Validate(Stage, Type, Value);
+    if (FAILED(hr)) return hr;
 #endif // NXDK_DEBUG
     if (Type >= D3DTSS_DEFERRED_MAX)
         return D3DDevice_SetTextureStageState_Immediate(Stage, Type, Value);
-    else if (Type >= D3DTSS_DEFERRED_TEXTURE_STATE_MAX)
-        return D3DDevice_SetTextureStageState_Deferred(Stage, Type, Value);
     else
-        return D3DDevice_SetTextureStageState_Simple(Stage, Type, Value);
+        return D3DDevice_SetTextureStageState_Deferred(Stage, Type, Value);
 }
 
 HRESULT IDirect3DDevice8_SetTextureStageState(
@@ -2545,7 +2715,7 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
     HRESULT hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_LOAD, Address);
     if(FAILED(hr)) return hr;
 
-    for (int i = 0; pFunction[i] != D3DVS_END() && Address + i < 136; i +=4) {
+    for (int i = 0; pFunction[i] != D3DVS_END() && Address + i < 136; i += 4) {
         hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM, 4);
         if(FAILED(hr))
             return hr;
@@ -2627,7 +2797,7 @@ DWORD D3D_SimpleRenderState[D3DRS_MAX] = {
     [D3DRS_ALPHAREF]                  = NV097_SET_ALPHA_REF,
     [D3DRS_SRCBLEND]                  = NV097_SET_BLEND_FUNC_SFACTOR,
     [D3DRS_DESTBLEND]                 = NV097_SET_BLEND_FUNC_DFACTOR,
-    [D3DRS_ZWRITEENABLE]              = NV097_SET_CONTROL0,
+    [D3DRS_ZWRITEENABLE]              = NV097_SET_DEPTH_MASK,
     [D3DRS_DITHERENABLE]              = NV097_SET_DITHER_ENABLE,
     [D3DRS_SHADEMODE]                 = NV097_SET_SHADE_MODEL,
     [D3DRS_COLORWRITEENABLE]          = NV097_SET_COLOR_MASK,
@@ -2648,44 +2818,144 @@ DWORD D3D_SimpleRenderState[D3DRS_MAX] = {
     [D3DRS_STIPPLEENABLE]             = NV097_SET_STIPPLE_ENABLE,
 };
 
+#if NXDK_DEBUG
+HRESULT D3DDevice_SetRenderState_Simple_Validate(D3DRENDERSTATETYPE Type,
+                                                 DWORD Value) 
+{
+    if (Type >= D3DRS_MAX)
+        return D3DERR_INVALIDCALL;
+
+    if (D3D_SimpleRenderState[Type] == 0)
+        return E_NOTIMPL;
+
+    switch (Type) {
+    case D3DRS_ZFUNC:
+    case D3DRS_ALPHAFUNC:
+    case D3DRS_STENCILFUNC:
+        if (Value < D3DCMP_NEVER || Value > D3DCMP_ALWAYS)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;    
+    case D3DRS_ALPHABLENDENABLE:
+    case D3DRS_ALPHATESTENABLE:
+    case D3DRS_ZWRITEENABLE:
+    case D3DRS_DITHERENABLE:
+    case D3DRS_POINTOFFSETENABLE:
+    case D3DRS_WIREFRAMEOFFSETENABLE:
+    case D3DRS_SOLIDOFFSETENABLE:
+    case D3DRS_STIPPLEENABLE:
+        if (Value > TRUE)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;    
+    case D3DRS_SRCBLEND:
+    case D3DRS_DESTBLEND:
+        if (Value <= D3DBLEND_ONE)
+            return D3D_OK;    
+        if (Value >= D3DBLEND_SRCCOLOR && Value <= D3DBLEND_SRCALPHASAT)
+            return D3D_OK;    
+        if (Value >= D3DBLEND_CONSTANTCOLOR && 
+            Value <= D3DBLEND_INVCONSTANTALPHA)
+        {
+            return D3D_OK;
+        }
+        return D3DERR_INVALIDCALL;
+    case D3DRS_SHADEMODE:
+        if (Value != D3DSHADE_FLAT && Value != D3DSHADE_GOURAUD)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_COLORWRITEENABLE:
+        if (Value & ~D3DCOLORWRITEENABLE_ALL)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_STENCILZFAIL:
+    case D3DRS_STENCILPASS:
+        if (Value == D3DSTENCILOP_ZERO)
+            return D3D_OK;    
+        if (Value >= D3DSTENCILOP_KEEP && Value <= D3DSTENCILOP_DECRSAT)
+            return D3D_OK;    
+        if (Value == D3DSTENCILOP_INVERT)
+            return D3D_OK;
+        if (Value == D3DSTENCILOP_INCR || Value == D3DSTENCILOP_DECR)
+            return D3D_OK;
+        return D3DERR_INVALIDCALL;
+    case D3DRS_BLENDOP:
+        if (Value >= D3DBLENDOP_ADD && Value <= D3DBLENDOP_MAX)
+            return D3D_OK;
+        if (Value == D3DBLENDOP_SUBTRACT || Value == D3DBLENDOP_REVSUBTRACT)
+            return D3D_OK;
+        if (Value == D3DBLENDOP_REVSUBTRACTSIGNED || 
+            Value == D3DBLENDOP_ADDSIGNED)
+        {
+            return D3D_OK;
+        }
+        return D3DERR_INVALIDCALL;
+    case D3DRS_SWATHWIDTH:
+        if (Value >= D3DSWATH_8 && Value <= D3DSWATH_128)
+            return D3D_OK;
+        if (Value == D3DSWATH_OFF)
+            return D3D_OK;
+        return D3DERR_INVALIDCALL;
+    case D3DRS_DEPTHCLIPCONTROL:
+        if (Value & 
+            ~(D3DDCC_CULLPRIMITIVE | D3DDCC_CLAMP | D3DDCC_IGNORE_W_SIGN))
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        return D3D_OK;
+    default:
+        return D3D_OK;    
+    }
+}
+#endif // NXDK_DEBUG
+
 HRESULT D3DDevice_SetRenderState_Simple(D3DRENDERSTATETYPE Type, DWORD Value) {
 #if NXDK_DEBUG
-    if (Type > D3DRS_STIPPLEENABLE)
-        return D3DERR_INVALIDCALL;
+    HRESULT hr = D3DDevice_SetRenderState_Simple_Validate(Type, Value);
+    if (FAILED(hr)) return hr;
 #endif // NXDK_DEBUG
     if (Type == D3DRS_ZWRITEENABLE) {
         DWORD Control0 = g_d3ddev.Control0;
         if (Value == TRUE)
-            Control0 |= NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE;
+            g_d3ddev.Control0 |= NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE;
         else
-            Control0 &= ~NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE;
+            g_d3ddev.Control0 &= ~NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE;
 
-        if (g_d3ddev.Control0 != Control0)
-            g_d3ddev.Control0 = Control0;
-        // No need to emit a new instruction if nothing's changed.
-        else 
+        if (g_d3ddev.Control0 == Control0)
             return D3D_OK;
         
         Value = g_d3ddev.Control0;
     }
     DWORD Cmd = D3D_SimpleRenderState[Type];
-#if NXDK_DEBUG
-    // Cmd == 0 means the render state doesn't have a value in 
-    // D3D_SimpleRenderState yet, indicating that it's unimplemented.
-    if (Cmd == 0) {
-        assert(false);
-        return E_NOTIMPL;
-    }
-#endif // NXDK_DEBUG
     return D3DDevice_PushCmd(Cmd, Value);
 }
 
-HRESULT D3DDevice_SetRenderState_Deferred(D3DRENDERSTATETYPE Type, DWORD Value) {
 #if NXDK_DEBUG
-    if (Type < D3DRS_SIMPLE_MAX || Type > D3DRS_PRESENTATIONINTERVAL)
-        return D3DERR_INVALIDCALL;
+HRESULT D3DDevice_SetRenderState_Deferred_Validate(D3DRENDERSTATETYPE Type, 
+                                                   DWORD Value)
+{
+    switch (Type) {
+    case D3DRS_FOGENABLE:
+        if (Value > TRUE)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_PRESENTATIONINTERVAL:
+        if (Value > D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    default:
+        return D3D_OK;
+    }
+}
+#endif // NXDK_DEBUG
+
+HRESULT D3DDevice_SetRenderState_Deferred(D3DRENDERSTATETYPE Type, DWORD Value)
+{
+#if NXDK_DEBUG
+    HRESULT hr = D3DDevice_SetRenderState_Deferred_Validate(Type, Value);
+    if (FAILED(hr)) return hr;
 #endif // NXDK_DEBUG
     switch(Type) {
+    case D3DRS_FOGENABLE:
+        return D3DDevice_PushCmd(NV097_SET_FOG_ENABLE, Value);
     case D3DRS_PRESENTATIONINTERVAL:
         g_d3ddev.PresentInterval = Value;
         return D3D_OK;
@@ -2696,14 +2966,301 @@ HRESULT D3DDevice_SetRenderState_Deferred(D3DRENDERSTATETYPE Type, DWORD Value) 
     }
 }
 
-HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value) {
-#if NXDK_DEBUG
-    if (Type >= D3DRS_DEFERRED_MAX)
+HRESULT D3DDevice_FireInterrupt(DWORD Subprog, DWORD ParamA) {
+    HRESULT hr = D3DDevice_PushCmd(NV097_WAIT_FOR_IDLE, 0);
+    if (FAILED(hr)) return hr;
+    hr = D3DDevice_PushCmd(NV20_TCL_PRIMITIVE_3D_PARAMETER_A, ParamA);
+    if (FAILED(hr)) return hr;
+    return D3DDevice_PushCmd(NV097_FIRE_INTERRUPT, Subprog);
+}
+
+HRESULT D3DDevice_FireInterrupt2(DWORD Subprog, DWORD ParamA, DWORD ParamB) {
+    HRESULT hr = D3DDevice_PushCmd(NV097_WAIT_FOR_IDLE, 0);
+    if (FAILED(hr)) return hr;
+    hr = D3DDevice_PushCmd(NV20_TCL_PRIMITIVE_3D_PARAMETER_A, ParamA);
+    if (FAILED(hr)) return hr;
+    hr = D3DDevice_PushCmd(NV20_TCL_PRIMITIVE_3D_PARAMETER_B, ParamB);
+    if (FAILED(hr)) return hr;
+    return D3DDevice_PushCmd(NV097_FIRE_INTERRUPT, Subprog);
+}
+
+HRESULT D3DDevice_SetRenderState_Complex_Validate(D3DRENDERSTATETYPE Type,
+                                                  DWORD Value)
+{
+    switch (Type) {
+    case D3DRS_PSTEXTUREMODES:
+        if (MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE0, Value) > 
+            NV097_SET_SHADER_STAGE_PROGRAM_STAGE0_CLIP_PLANE)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+
+        DWORD Stage1 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE1, Value);
+        if (Stage1 > 
+            NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_BUMPENVMAP_LUMINANCE &&
+            Stage1 < NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_DEPENDENT_AR)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+
+        if (Stage1 > NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_DOT_PRODUCT)
+            return D3DERR_INVALIDCALL;
+
+        DWORD Stage2 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE2, Value);
+        if (Stage2 > 
+            NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DOT_REFLECT_DIFFUSE &&
+            Stage2 < NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DEPENDENT_AR)
+        {
+            return D3DERR_INVALIDCALL;
+        } 
+
+        if (Stage2 > NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DOT_PRODUCT)
+            return D3DERR_INVALIDCALL;
+
+        DWORD Stage3 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE3, Value);
+        if (Stage3 > 
+            NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST)
+        {
+            return D3DERR_INVALIDCALL;
+        }
+        return D3D_OK;
+    case D3DRS_VERTEXBLEND:
+        if (Value >= D3DVBF_MAX)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_FILLMODE:
+    case D3DRS_BACKFILLMODE:
+        if (Value < D3DFILL_POINT || Value > D3DFILL_SOLID)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_TWOSIDEDLIGHTING:
+    case D3DRS_NORMALIZENORMALS:
+    case D3DRS_STENCILENABLE:
+    case D3DRS_EDGEANTIALIAS:
+    case D3DRS_MULTISAMPLEANTIALIAS:
+    case D3DRS_DXT1NOISEENABLE:
+    case D3DRS_YUVENABLE:
+    case D3DRS_OCCLUSIONCULLENABLE:
+    case D3DRS_STENCILCULLENABLE:
+    case D3DRS_ROPZCMPALWAYSREAD:
+    case D3DRS_ROPZREAD:
+    case D3DRS_DONOTCULLUNCOMPRESSED:
+        if (Value > TRUE)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_STENCILFAIL:
+        if (Value == D3DSTENCILOP_ZERO)
+            return D3D_OK;    
+        if (Value >= D3DSTENCILOP_KEEP && Value <= D3DSTENCILOP_DECRSAT)
+            return D3D_OK;    
+        if (Value == D3DSTENCILOP_INVERT)
+            return D3D_OK;
+        if (Value == D3DSTENCILOP_INCR || Value == D3DSTENCILOP_DECR)
+            return D3D_OK;
         return D3DERR_INVALIDCALL;
+    case D3DRS_CULLMODE:
+        if (Value == D3DCULL_NONE)
+            return D3D_OK;
+        [[fallthrough]];
+    case D3DRS_FRONTFACE:
+        if (Value == D3DFRONT_CW || Value == D3DFRONT_CCW)
+            return D3D_OK;
+        return D3DERR_INVALIDCALL;
+    case D3DRS_LOGICOP:
+        if (Value == D3DLOGICOP_NONE)
+            return D3D_OK;
+        if (Value >= D3DLOGICOP_CLEAR && Value <= D3DLOGICOP_SET)
+            return D3D_OK;
+        return D3DERR_INVALIDCALL;
+    case D3DRS_MULTISAMPLEMODE:
+    case D3DRS_MULTISAMPLERENDERTARGETMODE:
+        if (Value > D3DMULTISAMPLEMODE_4X)
+            return D3DERR_INVALIDCALL;
+        return D3D_OK;
+    case D3DRS_SHADOWFUNC:
+        if (Value > D3DCMP_ALWAYS)
+            return D3D_OK;
+        return D3DERR_INVALIDCALL;    
+    default:
+        return D3D_OK;
+    }
+}
+
+HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
+{
+#if NXDK_DEBUG
+    HRESULT hr = D3DDevice_SetRenderState_Complex_Validate(Type, Value);
+    if (FAILED(hr)) return hr;
+#else 
+    HRESULT hr = D3D_OK;
 #endif // NXDK_DEBUG
     switch (Type) {
+    case D3DRS_PSTEXTUREMODES:
+        return D3DDevice_PushCmd(NV097_SET_SHADER_STAGE_PROGRAM, Value);
     case D3DRS_VERTEXBLEND:
         return D3DDevice_PushCmd(NV097_SET_SKIN_MODE, Value);
+    case D3DRS_FOGCOLOR:
+        return D3DDevice_PushCmd(NV097_SET_FOG_COLOR, Value);
+    case D3DRS_FILLMODE:
+        return D3DDevice_PushCmd(NV097_SET_FRONT_POLYGON_MODE, Value);
+    case D3DRS_BACKFILLMODE:
+        return D3DDevice_PushCmd(NV097_SET_BACK_POLYGON_MODE, Value);
+    case D3DRS_TWOSIDEDLIGHTING:
+        return D3DDevice_PushCmd(NV097_SET_LIGHT_TWO_SIDE_ENABLE, Value);
+    case D3DRS_NORMALIZENORMALS:
+        return D3DDevice_PushCmd(NV097_SET_NORMALIZATION_ENABLE, Value);
+    case D3DRS_ZENABLE:
+        return D3DDevice_PushCmd(NV097_SET_DEPTH_TEST_ENABLE, Value);
+    case D3DRS_STENCILENABLE:
+        return D3DDevice_PushCmd(NV097_SET_STENCIL_TEST_ENABLE, Value);
+    case D3DRS_STENCILFAIL:
+        return D3DDevice_PushCmd(NV097_SET_STENCIL_OP_FAIL, Value);
+    case D3DRS_CULLMODE:
+        if (Value == D3DCULL_NONE) {
+            g_d3ddev.RenderState.CullMode = 0;
+            HRESULT hr = D3DDevice_PushCmd(NV097_SET_CULL_FACE_ENABLE, 0);
+            if (FAILED(hr)) return hr;
+        }
+        [[fallthrough]];
+    case D3DRS_FRONTFACE:
+        return D3DDevice_PushCmd(NV097_SET_FRONT_FACE, Value);
+    case D3DRS_TEXTUREFACTOR:
+        return D3DDevice_PushCmd(NV097_SET_BLEND_COLOR, Value);
+    case D3DRS_LOGICOP: {
+        DWORD LogicOp = g_d3ddev.RenderState.LogicOp;
+        BOOL bWasLogicOpEnabled = LogicOp == D3DLOGICOP_NONE;
+        g_d3ddev.RenderState.LogicOp = Value;
+        BOOL bIsLogicOpEnabled = g_d3ddev.RenderState.LogicOp == D3DLOGICOP_NONE;
+        if (bWasLogicOpEnabled != bIsLogicOpEnabled) {
+            HRESULT hr = D3DDevice_PushCmd(NV097_SET_LOGIC_OP_ENABLE, 
+                                           bIsLogicOpEnabled);
+            if (FAILED(hr)) return hr;
+        }
+        
+        if (LogicOp != g_d3ddev.RenderState.LogicOp) 
+            return D3DDevice_PushCmd(NV097_SET_LOGIC_OP, LogicOp);
+        else
+            return D3D_OK;
+    }
+    case D3DRS_EDGEANTIALIAS:
+        return D3DDevice_PushCmd(NV097_SET_LINE_SMOOTH_ENABLE, Value);
+    case D3DRS_MULTISAMPLEANTIALIAS: {
+        DWORD MultiSample = g_d3ddev.RenderState.MultiSample;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.MultiSample |= NV097_SET_MULTISAMPLE_ENABLE;
+        else
+            g_d3ddev.RenderState.MultiSample &= ~NV097_SET_MULTISAMPLE_ENABLE;
+
+        if (MultiSample != g_d3ddev.RenderState.MultiSample) {
+            return D3DDevice_PushCmd(D3DRS_MULTISAMPLEANTIALIAS, 
+                                     g_d3ddev.RenderState.MultiSample);
+        } else {
+            return D3D_OK;
+        }
+    }
+    case D3DRS_MULTISAMPLEMASK: {
+        DWORD MultiSample = g_d3ddev.RenderState.MultiSample;
+        MASK_INPLACE(g_d3ddev.RenderState.MultiSample, 
+                     NV097_SET_MULTISAMPLE_MASK, Value);
+        if (MultiSample != g_d3ddev.RenderState.MultiSample) {
+            return D3DDevice_PushCmd(D3DRS_MULTISAMPLEANTIALIAS, 
+                                     g_d3ddev.RenderState.MultiSample);
+        } else {
+            return D3D_OK;
+        }
+    }
+    case D3DRS_SHADOWFUNC:
+        return D3DDevice_PushCmd(NV097_SET_SHADOW_COMPARE_FUNC, Value);
+    case D3DRS_LINEWIDTH:
+        return D3DDevice_PushCmd(NV097_SET_LINE_WIDTH, Value);
+    case D3DRS_DXT1NOISEENABLE:
+        return D3DDevice_FireInterrupt(PB_SETNOISE, Value);
+    case D3DRS_OCCLUSIONCULLENABLE: {
+        DWORD CullMode = g_d3ddev.RenderState.CullMode;
+        BOOL bWasCullingEnabled = CullMode == 0;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.CullMode |= NV097_SET_CULL_MODE_OCCLUSION;
+        else
+            g_d3ddev.RenderState.CullMode &= ~NV097_SET_CULL_MODE_OCCLUSION;
+        BOOL bIsCullingEnabled = g_d3ddev.RenderState.CullMode == 0;
+        if (bWasCullingEnabled != bIsCullingEnabled) {
+            hr = D3DDevice_PushCmd(NV097_SET_CULL_FACE_ENABLE, CullMode);
+            if (FAILED(hr)) return hr;
+        }
+        
+        if (CullMode != g_d3ddev.RenderState.CullMode) 
+            return D3DDevice_PushCmd(NV097_SET_CULL_MODE, CullMode);
+        else
+            return D3D_OK;
+    }
+    case D3DRS_STENCILCULLENABLE: {
+        DWORD CullMode = g_d3ddev.RenderState.CullMode;
+        BOOL bWasCullingEnabled = CullMode == 0;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.CullMode |= NV097_SET_CULL_MODE_STENCIL;
+        else
+            g_d3ddev.RenderState.CullMode &= ~NV097_SET_CULL_MODE_STENCIL;
+        BOOL bIsCullingEnabled = g_d3ddev.RenderState.CullMode == 0;
+        if (bWasCullingEnabled != bIsCullingEnabled) {
+            hr = D3DDevice_PushCmd(NV097_SET_CULL_FACE_ENABLE, CullMode);
+            if (FAILED(hr)) return hr;
+        }
+        
+        if (CullMode != g_d3ddev.RenderState.CullMode) 
+            return D3DDevice_PushCmd(NV097_SET_CULL_MODE, CullMode);
+        else
+            return D3D_OK;
+    }
+    case D3DRS_ROPZCMPALWAYSREAD: {
+        DWORD RopZ = g_d3ddev.RenderState.RopZ;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.RopZ |=  0x08000000;
+        else
+            g_d3ddev.RenderState.RopZ &= ~0x08000000;
+        if (RopZ != g_d3ddev.RenderState.RopZ) {
+            DWORD Reg = 0;
+            if (VIDEOREG(NV_PBUS_ROM_VERSION) & NV_PBUS_ROM_VERSION_MASK)
+                Reg = 0x45EAD10F;
+            else
+                Reg = 0x45EAD10E;
+            return D3DDevice_FireInterrupt2(PB_SETOUTER, 
+                                            NV_PGRAPH_UNKNOWN_400B80, Reg);
+        }
+        else {
+            return D3D_OK;
+        }
+    }
+    case D3DRS_ROPZREAD: {
+        DWORD RopZ = g_d3ddev.RenderState.RopZ;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.RopZ |=  0x00100000;
+        else
+            g_d3ddev.RenderState.RopZ &= ~0x00100000;
+
+        if (RopZ != g_d3ddev.RenderState.RopZ) {
+            DWORD Reg = 0;
+            if (VIDEOREG(NV_PBUS_ROM_VERSION) & NV_PBUS_ROM_VERSION_MASK)
+                Reg = 0x45EAD10F;
+            else
+                Reg = 0x45EAD10E;
+            return D3DDevice_FireInterrupt2(PB_SETOUTER, 
+                                            NV_PGRAPH_UNKNOWN_400B80, Reg);
+        }
+        else {
+            return D3D_OK;
+        }
+    }
+    case D3DRS_DONOTCULLUNCOMPRESSED:
+        DWORD Debug5 = g_d3ddev.RenderState.Debug5;
+        if (Value == TRUE)
+            g_d3ddev.RenderState.Debug5 |=  NV_PGRAPH_DEBUG_5_ZCULL_SPARE2_ENABLED;
+        else
+            g_d3ddev.RenderState.Debug5 &= ~NV_PGRAPH_DEBUG_5_ZCULL_SPARE2_ENABLED;
+
+        if (Debug5 != g_d3ddev.RenderState.Debug5)
+            return D3DDevice_FireInterrupt2(PB_SETOUTER, NV_PGRAPH_DEBUG_5, Debug5);
+        else
+            return D3D_OK;
     default:
         // TODO: implement remaining render states
         assert(false);
@@ -2740,83 +3297,55 @@ HRESULT D3DDevice_SetPixelShaderProgram(CONST D3DPIXELSHADERDEF *pPSDef) {
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSALPHAINPUTS0 + i, 
                                       pPSDef->PSAlphaInputs[i]);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     hr = D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSABCD, 
                                           pPSDef->PSFinalCombinerInputsABCD);
-#if NXDK_DEBUG
     if(FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     hr = D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERINPUTSEFG, 
                                   pPSDef->PSFinalCombinerInputsEFG);
-#if NXDK_DEBUG
     if(FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSCONSTANT0_0 + i, 
                                       pPSDef->PSConstant0[i]);
-#if NXDK_DEBUG
         if(FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSCONSTANT1_0 + i, 
                                       pPSDef->PSConstant1[i]);
-#if NXDK_DEBUG
         if(FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSALPHAOUTPUTS0 + i, 
                                       pPSDef->PSAlphaOutputs[i]);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSRGBINPUTS0 + i, 
                                       pPSDef->PSRGBInputs[i]);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     hr = D3DDevice_SetRenderState(D3DRS_PSCOMPAREMODE, pPSDef->PSCompareMode);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     hr = D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERCONSTANT0,
                                   pPSDef->PSFinalCombinerConstant0);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     hr = D3DDevice_SetRenderState(D3DRS_PSFINALCOMBINERCONSTANT1, 
                                   pPSDef->PSFinalCombinerConstant1);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     for (int i = 0; i < 8; i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSRGBOUTPUTS0 + i, 
                                       pPSDef->PSRGBOutputs[i]);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     hr = D3DDevice_SetRenderState(D3DRS_PSCOMBINERCOUNT, 
                                   pPSDef->PSCombinerCount);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     hr = D3DDevice_SetRenderState(D3DRS_PSTEXTUREMODES, 
                                   pPSDef->PSTextureModes);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     hr = D3DDevice_SetRenderState(D3DRS_PSDOTMAPPING, pPSDef->PSDotMapping);
-#if NXDK_DEBUG
     if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     return D3DDevice_SetRenderState(D3DRS_PSINPUTTEXTURE, 
                                     pPSDef->PSInputTexture);
 }
@@ -2874,9 +3403,7 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
 
     for (int i = 0; i < Count; i++) {
         hr = D3DDevice_ClearRect(&pRects[i], Flags);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
     return hr;
 }
@@ -2927,9 +3454,7 @@ HRESULT D3DDevice_SetScissors(DWORD Count, BOOL Exclusive,
         DWORD Width  = pRect->x2 - pRect->x1;
         DWORD Height = pRect->y2 - pRect->y1;
         hr = D3DDevice_SetScissorRect(i, pRect->x1, pRect->y1, Width, Height);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
 
     for (int i = Count; i < D3DSCISSORS_MAX; i++) {
@@ -2940,9 +3465,7 @@ HRESULT D3DDevice_SetScissors(DWORD Count, BOOL Exclusive,
             Height = 0xFFFFFFFF;
         }
         hr = D3DDevice_SetScissorRect(i, 0, 0, Width, Height);
-#if NXDK_DEBUG
         if (FAILED(hr)) return hr;
-#endif // NXDK_DEBUG
     }
 
     return hr;

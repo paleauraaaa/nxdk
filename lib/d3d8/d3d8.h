@@ -398,6 +398,24 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (*CreateVertexBuffer)(
         LPDIRECT3DDEVICE8 pThis, UINT Length, DWORD Usage, DWORD FVF, 
         D3DPOOL Pool, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer);
+     HRESULT (*CreatePushBuffer)(
+        LPDIRECT3DDEVICE8 pThis, UINT Size, 
+        BOOL RunUsingCpuCopy, LPDIRECT3DPUSHBUFFER8* ppPushBuffer);
+    HRESULT (*CreateTexture)(LPDIRECT3DDEVICE8 pThis,
+                             UINT Width,
+                             UINT Height,
+                             UINT Levels,
+                             DWORD Usage,
+                             D3DFORMAT Format,
+                             D3DPOOL Pool,
+                             LPDIRECT3DTEXTURE8* ppTexture);
+    HRESULT (*CreateCubeTexture)(LPDIRECT3DDEVICE8 pThis, 
+                                 UINT EdgeLength, 
+                                 UINT Levels, 
+                                 DWORD Usage, 
+                                 D3DFORMAT Format, 
+                                 D3DPOOL Pool,
+                                 LPDIRECT3DCUBETEXTURE8* ppCubeTexture);
     HRESULT (*BeginScene)(LPDIRECT3DDEVICE8 pThis);
     HRESULT (*EndScene)(LPDIRECT3DDEVICE8 pThis);
     HRESULT (*Present)(LPDIRECT3DDEVICE8 pThis, 
@@ -416,30 +434,12 @@ typedef struct IDirect3DDeviceVtbl8 {
                            D3DVERTEXATTRIBUTEFORMAT *pVAF,
                            UINT StreamCount, 
                            D3DSTREAM_INPUT *pStreamInputs);
-    HRESULT (*CreateTexture)(LPDIRECT3DDEVICE8 pThis,
-                             UINT Width,
-                             UINT Height,
-                             UINT Levels,
-                             DWORD Usage,
-                             D3DFORMAT Format,
-                             D3DPOOL Pool,
-                             LPDIRECT3DTEXTURE8* ppTexture);
-    HRESULT (*CreateCubeTexture)(LPDIRECT3DDEVICE8 pThis, 
-                                 UINT EdgeLength, 
-                                 UINT Levels, 
-                                 DWORD Usage, 
-                                 D3DFORMAT Format, 
-                                 D3DPOOL Pool,
-                                 LPDIRECT3DCUBETEXTURE8* ppCubeTexture);
     HRESULT (*SetTextureStageState)(LPDIRECT3DDEVICE8 pThis,
                                  DWORD Stage,
                                  D3DTEXTURESTAGESTATETYPE Type,
                                  DWORD Value);
     HRESULT (*SetRenderState)(LPDIRECT3DDEVICE8 pThis, 
                               D3DRENDERSTATETYPE Type, DWORD VALUE);
-    HRESULT (*CreatePushBuffer)(
-        LPDIRECT3DDEVICE8 pThis, UINT Size, 
-        BOOL RunUsingCpuCopy, LPDIRECT3DPUSHBUFFER8* ppPushBuffer);
     HRESULT (*LoadVertexShaderProgram)(
         LPDIRECT3DDEVICE8 pThis, CONST DWORD *pFunction, DWORD Address);
     HRESULT (*SetPixelShaderProgram)(LPDIRECT3DDEVICE8 pThis, 
