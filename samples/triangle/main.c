@@ -111,7 +111,7 @@ int main(void)
         p = pb_begin();
 
         /* Clear all attributes */
-        pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT,16);
+        pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT(0), 16);
         for(i = 0; i < 16; i++) {
             *(p++) = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F;
         }
@@ -226,11 +226,11 @@ static void init_shader(void)
 static void set_attrib_pointer(unsigned int index, unsigned int format, unsigned int size, unsigned int stride, const void* data)
 {
     uint32_t *p = pb_begin();
-    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + index*4,
+    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT(index),
                  MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE, format) | \
                  MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE, size) |  \
                  MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE, stride));
-    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + index*4, (uint32_t)data & 0x03ffffff);
+    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET(index), (uint32_t)data & 0x03ffffff);
     pb_end(p);
 }
 

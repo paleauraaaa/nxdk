@@ -251,7 +251,7 @@ int main(void)
         memcpy(p, constants_0, 4*4); p+=4;
 
         /* Clear all attributes */
-        pb_push(p++,NV097_SET_VERTEX_DATA_ARRAY_FORMAT,16);
+        pb_push(p++,NV097_SET_VERTEX_DATA_ARRAY_FORMAT(0),16);
         for(i = 0; i < 16; i++) {
             *(p++) = 2;
         }
@@ -387,7 +387,7 @@ static void set_attrib_pointer(unsigned int index, unsigned int format, unsigned
         MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE, format) | \
         MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE, size) | \
         MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE, stride));
-    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + index*4, (uint32_t)data & 0x03ffffff);
+    p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET(index), (uint32_t)data & 0x03ffffff);
     pb_end(p);
 }
 
