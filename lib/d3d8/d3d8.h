@@ -453,6 +453,12 @@ typedef struct IDirect3DDeviceVtbl8 {
                        DWORD Index, CONST D3DTILE* pTile);
     HRESULT (*SetTexture)(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
                           LPDIRECT3DBASETEXTURE8 pTexture);
+    HRESULT (*InsertCallback)(LPDIRECT3DDEVICE8 pThis,
+                              D3DCALLBACKTYPE Type, 
+                              D3DCALLBACK pCallback, 
+                              DWORD Context);
+    HRESULT (*Reset)(LPDIRECT3DDEVICE8 pThis, 
+                     D3DPRESENT_PARAMETERS* pPresentationParameters);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
 
 struct IDirect3DDevice8 INHERITS(IUnknown) {
@@ -513,6 +519,10 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
     virtual HRESULT SetTile(DWORD Index, CONST D3DTILE* pTile) = 0;
     virtual HRESULT SetTexture(DWORD Stage, 
                                LPDIRECT3DBASETEXTURE8 pTexture) = 0;
+    virtual HRESULT InsertCallback(D3DCALLBACKTYPE Type, 
+                                   D3DCALLBACK pCallback, 
+                                   DWORD Context) = 0;
+    virtual HRESULT Reset(D3DPRESENT_PARAMETERS* pPresentationParameters) = 0;
 #endif // __cplusplus
 };
 
@@ -579,6 +589,12 @@ HRESULT IDirect3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index,
                                  CONST D3DTILE* pTile);
 HRESULT IDirect3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
                                     LPDIRECT3DBASETEXTURE8 pTexture);
+HRESULT IDirect3DDevice8_InsertCallback(LPDIRECT3DDEVICE8 pThis,
+                                        D3DCALLBACKTYPE Type, 
+                                        D3DCALLBACK pCallback, 
+                                        DWORD Context);
+HRESULT IDirect3DDevice8_Reset(LPDIRECT3DDEVICE8 pThis, 
+                               D3DPRESENT_PARAMETERS* pPresentationParameters);
 
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;

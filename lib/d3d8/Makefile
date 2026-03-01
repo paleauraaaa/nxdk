@@ -1,5 +1,7 @@
 D3D8_SRCS := \
-	$(NXDK_DIR)/lib/d3d8/d3d8.c
+	$(NXDK_DIR)/lib/d3d8/d3d8.c \
+	$(NXDK_DIR)/lib/d3d8/d3d8_resource.c \
+	$(NXDK_DIR)/lib/d3d8/d3d8_private.c 
 
 D3D8_OBJS = $(addsuffix .obj, $(basename $(D3D8_SRCS)))
 
