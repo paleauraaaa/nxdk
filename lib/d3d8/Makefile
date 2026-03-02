@@ -1,5 +1,6 @@
 D3D8_SRCS := \
 	$(NXDK_DIR)/lib/d3d8/d3d8.c \
+	$(NXDK_DIR)/lib/d3d8/d3d8_device.c \
 	$(NXDK_DIR)/lib/d3d8/d3d8_resource.c \
 	$(NXDK_DIR)/lib/d3d8/d3d8_private.c 
 

@@ -1,6 +1,6 @@
 #include "d3d8.h"
-#include "d3d8_resource.h"
 #include "d3d8_private.h"
+#include "d3d8_resource.h"
 
 #include <assert.h>
 #include <stdlib.h>

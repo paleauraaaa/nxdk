@@ -1,5 +1,4 @@
-#ifndef NXDK_HAVE_D3D8
-#define NXDK_HAVE_D3D8
+#pragma once
 
 #include <windows.h>
 #include <winnt.h>
@@ -528,6 +527,7 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
 
 ULONG IDirect3DDevice8_AddRef(LPDIRECT3DDEVICE8 pThis);
 ULONG IDirect3DDevice8_Release(LPDIRECT3DDEVICE8 pThis);
+void  IDirect3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis);
 HRESULT IDirect3DDevice8_CreateImageSurface(LPDIRECT3DDEVICE8 pThis, 
                                             UINT Width, UINT Height, 
                                             D3DFORMAT Format, 
@@ -706,5 +706,3 @@ HRESULT IDirect3D8_CreateDevice(
 PVOID D3D_AllocContiguousMemory(DWORD Size, DWORD Alignment);
 void  D3D_FreeContiguousMemory(PVOID Base);
 LPDIRECT3D8 Direct3DCreate8(UINT SKDVersion);
-
-#endif // NXDK_HAVE_D3D8

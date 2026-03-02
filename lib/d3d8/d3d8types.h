@@ -1,5 +1,4 @@
-#ifndef NXDK_HAVE_D3D8TYPES
-#define NXDK_HAVE_D3D8TYPES 1
+#pragma once
 
 #include <windows.h>
 #include <winnt.h>
@@ -70,9 +69,9 @@ typedef struct _D3DADAPTER_IDENTIFIER8 {
     DWORD           WHQLLevel;
 } D3DADAPTER_IDENTIFIER8;
 
-#define MAKEFOURCC(ch0, ch1, ch2, ch3)                                \
-            ((DWORD)(BYTE)(ch0) | ((DWORD)(BYTE)(ch1) << 8) |         \
-            ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24 ))
+#define MAKEFOURCC(ch0, ch1, ch2, ch3)                                 \
+            ((DWORD)(BYTE)(ch0) | ((DWORD)(BYTE)(ch1) << 8) |          \
+            ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24 )) 
 
 typedef enum _D3DFORMAT: UINT {
     D3DFMT_UNKNOWN      = 0xFFFFFFFF,
@@ -1159,5 +1158,3 @@ typedef enum _D3DCALLBACKTYPE {
 } D3DCALLBACKTYPE;
 
 typedef void (*D3DCALLBACK)(DWORD Context);
-
-#endif // NXDK_HAVE_D3D8TYPES

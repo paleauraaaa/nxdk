@@ -1,5 +1,6 @@
+#pragma once
+
 #include "d3d8.h"
-#include "d3d8types.h"
 
 extern IDirect3DResourceVtbl8       g_d3dResourceVtbl;
 extern IDirect3DBaseTextureVtbl8    g_d3dBaseTextureVtbl;
