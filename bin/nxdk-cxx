@@ -18,6 +18,7 @@ clang \
     -I${NXDK_DIR}/lib/pdclib/platform/xbox/include \
     -I${NXDK_DIR}/lib/winapi \
     -I${NXDK_DIR}/lib/xboxrt/vcruntime \
+    -I${NXDK_DIR}/lib/d3d8/include \
     -Wno-builtin-macro-redefined \
     -DNXDK \
     -D__STDC__=1 \
