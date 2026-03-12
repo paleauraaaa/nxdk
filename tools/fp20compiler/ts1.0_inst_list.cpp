@@ -52,6 +52,9 @@ void InstList::Invoke()
 
     assert(size == 4);
 
+    printf("#pragma clang diagnostic push\n");
+    printf("#pragma clang diagnostic ignored \"-Wc99-designator\"\n");
+    printf("#pragma clang diagnostic ignored \"-Wreorder-init-list\"\n");
     printf("#pragma push_macro(\"MASK\")\n");
     printf("#undef MASK\n");
     printf("#define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))\n");
@@ -327,6 +330,7 @@ void InstList::Invoke()
 
     printf("\n");
     printf("#pragma pop_macro(\"MASK\")\n");
+    printf("#pragma clang diagnostic pop\n");
 }
 
 void InstList::Validate()
