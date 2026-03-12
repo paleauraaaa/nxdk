@@ -1,0 +1,234 @@
+/*
+ * This sample provides a very basic demonstration of 3D rendering on the Xbox,
+ * using pbkit. Based on the pbkit demo sources.
+ */
+#include <hal/video.h>
+#include <hal/xbox.h>
+#include <math.h>
+#include <pbkit/pbkit.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <xboxkrnl/xboxkrnl.h>
+#include <hal/debug.h>
+#include <windows.h>
+#include <d3d8.h>
+
+static uint32_t *alloc_vertices;
+static uint32_t  num_vertices;
+
+typedef struct {
+    float pos[3];
+    float color[3];
+} __attribute__((packed)) ColoredVertex;
+
+static const ColoredVertex verts[] = {
+    //  X     Y     Z       R     G     B
+    {{-1.0, -1.0,  1.0}, { 0.1,  0.1,  0.6}}, /* Background triangle 1 */
+    {{-1.0,  1.0,  1.0}, { 0.0,  0.0,  0.0}},
+    {{ 1.0,  1.0,  1.0}, { 0.0,  0.0,  0.0}},
+    {{-1.0, -1.0,  1.0}, { 0.1,  0.1,  0.6}}, /* Background triangle 2 */
+    {{ 1.0,  1.0,  1.0}, { 0.0,  0.0,  0.0}},
+    {{ 1.0, -1.0,  1.0}, { 0.1,  0.1,  0.6}},
+    {{-1.0, -1.0,  1.0}, { 1.0,  0.0,  0.0}}, /* Foreground triangle */
+    {{ 0.0,  1.0,  1.0}, { 0.0,  1.0,  0.0}},
+    {{ 1.0, -1.0,  1.0}, { 0.0,  0.0,  1.0}},
+};
+
+#define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))
+
+/* Main program function */
+int main(void)
+{
+    uint32_t *p;
+    int       i, status;
+    int       start, last, now;
+    int       fps, frames, frames_total;
+
+    LPDIRECT3D8 d3d8 = Direct3DCreate8(D3D_SDK_VERSION);
+    if (d3d8 == NULL) {
+        debugPrint("Direct3DCreate8 failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    D3DDISPLAYMODE mode;
+    HRESULT hr = d3d8->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &mode);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3D8::GetAdapterDisplayMode failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    D3DPRESENT_PARAMETERS d3dpp;
+    memset(&d3dpp, 0, sizeof(d3dpp));
+    d3dpp.BackBufferWidth                 = mode.Width;
+    d3dpp.BackBufferHeight                = mode.Height;
+    d3dpp.BackBufferFormat                = mode.Format;
+    d3dpp.BackBufferCount                 = 1;
+    d3dpp.MultiSampleType                 = D3DMULTISAMPLE_NONE;
+    d3dpp.SwapEffect                      = D3DSWAPEFFECT_DISCARD;
+    d3dpp.FullScreen_RefreshRateInHz      = mode.RefreshRate;
+    d3dpp.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+    d3dpp.Flags                           = mode.Flags;
+    d3dpp.EnableAutoDepthStencil          = TRUE;
+    d3dpp.AutoDepthStencilFormat          = D3DFMT_D24S8;
+
+    LPDIRECT3DDEVICE8 d3ddev = NULL;
+    hr = d3d8->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &d3ddev);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3D8::CreateDevice failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    num_vertices = sizeof(verts)/sizeof(verts[0]);
+
+    /* Setup to determine frames rendered every second */
+    start = now = last = GetTickCount();
+    frames_total = frames = fps = 0;
+
+    D3DVIEWPORT8 viewport;
+    viewport.X      = 0;
+    viewport.Y      = 0;
+    viewport.Width  = mode.Width;
+    viewport.Height = mode.Height;
+    viewport.MinZ   = 0.0f;
+    viewport.MaxZ   = 65536.0f;
+    hr = IDirect3DDevice8_SetViewport(d3ddev, &viewport);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::SetViewport failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    LPDIRECT3DVERTEXBUFFER8 vb = NULL;
+    hr = IDirect3DDevice8_CreateVertexBuffer(d3ddev, sizeof(verts), 0, 0, 0, &vb);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::CreateVertexBuffer failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    BYTE* pData = NULL;
+    hr = vb->Lock(0, sizeof(verts), &pData, 0);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3DVertexBuffer8::Lock failed\n");
+        Sleep(2000);
+        return 1;
+    }
+    memcpy(pData, verts, sizeof(verts));
+    hr = vb->Unlock();
+    if(FAILED(hr)) {
+        debugPrint("IDirect3DVertexBuffer8::Unlock failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    D3DSTREAM_INPUT input;
+    input.VertexBuffer = vb;
+    input.Stride       = sizeof(ColoredVertex);
+    input.Offset       = 0;
+
+    D3DVERTEXATTRIBUTEFORMAT vaf;
+    vaf.Input[0].StreamIndex = 0;
+    vaf.Input[0].Offset      = 0;
+    vaf.Input[0].Format      = D3DVSDT_FLOAT3;
+    vaf.Input[1].StreamIndex = 0;
+    vaf.Input[1].Offset      = 3 * sizeof(float);
+    vaf.Input[1].Format      = D3DVSDT_FLOAT3;
+
+    hr = IDirect3DDevice8_SetVertexShaderInputDirect(d3ddev, &vaf, 1, &input);
+    if(FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::SetVertexShaderInputDirect failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    uint32_t vs_program[] = {
+        #include "vs.inl"
+
+        /* Required by LoadVertexShaderProgram. */
+        D3DVS_END(),
+    };
+
+    hr = IDirect3DDevice8_LoadVertexShaderProgram(d3ddev, (DWORD*)vs_program, 0);
+    if (FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::LoadVertexShaderProgram failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    D3DPIXELSHADERDEF ps_def = {
+        #include "ps.inl"
+    };
+    hr = IDirect3DDevice8_SetPixelShaderProgram(d3ddev, &ps_def);
+    if (FAILED(hr)) {
+        debugPrint("IDirect3DDevice8::SetPixelShaderProgram failed\n");
+        Sleep(2000);
+        return 1;
+    }
+
+    while(1) {
+        hr = IDirect3DDevice8_BeginScene(d3ddev);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::BeginScene failed\n");
+            Sleep(2000);
+            return 1;
+        }
+        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::Clear failed\n");
+            Sleep(2000);
+            return 1;
+        }
+
+        /* Begin drawing triangles */
+        hr = IDirect3DDevice8_DrawPrimitive(d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::DrawPrimitive failed\n");
+            Sleep(2000);
+            return 1;
+        }
+
+        /* Draw some text on the screen */
+        pb_print("Triangle Demo\n");
+        pb_print("Frames: %d\n", frames_total);
+        if (fps > 0) {
+            pb_print("FPS: %d", fps);
+        }
+        pb_draw_text_screen();
+
+        hr = IDirect3DDevice8_EndScene(d3ddev);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::EndScene failed\n");
+            Sleep(2000);
+            return 1;
+        }
+        hr = IDirect3DDevice8_Present(d3ddev, NULL, NULL);
+        if(FAILED(hr)) {
+            debugPrint("IDirect3DDevice8::Present failed\n");
+            Sleep(2000);
+            return 1;
+        }
+        frames++;
+        frames_total++;
+
+        /* Latch FPS counter every second */
+        now = GetTickCount();
+        if ((now-last) > 1000) {
+            fps = frames;
+            frames = 0;
+            last = now;
+        }
+    }
+
+    /* Unreachable cleanup code */
+    pb_show_debug_screen();
+    vb->Release();
+    IDirect3DDevice8_Release(d3ddev);
+    d3d8->Release();
+    return 0;
+}
+
