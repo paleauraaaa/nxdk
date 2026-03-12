@@ -1,6 +1,6 @@
 /*
  * This sample provides a very basic demonstration of 3D rendering on the Xbox,
- * using pbkit. Based on the pbkit demo sources.
+ * using D3D8 from C.
  */
 #include <hal/video.h>
 #include <hal/xbox.h>
@@ -54,7 +54,8 @@ int main(void)
     }
 
     D3DDISPLAYMODE mode;
-    HRESULT hr = IDirect3D8_GetAdapterDisplayMode(d3d8, D3DADAPTER_DEFAULT, &mode);
+    HRESULT hr = IDirect3D8_GetAdapterDisplayMode(
+        d3d8, D3DADAPTER_DEFAULT, &mode);
     if(FAILED(hr)) {
         debugPrint("IDirect3D8::GetAdapterDisplayMode failed\n");
         Sleep(2000);
@@ -76,7 +77,9 @@ int main(void)
     d3dpp.AutoDepthStencilFormat          = D3DFMT_D24S8;
 
     LPDIRECT3DDEVICE8 d3ddev = NULL;
-    hr = IDirect3D8_CreateDevice(d3d8, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &d3ddev);
+    hr = IDirect3D8_CreateDevice(d3d8, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, 
+                                 NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                                 &d3dpp, &d3ddev);
     if(FAILED(hr)) {
         debugPrint("IDirect3D8::CreateDevice failed\n");
         Sleep(2000);
@@ -153,7 +156,8 @@ int main(void)
         D3DVS_END(),
     };
 
-    hr = IDirect3DDevice8_LoadVertexShaderProgram(d3ddev, (DWORD*)vs_program, 0);
+    hr = IDirect3DDevice8_LoadVertexShaderProgram(
+        d3ddev, (DWORD*)vs_program, 0);
     if (FAILED(hr)) {
         debugPrint("IDirect3DDevice8::LoadVertexShaderProgram failed\n");
         Sleep(2000);
@@ -177,7 +181,9 @@ int main(void)
             Sleep(2000);
             return 1;
         }
-        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
+        hr = IDirect3DDevice8_Clear(
+            d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL,
+            D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::Clear failed\n");
             Sleep(2000);
@@ -185,7 +191,8 @@ int main(void)
         }
 
         /* Begin drawing triangles */
-        hr = IDirect3DDevice8_DrawPrimitive(d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);
+        hr = IDirect3DDevice8_DrawPrimitive(
+            d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::DrawPrimitive failed\n");
             Sleep(2000);

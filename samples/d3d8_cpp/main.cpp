@@ -1,6 +1,6 @@
 /*
  * This sample provides a very basic demonstration of 3D rendering on the Xbox,
- * using pbkit. Based on the pbkit demo sources.
+ * using D3D8 from C++.
  */
 #include <hal/video.h>
 #include <hal/xbox.h>
@@ -76,7 +76,9 @@ int main(void)
     d3dpp.AutoDepthStencilFormat          = D3DFMT_D24S8;
 
     LPDIRECT3DDEVICE8 d3ddev = NULL;
-    hr = d3d8->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, &d3ddev);
+    hr = d3d8->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, NULL,
+                            D3DCREATE_HARDWARE_VERTEXPROCESSING, &d3dpp, 
+                            &d3ddev);
     if(FAILED(hr)) {
         debugPrint("IDirect3D8::CreateDevice failed\n");
         Sleep(2000);
@@ -96,7 +98,7 @@ int main(void)
     viewport.Height = mode.Height;
     viewport.MinZ   = 0.0f;
     viewport.MaxZ   = 65536.0f;
-    hr = IDirect3DDevice8_SetViewport(d3ddev, &viewport);
+    hr = d3ddev->SetViewport(&viewport);
     if(FAILED(hr)) {
         debugPrint("IDirect3DDevice8::SetViewport failed\n");
         Sleep(2000);
@@ -104,7 +106,7 @@ int main(void)
     }
 
     LPDIRECT3DVERTEXBUFFER8 vb = NULL;
-    hr = IDirect3DDevice8_CreateVertexBuffer(d3ddev, sizeof(verts), 0, 0, 0, &vb);
+    hr = d3ddev->CreateVertexBuffer(sizeof(verts), 0, 0, 0, &vb);
     if(FAILED(hr)) {
         debugPrint("IDirect3DDevice8::CreateVertexBuffer failed\n");
         Sleep(2000);
@@ -139,7 +141,7 @@ int main(void)
     vaf.Input[1].Offset      = 3 * sizeof(float);
     vaf.Input[1].Format      = D3DVSDT_FLOAT3;
 
-    hr = IDirect3DDevice8_SetVertexShaderInputDirect(d3ddev, &vaf, 1, &input);
+    hr = d3ddev->SetVertexShaderInputDirect(&vaf, 1, &input);
     if(FAILED(hr)) {
         debugPrint("IDirect3DDevice8::SetVertexShaderInputDirect failed\n");
         Sleep(2000);
@@ -153,7 +155,7 @@ int main(void)
         D3DVS_END(),
     };
 
-    hr = IDirect3DDevice8_LoadVertexShaderProgram(d3ddev, (DWORD*)vs_program, 0);
+    hr = d3ddev->LoadVertexShaderProgram((DWORD*)vs_program, 0);
     if (FAILED(hr)) {
         debugPrint("IDirect3DDevice8::LoadVertexShaderProgram failed\n");
         Sleep(2000);
@@ -163,7 +165,7 @@ int main(void)
     D3DPIXELSHADERDEF ps_def = {
         #include "ps.inl"
     };
-    hr = IDirect3DDevice8_SetPixelShaderProgram(d3ddev, &ps_def);
+    hr = d3ddev->SetPixelShaderProgram(&ps_def);
     if (FAILED(hr)) {
         debugPrint("IDirect3DDevice8::SetPixelShaderProgram failed\n");
         Sleep(2000);
@@ -171,13 +173,15 @@ int main(void)
     }
 
     while(1) {
-        hr = IDirect3DDevice8_BeginScene(d3ddev);
+        hr = d3ddev->BeginScene();
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::BeginScene failed\n");
             Sleep(2000);
             return 1;
         }
-        hr = IDirect3DDevice8_Clear(d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL, D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
+        hr = d3ddev->Clear(
+            0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL, 
+            D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::Clear failed\n");
             Sleep(2000);
@@ -185,7 +189,7 @@ int main(void)
         }
 
         /* Begin drawing triangles */
-        hr = IDirect3DDevice8_DrawPrimitive(d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);
+        hr = d3ddev->DrawPrimitive(D3DPT_TRIANGLELIST, 0, num_vertices / 3);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::DrawPrimitive failed\n");
             Sleep(2000);
@@ -200,13 +204,13 @@ int main(void)
         }
         pb_draw_text_screen();
 
-        hr = IDirect3DDevice8_EndScene(d3ddev);
+        hr = d3ddev->EndScene();
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::EndScene failed\n");
             Sleep(2000);
             return 1;
         }
-        hr = IDirect3DDevice8_Present(d3ddev, NULL, NULL);
+        hr = d3ddev->Present(NULL, NULL);
         if(FAILED(hr)) {
             debugPrint("IDirect3DDevice8::Present failed\n");
             Sleep(2000);
@@ -227,7 +231,7 @@ int main(void)
     /* Unreachable cleanup code */
     pb_show_debug_screen();
     vb->Release();
-    IDirect3DDevice8_Release(d3ddev);
+    d3ddev->Release();
     d3d8->Release();
     return 0;
 }
