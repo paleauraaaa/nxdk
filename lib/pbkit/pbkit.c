@@ -268,6 +268,7 @@ static void pb_cache_flush(void)
 
 
 typedef void (*D3DCALLBACK)(DWORD Context);
+BOOL D3DDevice_SetFence(DWORD Fence);
 
 static void pb_subprog(DWORD subprogID, DWORD paramA, DWORD paramB)
 {
@@ -304,11 +305,16 @@ static void pb_subprog(DWORD subprogID, DWORD paramA, DWORD paramB)
             pb_BackBufferNxt=next;
             break;
 
-        case PB_USER:
+        case PB_CALLBACK:
             D3DCALLBACK cb = (D3DCALLBACK)paramA;
             if (cb)
                 cb(paramB);
             break;
+            
+        case PB_FENCE:
+            D3DDevice_SetFence(paramA);
+            break;
+
         default:
             debugPrint( "Unknown subProgID %lu has been detected by DPC (A=%lx B=%lx).\n",
                     subprogID,
