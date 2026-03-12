@@ -1,5 +1,6 @@
 #include "d3d8.h"
 #include "d3d8_private.h"
+#include "d3d8_device.h"
 #include "d3d8_resource.h"
 
 #include <assert.h>
@@ -8,13 +9,13 @@
 
 #include <pbkit/pbkit_pushbuffer.h>
 
-IDirect3DResourceVtbl8      g_d3dResourceVtbl;
-IDirect3DBaseTextureVtbl8   g_d3dBaseTextureVtbl;
-IDirect3DTextureVtbl8       g_d3dTextureVtbl;
-IDirect3DCubeTextureVtbl8   g_d3dCubeTextureVtbl;
-IDirect3DSurfaceVtbl8       g_d3dSurfaceVtbl;
-IDirect3DVertexBufferVtbl8  g_d3dVertexBufferVtbl;
-IDirect3DPushBufferVtbl8    g_d3dPushBufferVtbl;
+IDirect3DResourceVtbl8*         g_pResourceVtbl     = NULL;
+IDirect3DBaseTextureVtbl8*      g_pBaseTextureVtbl  = NULL;
+IDirect3DTextureVtbl8*          g_pTextureVtbl      = NULL;
+IDirect3DCubeTextureVtbl8*      g_pCubeTextureVtbl  = NULL;
+IDirect3DSurfaceVtbl8*          g_pSurfaceVtbl      = NULL;
+IDirect3DVertexBufferVtbl8*     g_pVertexBufferVtbl = NULL;
+IDirect3DPushBufferVtbl8*       g_pPushBufferVtbl   = NULL;
 
 // ============================================================================
 ULONG D3DRefcount_AddRef(D3DRefcount* pThis) {
@@ -38,11 +39,11 @@ ULONG D3DRefcount_Release(D3DRefcount *pThis) {
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DResource8_AddRef(LPDIRECT3DRESOURCE8 pThis) {
+D3DAPI ULONG D3DResource_AddRef(LPDIRECT3DRESOURCE8 pThis) {
     return D3DRefcount_AddRef(&((D3DResource*)pThis)->inner.refcount);
 }
 
-ULONG IDirect3DResource8_Release(LPDIRECT3DRESOURCE8 pThis) {
+D3DAPI ULONG D3DResource_Release(LPDIRECT3DRESOURCE8 pThis) {
     D3DResource* resource = (D3DResource*)pThis;
     ULONG refcount = D3DRefcount_Release(&resource->inner.refcount);
     if (refcount > 0)
@@ -55,34 +56,38 @@ ULONG IDirect3DResource8_Release(LPDIRECT3DRESOURCE8 pThis) {
     return 0;
 }
 
-D3DRESOURCETYPE IDirect3DResource8_GetType(LPDIRECT3DRESOURCE8 pThis) {
+D3DAPI D3DRESOURCETYPE D3DResource_GetType(LPDIRECT3DRESOURCE8 pThis) {
     return ((D3DResource*)pThis)->inner.type;
 }
 
-VOID IDirect3DResource8_Register(LPDIRECT3DRESOURCE8 pThis, PVOID pBase) {
+D3DAPI VOID D3DResource_Register(LPDIRECT3DRESOURCE8 pThis, PVOID pBase) {
     D3DResource* resource = (D3DResource*)pThis;
     resource->inner.pContiguousMemory = 
         (PVOID)((DWORD)pBase + resource->inner.Data);
     resource->inner.Data += (DWORD)MmGetPhysicalAddress(pBase);
 }
 
-BOOL IDirect3DResource8_IsBusy(LPDIRECT3DRESOURCE8 pThis) {
+D3DAPI BOOL D3DResource_IsBusy(LPDIRECT3DRESOURCE8 pThis) {
     D3DResource* resource = (D3DResource*)pThis;
-    assert(false); // TODO: implement
-    return FALSE;
+    if (D3DDevice_GetLastCompletedFence() >= resource->inner.Fence) {
+        resource->inner.Fence = 0;
+        return FALSE;
+    }
+    return TRUE;
 }
 
-VOID IDirect3DResource8_BlockUntilNotBusy(LPDIRECT3DRESOURCE8 pThis) {
-    assert(false); // TODO: implement
+D3DAPI VOID D3DResource_BlockUntilNotBusy(LPDIRECT3DRESOURCE8 pThis) {
+    D3DResource* resource = (D3DResource*)pThis;
+    D3DDevice_BlockOnFence(resource->inner.Fence);
 }
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DPushBuffer8_AddRef(LPDIRECT3DPUSHBUFFER8 pThis) {
-    return IDirect3DResource8_AddRef((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DPushBuffer_AddRef(LPDIRECT3DPUSHBUFFER8 pThis) {
+    return D3DResource_AddRef((LPDIRECT3DRESOURCE8)pThis);
 }
 
-ULONG IDirect3DPushBuffer8_Release(LPDIRECT3DPUSHBUFFER8 pThis) {
+ULONG D3DPushBuffer_Release(LPDIRECT3DPUSHBUFFER8 pThis) {
     D3DPushBuffer* pb = (D3DPushBuffer*)pThis;
     ULONG refcount = D3DRefcount_Release(&pb->resource.refcount);
     if (refcount > 0)
@@ -101,23 +106,30 @@ ULONG IDirect3DPushBuffer8_Release(LPDIRECT3DPUSHBUFFER8 pThis) {
     return 0;
 }
 
-D3DRESOURCETYPE IDirect3DPushBuffer8_GetType(LPDIRECT3DPUSHBUFFER8 pThis) {
-    return IDirect3DResource8_GetType((LPDIRECT3DRESOURCE8)pThis);
+D3DRESOURCETYPE D3DPushBuffer_GetType(
+    LPDIRECT3DPUSHBUFFER8 pThis) 
+{
+    return D3DResource_GetType((LPDIRECT3DRESOURCE8)pThis);
 }
 
-VOID IDirect3DPushBuffer8_Register(LPDIRECT3DPUSHBUFFER8 pThis, PVOID pBase) {
-    IDirect3DResource8_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+VOID D3DPushBuffer_Register(LPDIRECT3DPUSHBUFFER8 pThis, 
+                                          PVOID pBase) 
+{
+    D3DResource_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
 }
 
-VOID IDirect3DPushBuffer8_BlockUntilNotBusy(LPDIRECT3DPUSHBUFFER8 pThis) {
-    IDirect3DResource8_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);   
+VOID D3DPushBuffer_BlockUntilNotBusy(
+    LPDIRECT3DPUSHBUFFER8 pThis) 
+{
+    return;  
 }
 
-BOOL IDirect3DPushBuffer8_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis) {
-    return IDirect3DResource8_IsBusy((LPDIRECT3DRESOURCE8)pThis);   
+BOOL D3DPushBuffer_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis) {
+    return FALSE; 
 }
 
-HRESULT IDirect3DPushBuffer8_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, UINT* pSize) 
+HRESULT D3DPushBuffer_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, 
+                                            UINT* pSize) 
 {
     *pSize = ((D3DPushBuffer*)pThis)->SizeNeeded;
     return D3D_OK;
@@ -259,44 +271,58 @@ HRESULT D3DPushBuffer_PushA(
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DSurface8_AddRef(LPDIRECT3DSURFACE8 pThis) {
-    return IDirect3DResource8_AddRef((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DSurface_AddRef(LPDIRECT3DSURFACE8 pThis) {
+    return D3DResource_AddRef((LPDIRECT3DRESOURCE8)pThis);
 }
 
-ULONG IDirect3DSurface8_Release(LPDIRECT3DSURFACE8 pThis) {
-    return IDirect3DResource8_Release((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DSurface_Release(LPDIRECT3DSURFACE8 pThis) {
+    return D3DResource_Release((LPDIRECT3DRESOURCE8)pThis);
 }
 
-D3DRESOURCETYPE IDirect3DSurface8_GetType(LPDIRECT3DSURFACE8 pThis) {
-    return IDirect3DResource8_GetType((LPDIRECT3DRESOURCE8) pThis);
+D3DRESOURCETYPE D3DSurface_GetType(LPDIRECT3DSURFACE8 pThis) {
+    return D3DResource_GetType((LPDIRECT3DRESOURCE8) pThis);
 }
 
-VOID IDirect3DSurface8_Register(LPDIRECT3DSURFACE8 pThis, PVOID pBase) {
-    IDirect3DResource8_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+VOID D3DSurface_Register(LPDIRECT3DSURFACE8 pThis, PVOID pBase) {
+    D3DResource_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
 }
 
-HRESULT IDirect3DSurface8_GetContainer(LPDIRECT3DSURFACE8 pThis, 
-                                       LPDIRECT3DBASETEXTURE8* ppContainer)
+BOOL D3DSurface_IsBusy(LPDIRECT3DSURFACE8 pThis) {
+    return D3DResource_IsBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+VOID D3DSurface_BlockUntilNotBusy(LPDIRECT3DSURFACE8 pThis) {
+    D3DResource_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+HRESULT D3DSurface_GetContainer(
+    LPDIRECT3DSURFACE8 pThis, 
+    LPDIRECT3DBASETEXTURE8* ppContainer,
+    REFIID riid)
 {
     *ppContainer = NULL;
+    assert(false); // TODO: implement
     return E_FAIL;
 }
-HRESULT IDirect3DSurface8_GetDesc(LPDIRECT3DSURFACE8 pThis, 
-                                  D3DSURFACE_DESC* pDesc)
+HRESULT D3DSurface_GetDesc(LPDIRECT3DSURFACE8 pThis, 
+                                         D3DSURFACE_DESC* pDesc)
 {
     memcpyp(pDesc, &((D3DSurface*)pThis)->desc);
     return D3D_OK;
 }
-HRESULT IDirect3DSurface8_LockRect(LPDIRECT3DSURFACE8 pThis, 
-                                   D3DLOCKED_RECT* pLockedRect, 
-                                   const RECT* pRect, DWORD Flags)
+HRESULT D3DSurface_LockRect(LPDIRECT3DSURFACE8 pThis, 
+                            D3DLOCKED_RECT* pLockedRect, 
+                            CONST RECT* pRect, DWORD Flags)
 {
     D3DSurface* surface    = (D3DSurface*)pThis;
-    if (IDirect3DResource8_IsBusy((LPDIRECT3DRESOURCE8)pThis))
-        IDirect3DResource8_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+    if (Flags != (D3DLOCK_READONLY | D3DLOCK_NOOVERWRITE) &&
+        D3DResource_IsBusy((LPDIRECT3DRESOURCE8)pThis))
+    {
+        D3DResource_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+    }
 
-    surface->lock.bLocked  =  TRUE;
-    surface->lock.Flags    =  Flags;
+    surface->resource.Fence    =  D3DDevice_GetCurrentFence();
+    surface->lock.Flags        =  Flags;
     if (pRect)
         surface->lock.Rect = *pRect;
     else
@@ -320,124 +346,154 @@ HRESULT IDirect3DSurface8_LockRect(LPDIRECT3DSURFACE8 pThis,
     }
     else {
         // TODO: implement partial locks
-        surface->lock.bLocked = FALSE;
+        surface->resource.Fence = 0;
         return E_NOTIMPL;
     }
 }
 
-HRESULT IDirect3DSurface8_UnlockRect(LPDIRECT3DSURFACE8 pThis) {
-    ((D3DSurface*)pThis)->lock.bLocked = FALSE;
+HRESULT D3DSurface_UnlockRect(LPDIRECT3DSURFACE8 pThis) {
     return D3D_OK;
 }
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DVertexBuffer8_AddRef(LPDIRECT3DVERTEXBUFFER8 pThis) {
-    return IDirect3DResource8_AddRef((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DVertexBuffer_AddRef(LPDIRECT3DVERTEXBUFFER8 pThis) {
+    return D3DResource_AddRef((LPDIRECT3DRESOURCE8)pThis);
 }
 
-ULONG IDirect3DVertexBuffer8_Release(LPDIRECT3DVERTEXBUFFER8 pThis) {
-    return IDirect3DResource8_Release((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DVertexBuffer_Release(LPDIRECT3DVERTEXBUFFER8 pThis) {
+    return D3DResource_Release((LPDIRECT3DRESOURCE8)pThis);
 }
 
-D3DRESOURCETYPE IDirect3DVertexBuffer8_GetType(LPDIRECT3DVERTEXBUFFER8 pThis) {
-    return IDirect3DResource8_GetType((LPDIRECT3DRESOURCE8)pThis);
-}
-
-VOID IDirect3DVertexBuffer8_Register(LPDIRECT3DVERTEXBUFFER8 pThis, 
-                                     PVOID pBase) 
+D3DRESOURCETYPE D3DVertexBuffer_GetType(
+    LPDIRECT3DVERTEXBUFFER8 pThis) 
 {
-    IDirect3DResource8_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+    return D3DResource_GetType((LPDIRECT3DRESOURCE8)pThis);
 }
 
-HRESULT IDirect3DVertexBuffer8_GetDesc(LPDIRECT3DVERTEXBUFFER8 pThis, 
-                                       D3DVERTEXBUFFER_DESC* pDesc)
+VOID D3DVertexBuffer_Register(LPDIRECT3DVERTEXBUFFER8 pThis, 
+                                            PVOID pBase)
+{
+    D3DResource_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+}
+
+BOOL D3DVertexBuffer_IsBusy(LPDIRECT3DVERTEXBUFFER8 pThis) {
+    return D3DResource_IsBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+VOID D3DVertexBuffer_BlockUntilNotBusy(
+    LPDIRECT3DVERTEXBUFFER8 pThis) 
+{
+    D3DResource_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+HRESULT D3DVertexBuffer_GetDesc(LPDIRECT3DVERTEXBUFFER8 pThis, 
+                                              D3DVERTEXBUFFER_DESC* pDesc)
 {
     memcpyp(pDesc, &((D3DVertexBuffer*)pThis)->desc);
     return D3D_OK;
 }
-HRESULT IDirect3DVertexBuffer8_Lock(LPDIRECT3DVERTEXBUFFER8 pThis, 
-                                    UINT OffsetToLock, UINT SizeToLock,
-                                    BYTE** ppbData, DWORD Flags)
+
+HRESULT D3DVertexBuffer_Lock(LPDIRECT3DVERTEXBUFFER8 pThis, 
+                                           UINT OffsetToLock, UINT SizeToLock,
+                                           BYTE** ppbData, DWORD Flags)
 {
     D3DVertexBuffer* vb = (D3DVertexBuffer*)pThis;
-    if (vb->lock.bLocked) 
-        return D3DERR_NOTAVAILABLE;
+    if (Flags != (D3DLOCK_READONLY | D3DLOCK_NOOVERWRITE) &&
+        D3DResource_IsBusy((LPDIRECT3DRESOURCE8)pThis)) 
+    {
+        D3DResource_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+    }
 
-    vb->lock.bLocked    = TRUE;
-    vb->lock.Offset     = OffsetToLock;
-    vb->lock.Size       = SizeToLock;
-    vb->lock.Flags      = Flags;
-    *ppbData = (BYTE*)vb->resource.pContiguousMemory;
+    vb->resource.Fence = D3DDevice_GetCurrentFence();
+    *ppbData  = (BYTE*)vb->resource.pContiguousMemory;
 
     return D3D_OK;
 }
 
-HRESULT IDirect3DVertexBuffer8_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis) {
-    D3DVertexBuffer* vb = (D3DVertexBuffer*)pThis;
-    if (vb->lock.bLocked == FALSE) 
-        return D3DERR_INVALIDCALL;
-
-    ((D3DVertexBuffer*)pThis)->lock.bLocked = FALSE;
+HRESULT D3DVertexBuffer_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis) {
     return D3D_OK;
 }
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DBaseTexture8_AddRef(LPDIRECT3DBASETEXTURE8 pThis) {
-    return IDirect3DResource8_AddRef((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DBaseTexture_AddRef(LPDIRECT3DBASETEXTURE8 pThis) {
+    return D3DResource_AddRef((LPDIRECT3DRESOURCE8)pThis);
 }
 
-ULONG IDirect3DBaseTexture8_Release(LPDIRECT3DBASETEXTURE8 pThis) {
-    return IDirect3DResource8_Release((LPDIRECT3DRESOURCE8)pThis);
+ULONG D3DBaseTexture_Release(LPDIRECT3DBASETEXTURE8 pThis) {
+    return D3DResource_Release((LPDIRECT3DRESOURCE8)pThis);
 }
 
-D3DRESOURCETYPE IDirect3DBaseTexture8_GetType(LPDIRECT3DBASETEXTURE8 pThis) {
-    return IDirect3DResource8_GetType((LPDIRECT3DRESOURCE8)pThis);
-}
-
-VOID IDirect3DBaseTexture8_Register(LPDIRECT3DBASETEXTURE8 pThis, 
-                                    PVOID pBase) 
+D3DRESOURCETYPE D3DBaseTexture_GetType(
+    LPDIRECT3DBASETEXTURE8 pThis) 
 {
-    IDirect3DResource8_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+    return D3DResource_GetType((LPDIRECT3DRESOURCE8)pThis);
 }
 
-DWORD IDirect3DBaseTexture8_GetLevelCount(LPDIRECT3DBASETEXTURE8 pThis) {
-        return ((D3DBaseTexture*)pThis)->inner.dwLevelCount;
+VOID D3DBaseTexture_Register(LPDIRECT3DBASETEXTURE8 pThis,
+                                           PVOID pBase) 
+{
+    D3DResource_Register((LPDIRECT3DRESOURCE8)pThis, pBase);
+}
+
+BOOL D3DBaseTexture_IsBusy(LPDIRECT3DBASETEXTURE8 pThis) {
+    return D3DResource_IsBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+VOID D3DBaseTexture_BlockUntilNotBusy(
+    LPDIRECT3DBASETEXTURE8 pThis) 
+{
+    D3DResource_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pThis);
+}
+
+DWORD D3DBaseTexture_GetLevelCount(
+    LPDIRECT3DBASETEXTURE8 pThis) 
+{
+    return ((D3DBaseTexture*)pThis)->inner.dwLevelCount;
 }
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DTexture8_AddRef(LPDIRECT3DTEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_AddRef((LPDIRECT3DBASETEXTURE8)pThis);
+ULONG D3DTexture_AddRef(LPDIRECT3DTEXTURE8 pThis) {
+    return D3DBaseTexture_AddRef((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-ULONG IDirect3DTexture8_Release(LPDIRECT3DTEXTURE8 pThis) {
+ULONG D3DTexture_Release(LPDIRECT3DTEXTURE8 pThis) {
     D3DTexture* texture = (D3DTexture*)pThis;
     ULONG refcount = texture->base.resource.refcount.c; 
     if (refcount == 1)
         free(texture->pLevels);
 
-    IDirect3DBaseTexture8_Release((LPDIRECT3DBASETEXTURE8)pThis);
+    D3DBaseTexture_Release((LPDIRECT3DBASETEXTURE8)pThis);
 
     return refcount - 1;
 }
 
-D3DRESOURCETYPE IDirect3DTexture8_GetType(LPDIRECT3DTEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_GetType((LPDIRECT3DBASETEXTURE8)pThis);
+D3DRESOURCETYPE D3DTexture_GetType(LPDIRECT3DTEXTURE8 pThis) {
+    return D3DBaseTexture_GetType((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-VOID IDirect3DTexture8_Register(LPDIRECT3DTEXTURE8 pThis, PVOID pBase) {
-    return IDirect3DBaseTexture8_Register((LPDIRECT3DBASETEXTURE8)pThis, 
+VOID D3DTexture_Register(LPDIRECT3DTEXTURE8 pThis, PVOID pBase) {
+    return D3DBaseTexture_Register((LPDIRECT3DBASETEXTURE8)pThis, 
                                           pBase);
 }
 
-DWORD IDirect3DTexture8_GetLevelCount(LPDIRECT3DTEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_GetLevelCount((LPDIRECT3DBASETEXTURE8)pThis);
+BOOL D3DTexture_IsBusy(LPDIRECT3DTEXTURE8 pThis) {
+    return D3DBaseTexture_IsBusy((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-HRESULT IDirect3DTexture8_GetSurfaceLevel(LPDIRECT3DTEXTURE8 pThis, UINT Level,
-                                          LPDIRECT3DSURFACE8* ppSurfaceLevel) 
+VOID D3DTexture_BlockUntilNotBusy(LPDIRECT3DTEXTURE8 pThis) {
+    D3DBaseTexture_BlockUntilNotBusy((LPDIRECT3DBASETEXTURE8)pThis);
+}
+
+DWORD D3DTexture_GetLevelCount(LPDIRECT3DTEXTURE8 pThis) {
+    return D3DBaseTexture_GetLevelCount((LPDIRECT3DBASETEXTURE8)pThis);
+}
+
+HRESULT D3DTexture_GetSurfaceLevel(
+    LPDIRECT3DTEXTURE8 pThis, UINT Level,
+    LPDIRECT3DSURFACE8* ppSurfaceLevel)
 {
     D3DTexture* texture = (D3DTexture*)pThis;
 #if NXDK_DEBUG
@@ -445,12 +501,13 @@ HRESULT IDirect3DTexture8_GetSurfaceLevel(LPDIRECT3DTEXTURE8 pThis, UINT Level,
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     *ppSurfaceLevel = &texture->pLevels[Level].iface;
-    IDirect3DSurface8_AddRef(*ppSurfaceLevel);
+    D3DSurface_AddRef(*ppSurfaceLevel);
     return D3D_OK;
 }
 
-HRESULT IDirect3DTexture8_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis, UINT Level, 
-                                       D3DSURFACE_DESC* pDesc) 
+HRESULT D3DTexture_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis,
+                                              UINT Level, 
+                                              D3DSURFACE_DESC* pDesc) 
 {
     D3DTexture* texture = (D3DTexture*)pThis;
 #if NXDK_DEBUG
@@ -461,7 +518,7 @@ HRESULT IDirect3DTexture8_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis, UINT Level,
     return D3D_OK;
 }
 
-HRESULT IDirect3DTexture8_LockRect(
+HRESULT D3DTexture_LockRect(
     LPDIRECT3DTEXTURE8 pThis, UINT Level, 
     D3DLOCKED_RECT* pLockedRect, CONST RECT* pRect, DWORD Flags)
 {
@@ -471,11 +528,14 @@ HRESULT IDirect3DTexture8_LockRect(
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     D3DSurface* pLevel = &texture->pLevels[Level];
-    if (IDirect3DResource8_IsBusy((LPDIRECT3DRESOURCE8)pLevel))
-        IDirect3DResource8_BlockUntilNotBusy((LPDIRECT3DRESOURCE8)pLevel);
+    if (Flags != (D3DLOCK_READONLY | D3DLOCK_NOOVERWRITE) &&
+        D3DSurface_IsBusy((LPDIRECT3DSURFACE8)pLevel)) 
+    {
+        D3DSurface_BlockUntilNotBusy((LPDIRECT3DSURFACE8)pLevel);
+    }
 
-    pLevel->lock.bLocked = TRUE;
-    pLevel->lock.Flags   = Flags;
+    pLevel->resource.Fence = D3DDevice_GetCurrentFence();
+    pLevel->lock.Flags    =  Flags;
     if (pRect) {
         pLevel->lock.Rect = *pRect;
     }
@@ -493,65 +553,81 @@ HRESULT IDirect3DTexture8_LockRect(
     } 
     else {
         // TODO: implement partial locks
-        texture->pLevels[Level].lock.bLocked = FALSE;
+        texture->pLevels[Level].resource.Fence = 0;
         return E_NOTIMPL;
     }
 
     return D3D_OK;
 }
 
-HRESULT IDirect3DTexture8_UnlockRect(LPDIRECT3DTEXTURE8 pThis, UINT Level) {
+HRESULT D3DTexture_UnlockRect(LPDIRECT3DTEXTURE8 pThis, 
+                                            UINT Level) 
+{
     D3DTexture* texture = (D3DTexture*)pThis;
 #if NXDK_DEBUG
     if (Level >= (texture->base).dwLevelCount)
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
 
-    texture->pLevels[0].lock.bLocked = FALSE;
     return D3D_OK;
 }
 // ============================================================================
 
 // ============================================================================
-ULONG IDirect3DCubeTexture8_AddRef(LPDIRECT3DCUBETEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_AddRef((LPDIRECT3DBASETEXTURE8)pThis);
+ULONG D3DCubeTexture_AddRef(LPDIRECT3DCUBETEXTURE8 pThis) {
+    return D3DBaseTexture_AddRef((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-ULONG IDirect3DCubeTexture8_Release(LPDIRECT3DCUBETEXTURE8 pThis) {
+ULONG D3DCubeTexture_Release(LPDIRECT3DCUBETEXTURE8 pThis) {
     D3DCubeTexture* texture = (D3DCubeTexture*)pThis;
     ULONG refcount = texture->base.resource.refcount.c; 
     if (refcount == 1) {
         for (int i = 0; i < D3DCUBEMAP_FACE_MAX; i++)
-            IDirect3DTexture8_Release(&texture->pCubeSurfaces[i].iface);
+            D3DTexture_Release(&texture->pCubeSurfaces[i].iface);
     }
 
-    IDirect3DBaseTexture8_Release((LPDIRECT3DBASETEXTURE8)pThis);
+    D3DBaseTexture_Release((LPDIRECT3DBASETEXTURE8)pThis);
     return refcount - 1;
 }
 
-D3DRESOURCETYPE IDirect3DCubeTexture8_GetType(LPDIRECT3DCUBETEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_GetType((LPDIRECT3DBASETEXTURE8)pThis);
+D3DRESOURCETYPE D3DCubeTexture_GetType(
+    LPDIRECT3DCUBETEXTURE8 pThis) 
+{
+    return D3DBaseTexture_GetType((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-VOID IDirect3DCubeTexture8_Register(LPDIRECT3DCUBETEXTURE8 pThis, PVOID pBase) {
-    return IDirect3DBaseTexture8_Register((LPDIRECT3DBASETEXTURE8)pThis, 
+VOID D3DCubeTexture_Register(
+    LPDIRECT3DCUBETEXTURE8 pThis, PVOID pBase) 
+{
+    return D3DBaseTexture_Register((LPDIRECT3DBASETEXTURE8)pThis, 
                                           pBase);
 }
 
-DWORD IDirect3DCubeTexture8_GetLevelCount(LPDIRECT3DCUBETEXTURE8 pThis) {
-    return IDirect3DBaseTexture8_GetLevelCount((LPDIRECT3DBASETEXTURE8)pThis);
+BOOL D3DCubeTexture_IsBusy(LPDIRECT3DCUBETEXTURE8 pThis) {
+    return D3DBaseTexture_IsBusy((LPDIRECT3DBASETEXTURE8)pThis);
 }
 
-HRESULT IDirect3DCubeTexture8_GetLevelDesc(LPDIRECT3DCUBETEXTURE8 pThis, 
-                                           UINT Level, 
-                                           D3DSURFACE_DESC* pDesc) 
+VOID D3DCubeTexture_BlockUntilNotBusy(
+    LPDIRECT3DCUBETEXTURE8 pThis) 
+{
+    D3DBaseTexture_BlockUntilNotBusy((LPDIRECT3DBASETEXTURE8)pThis);
+}
+
+DWORD D3DCubeTexture_GetLevelCount(LPDIRECT3DCUBETEXTURE8 pThis)
+{
+    return D3DBaseTexture_GetLevelCount((LPDIRECT3DBASETEXTURE8)pThis);
+}
+
+HRESULT D3DCubeTexture_GetLevelDesc(LPDIRECT3DCUBETEXTURE8 pThis,
+                                                  UINT Level, 
+                                                  D3DSURFACE_DESC* pDesc) 
 {
     D3DCubeTexture* texture = (D3DCubeTexture*)pThis;
-    return IDirect3DTexture8_GetLevelDesc(&texture->pCubeSurfaces[0].iface, 
+    return D3DTexture_GetLevelDesc(&texture->pCubeSurfaces[0].iface, 
                                           Level, pDesc);
 }
 
-HRESULT IDirect3DCubeTexture8_LockRect(
+HRESULT D3DCubeTexture_LockRect(
     LPDIRECT3DCUBETEXTURE8 pThis, D3DCUBEMAP_FACES FaceType, UINT Level, 
     D3DLOCKED_RECT* pLockedRect, CONST RECT* pRect, DWORD Flags)
 {
@@ -560,23 +636,24 @@ HRESULT IDirect3DCubeTexture8_LockRect(
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     D3DCubeTexture* texture = (D3DCubeTexture*)pThis;
-    return IDirect3DTexture8_LockRect(&texture->pCubeSurfaces[FaceType].iface,
-                                      Level, pLockedRect, pRect, Flags);
+    return D3DTexture_LockRect(&texture->pCubeSurfaces[FaceType].iface,
+                               Level, pLockedRect, pRect, Flags);
 }
 
-HRESULT IDirect3DCubeTexture8_UnlockRect(LPDIRECT3DCUBETEXTURE8 pThis, 
-                                         D3DCUBEMAP_FACES FaceType, UINT Level)
+HRESULT D3DCubeTexture_UnlockRect(LPDIRECT3DCUBETEXTURE8 pThis,
+                                  D3DCUBEMAP_FACES FaceType, 
+                                  UINT Level)
 {
 #if NXDK_DEBUG
     if (FaceType >= D3DCUBEMAP_FACE_MAX)
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     D3DCubeTexture* texture = (D3DCubeTexture*)pThis;
-    return IDirect3DTexture8_UnlockRect(
+    return D3DTexture_UnlockRect(
         &texture->pCubeSurfaces[FaceType].iface, Level);
 }
 
-HRESULT IDirect3DCubeTexture8_GetCubeMapSurface(
+HRESULT D3DCubeTexture_GetCubeMapSurface(
     LPDIRECT3DCUBETEXTURE8 pThis,
     D3DCUBEMAP_FACES FaceType, UINT Level, 
     LPDIRECT3DSURFACE8* ppCubeMapSurface)
@@ -586,7 +663,7 @@ HRESULT IDirect3DCubeTexture8_GetCubeMapSurface(
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     D3DCubeTexture* texture = (D3DCubeTexture*)pThis;
-    return IDirect3DTexture8_GetSurfaceLevel(
+    return D3DTexture_GetSurfaceLevel(
         &texture->pCubeSurfaces[FaceType].iface, Level, ppCubeMapSurface);
 }
 
@@ -602,6 +679,7 @@ VOID D3D_CreateResource(D3DRESOURCETYPE type, DWORD Data,
     pResource->bManuallyRegistered = FALSE;
     pResource->Data                = Data;
     pResource->pContiguousMemory   = pContiguousMemory;
+    pResource->Fence               = 0;
 }
 
 
@@ -620,7 +698,7 @@ HRESULT D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
         if (pContiguousMemory == NULL)
             return D3DERR_OUTOFVIDEOMEMORY;
     }
-    pSurf->iface.lpVtbl = &g_d3dSurfaceVtbl;
+    pSurf->iface.lpVtbl = g_pSurfaceVtbl;
     pSurf->pContainer = pContainer;
     D3D_CreateResource(D3DRTYPE_SURFACE, 0, pContiguousMemory, 
                        &pSurf->resource);
@@ -634,9 +712,8 @@ HRESULT D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
     pSurf->desc.MultiSampleType = MultiSampleType; 
     pSurf->desc.Width = Width;
     pSurf->desc.Height = Height;
-    pSurf->lock.bLocked = FALSE;
     if (pContiguousMemory != NULL)
-        IDirect3DSurface8_Register(&pSurf->iface, pContiguousMemory);
+        D3DSurface_Register(&pSurf->iface, pContiguousMemory);
 
     return D3D_OK;
 }
@@ -649,7 +726,7 @@ HRESULT D3D_CreatePushBuffer(
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
     
-    pPB->iface.lpVtbl = &g_d3dPushBufferVtbl;
+    pPB->iface.lpVtbl = g_pPushBufferVtbl;
     D3D_CreateResource(D3DRTYPE_PUSHBUFFER, 0, 
                        pContiguousMemory, &pPB->resource);
     pPB->Size = Size / sizeof(DWORD);
@@ -735,7 +812,7 @@ HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels,
         h >>= 1;
     }
 
-    pTex->iface.lpVtbl          = &g_d3dTextureVtbl;
+    pTex->iface.lpVtbl          = g_pTextureVtbl;
     pTex->base.dwLevelCount     = Levels;
     pTex->desc.Type             = D3DRTYPE_TEXTURE;
     pTex->desc.Format           = Format;
@@ -798,7 +875,7 @@ HRESULT D3D_CreateCubeTexture(UINT EdgeLength, UINT Levels,
         }
     }
 
-    pTex->iface.lpVtbl = &g_d3dCubeTextureVtbl;
+    pTex->iface.lpVtbl = g_pCubeTextureVtbl;
     pTex->base.dwLevelCount = Levels;
     return D3D_OK;
 }

@@ -1,3 +1,14 @@
+// This file contains the implementation of D3DDevice. As IDirect3DDevice8 
+// accounts for the majority of D3D8's API surface and encapsulates the entire
+// rendering pipeline, D3DDevice contains the bulk of the D3D implementation.
+//
+// It might at some point in the future be desirable to split D3DDevice into 
+// multiple objects (e.g. a D3DFixedFunctionShaderPipeline, 
+// a D3DProgrammableShaderPipeline, a D3DTextureStateManager and
+// D3DRenderStateManager, etc.) and just link them together under
+// IDirect3DDevice8, but for now, the entire implementation is contained in
+// D3DDevice.
+
 #include "d3d8_device.h"
 
 #include <assert.h>
@@ -5,8 +16,8 @@
 
 #include <pbkit/pbkit.h>
 
-D3DDevice            g_d3ddev;
-IDirect3DDeviceVtbl8 g_d3ddevVtbl;
+D3DDevice*            g_pDevice     = NULL;
+IDirect3DDeviceVtbl8* g_pDeviceVtbl = NULL;
 
 // Sets the device's current push buffer to the supplied push buffer.
 // All subsequent GPU commands will be sent to this push buffer until
@@ -17,11 +28,11 @@ IDirect3DDeviceVtbl8 g_d3ddevVtbl;
 // pbkit's internal push buffer.
 HRESULT D3DDevice_BeginPushBuffer(D3DPushBuffer* pPushBuffer) {
     if (pPushBuffer == NULL)
-        pPushBuffer = &g_d3ddev.pDefaultPB;
+        pPushBuffer = &g_pDevice->DefaultPB;
 
-    g_d3ddev.pCurrentPB = pPushBuffer;
-    if (g_d3ddev.pCurrentPB->bCpu == FALSE) {
-        g_d3ddev.pCurrentPB->p = 
+    g_pDevice->pCurrentPB = pPushBuffer;
+    if (g_pDevice->pCurrentPB->bCpu == FALSE) {
+        g_pDevice->pCurrentPB->p = 
             (PDWORD)pb_begin_at(pPushBuffer->resource.pContiguousMemory);
     }
     pPushBuffer->SizeNeeded = 0;
@@ -34,18 +45,18 @@ HRESULT D3DDevice_BeginPushBuffer(D3DPushBuffer* pPushBuffer) {
 // sent to the push buffer (e.g. via D3DDevice_Push*) will be lost.
 // D3DDevice_BeginPushBuffer *MUST* be called before further data is sent.
 HRESULT D3DDevice_EndPushBuffer(void) {
-    if (g_d3ddev.pCurrentPB->bCpu == FALSE) {
-        pb_end_at((uint32_t*)(g_d3ddev.pCurrentPB->p - 1), 
-                  (uint32_t*)g_d3ddev.pCurrentPB->p);
+    if (g_pDevice->pCurrentPB->bCpu == FALSE) {
+        pb_end_at((uint32_t*)(g_pDevice->pCurrentPB->p - 1), 
+                  (uint32_t*)g_pDevice->pCurrentPB->p);
     }
-    g_d3ddev.pCurrentPB = NULL;
+    g_pDevice->pCurrentPB = NULL;
     return D3D_OK;
 }
 
 BOOL D3DDevice_IsKickoffReady(void) {
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return FALSE;
-    if (g_d3ddev.pCurrentPB->SizeNeeded >= g_d3ddev.KickOffSize)
+    if (g_pDevice->pCurrentPB->SizeNeeded >= g_pDevice->KickOffSize)
         return TRUE;
     else
         return FALSE;
@@ -53,15 +64,15 @@ BOOL D3DDevice_IsKickoffReady(void) {
 
 HRESULT D3DDevice_KickPushBuffer(void) {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
 
-    if (g_d3ddev.pCurrentPB->bCpu == TRUE) {
+    if (g_pDevice->pCurrentPB->bCpu == TRUE) {
         uint32_t* p = pb_begin();
-        memcpy(p, g_d3ddev.pCurrentPB->p, 
-               g_d3ddev.pCurrentPB->SizeNeeded * sizeof(DWORD));
-        p += g_d3ddev.pCurrentPB->SizeNeeded;
+        memcpy(p, g_pDevice->pCurrentPB->p, 
+               g_pDevice->pCurrentPB->SizeNeeded * sizeof(DWORD));
+        p += g_pDevice->pCurrentPB->SizeNeeded;
         pb_end(p);
         return D3D_OK;
     }
@@ -69,23 +80,23 @@ HRESULT D3DDevice_KickPushBuffer(void) {
     HRESULT hr = D3DDevice_EndPushBuffer();
     if (FAILED(hr)) return hr;
     
-    return D3DDevice_BeginPushBuffer(g_d3ddev.pCurrentPB);
+    return D3DDevice_BeginPushBuffer(g_pDevice->pCurrentPB);
 }
 
 HRESULT D3DDevice_Push1(DWORD dwData) {
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_Push1(g_d3ddev.pCurrentPB, dwData);
+    return D3DPushBuffer_Push1(g_pDevice->pCurrentPB, dwData);
 }
 
 HRESULT D3DDevice_PushCmd(DWORD cmd, DWORD dwData) {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     if (cmd == 0)
         return D3DERR_INVALIDCALL;
@@ -94,33 +105,33 @@ HRESULT D3DDevice_PushCmd(DWORD cmd, DWORD dwData) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd(g_d3ddev.pCurrentPB, cmd, dwData);
+    return D3DPushBuffer_PushCmd(g_pDevice->pCurrentPB, cmd, dwData);
 }
 
 HRESULT D3DDevice_PushCmd2(DWORD cmd, DWORD dwData1, DWORD dwData2) {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
 #endif // NXDK_DEBUG
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd2(g_d3ddev.pCurrentPB, cmd, dwData1, dwData2);
+    return D3DPushBuffer_PushCmd2(g_pDevice->pCurrentPB, cmd, dwData1, dwData2);
 }
 
 HRESULT D3DDevice_PushCmd3(DWORD cmd, DWORD dwData1, 
                            DWORD dwData2, DWORD dwData3) 
 {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
 #endif // NXDK_DEBUG
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd3(g_d3ddev.pCurrentPB, cmd, 
+    return D3DPushBuffer_PushCmd3(g_pDevice->pCurrentPB, cmd, 
                                   dwData1, dwData2, dwData3);
 }
 
@@ -128,20 +139,20 @@ HRESULT D3DDevice_PushCmd4(DWORD cmd, DWORD dwData1, DWORD dwData2,
                                       DWORD dwData3, DWORD dwData4) 
 {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
 #endif // NXDK_DEBUG
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd4(g_d3ddev.pCurrentPB, cmd, 
+    return D3DPushBuffer_PushCmd4(g_pDevice->pCurrentPB, cmd, 
                                   dwData1, dwData2, dwData3, dwData4);
 }
 
 HRESULT D3DDevice_PushCmdf(DWORD cmd, float fData) {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     if (cmd == 0)
         return D3DERR_INVALIDCALL;
@@ -150,12 +161,12 @@ HRESULT D3DDevice_PushCmdf(DWORD cmd, float fData) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmdf(g_d3ddev.pCurrentPB, cmd, fData);
+    return D3DPushBuffer_PushCmdf(g_pDevice->pCurrentPB, cmd, fData);
 }
 
 HRESULT D3DDevice_PushCmd2f(DWORD cmd, float fData1, float fData2) {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     if (cmd == 0)
         return D3DERR_INVALIDCALL;
@@ -164,14 +175,14 @@ HRESULT D3DDevice_PushCmd2f(DWORD cmd, float fData1, float fData2) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd2f(g_d3ddev.pCurrentPB, cmd, fData1, fData2);
+    return D3DPushBuffer_PushCmd2f(g_pDevice->pCurrentPB, cmd, fData1, fData2);
 }
 
 HRESULT D3DDevice_PushCmd3f(DWORD cmd, float fData1, 
                             float fData2, float fData3) 
 {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     if (cmd == 0)
         return D3DERR_INVALIDCALL;
@@ -180,7 +191,7 @@ HRESULT D3DDevice_PushCmd3f(DWORD cmd, float fData1,
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd3f(g_d3ddev.pCurrentPB, cmd, 
+    return D3DPushBuffer_PushCmd3f(g_pDevice->pCurrentPB, cmd, 
                                    fData1, fData2, fData3);
 }
 
@@ -188,7 +199,7 @@ HRESULT D3DDevice_PushCmd4f(DWORD cmd, float fData1, float fData2,
                                        float fData3, float fData4) 
 {
 #if NXDK_DEBUG
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
     if (cmd == 0)
         return D3DERR_INVALIDCALL;
@@ -197,37 +208,37 @@ HRESULT D3DDevice_PushCmd4f(DWORD cmd, float fData1, float fData2,
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushCmd4f(g_d3ddev.pCurrentPB, cmd, 
+    return D3DPushBuffer_PushCmd4f(g_pDevice->pCurrentPB, cmd, 
                                    fData1, fData2, fData3, fData4);
 }
 
 HRESULT D3DDevice_PushN(DWORD dwData, SIZE_T n) {
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
 
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushN(g_d3ddev.pCurrentPB, dwData, n);
+    return D3DPushBuffer_PushN(g_pDevice->pCurrentPB, dwData, n);
 }
 
 HRESULT D3DDevice_PushA(CONST DWORD* pdwData, SIZE_T n) {
-    if (g_d3ddev.pCurrentPB == NULL)
+    if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
 
     if (D3DDevice_IsKickoffReady() == TRUE) {
         HRESULT hr = D3DDevice_KickPushBuffer();
         if (FAILED(hr)) return hr;
     }
-    return D3DPushBuffer_PushA(g_d3ddev.pCurrentPB, pdwData, n);
+    return D3DPushBuffer_PushA(g_pDevice->pCurrentPB, pdwData, n);
 }
 
 HRESULT D3DDevice_CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format,
                                      LPDIRECT3DSURFACE8* ppSurface)
 {
     D3DSurface* surf = malloc(sizeof(*surf));
-    surf->iface.lpVtbl = &g_d3dSurfaceVtbl;
+    surf->iface.lpVtbl = g_pSurfaceVtbl;
     D3D_CreateSurface(
         Width, Height, Format, 0, 0, NULL, NULL, surf);
     surf->resource.pContiguousMemory = 
@@ -240,7 +251,7 @@ HRESULT D3DDevice_CreateImageSurface(UINT Width, UINT Height, D3DFORMAT Format,
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_CreateImageSurface(
+D3DAPI HRESULT Direct3DDevice8_CreateImageSurface(
     LPDIRECT3DDEVICE8 pThis, UINT Width, UINT Height,
     D3DFORMAT Format, LPDIRECT3DSURFACE8* ppSurface)
 {
@@ -254,7 +265,7 @@ HRESULT D3DDevice_CreateDepthStencilSurface(
     return D3DDevice_CreateImageSurface(Width, Height, Format, ppSurface);
 }
 
-HRESULT IDirect3DDevice8_CreateDepthStencilSurface(
+D3DAPI HRESULT Direct3DDevice8_CreateDepthStencilSurface(
     LPDIRECT3DDEVICE8 pThis, UINT Width, UINT Height, D3DFORMAT Format,
     D3DMULTISAMPLE_TYPE MultiSample, IDirect3DSurface8** ppSurface)
 {
@@ -289,7 +300,7 @@ HRESULT D3DDevice_SetScissors(DWORD Count, BOOL Exclusive,
     if (Count == 0) {
         HRESULT hr = D3DDevice_PushCmd(
             NV097_SET_WINDOW_CLIP_TYPE, NV097_SET_WINDOW_CLIP_TYPE_INCLUSIVE);
-        D3DVIEWPORT8* pViewport = &g_d3ddev.Viewport;
+        D3DVIEWPORT8* pViewport = &g_pDevice->Viewport;
         D3DRECT rect;
         rect.x1 = pViewport->X;
         rect.y1 = pViewport->Y;
@@ -333,10 +344,11 @@ HRESULT D3DDevice_SetScissors(DWORD Count, BOOL Exclusive,
     return hr;
 }
 
-HRESULT IDirect3DDevice8_SetScissors(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
-                                     BOOL Exclusive, CONST D3DRECT *pRects)
+D3DAPI HRESULT Direct3DDevice8_SetScissors(LPDIRECT3DDEVICE8 pThis, 
+                                            DWORD Count, BOOL Exclusive, 
+                                            CONST D3DRECT *pRects)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetScissors(Count, Exclusive, pRects);
 }
 
@@ -345,7 +357,7 @@ HRESULT D3DDevice_FireInterrupt(DWORD Subprog, DWORD ParamA) {
     if (FAILED(hr)) return hr;
     hr = D3DDevice_PushCmd(NV097_SET_INTERRUPT_PARAM_A, ParamA);
     if (FAILED(hr)) return hr;
-    g_d3ddev.ZStencilClearDirty = TRUE;
+    g_pDevice->ZStencilClearDirty = TRUE;
     return D3DDevice_PushCmd(NV097_FIRE_INTERRUPT, Subprog);
 }
 
@@ -354,10 +366,10 @@ HRESULT D3DDevice_FireInterrupt2(DWORD Subprog, DWORD ParamA, DWORD ParamB) {
     if (FAILED(hr)) return hr;
     hr = D3DDevice_PushCmd(NV097_SET_INTERRUPT_PARAM_A, ParamA);
     if (FAILED(hr)) return hr;
-    g_d3ddev.ZStencilClearDirty = TRUE;
+    g_pDevice->ZStencilClearDirty = TRUE;
     hr = D3DDevice_PushCmd(NV097_SET_INTERRUPT_PARAM_B, ParamB);
     if (FAILED(hr)) return hr;
-    g_d3ddev.ColorClearDirty = TRUE;
+    g_pDevice->ColorClearDirty = TRUE;
     return D3DDevice_PushCmd(NV097_FIRE_INTERRUPT, Subprog);
 }
 
@@ -380,14 +392,14 @@ HRESULT D3DDevice_InitRenderState(void) {
     hr = D3DDevice_SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
     if (FAILED(hr)) return hr;
 
-    D3DRenderState* pRenderState = &g_d3ddev.RenderState;
+    D3DRenderState* pRenderState = &g_pDevice->RenderState;
     DWORD RopZ = 0x45EAD10E;
     if (VIDEOREG(NV_PBUS_ROM_VERSION) & NV_PBUS_ROM_VERSION_MASK)
         RopZ = 0x45EAD10F;
     pRenderState->RopZ = RopZ;
     hr = D3DDevice_FireInterrupt2(PB_SETOUTER, 
                                   NV_PGRAPH_UNKNOWN_400B80, 
-                                  g_d3ddev.RenderState.RopZ);
+                                  g_pDevice->RenderState.RopZ);
     if (FAILED(hr)) return hr;
 
     return D3D_OK;
@@ -411,13 +423,13 @@ HRESULT D3DDevice_InitDeviceState(void) {
 
     D3DSURFACE_DESC desc;
     hr = IDirect3DSurface8_GetDesc(
-        (LPDIRECT3DSURFACE8)g_d3ddev.pSurfaces[0], &desc);
+        (LPDIRECT3DSURFACE8)g_pDevice->pSurfaces[0], &desc);
     if (FAILED(hr)) return hr;
     UINT ColorPitch = desc.Width * D3D_FormatBytesPerPixel(desc.Format);
     UINT Width = desc.Width;
     UINT Height = desc.Height;
     hr = IDirect3DSurface8_GetDesc(
-        (LPDIRECT3DSURFACE8)g_d3ddev.pDepthStencilSurface, &desc);
+        (LPDIRECT3DSURFACE8)g_pDevice->pDepthStencilSurface, &desc);
     if (FAILED(hr)) return hr;
     UINT DepthPitch = desc.Width * D3D_FormatBytesPerPixel(desc.Format);
     hr = D3DDevice_PushCmd(NV097_SET_SURFACE_PITCH, 
@@ -530,21 +542,21 @@ HRESULT D3DDevice_InitDeviceState(void) {
 }
  
 ULONG D3DDevice_AddRef(void) {
-    g_d3ddev.refcount.c = 1;
+    g_pDevice->refcount.c = 1;
     return 1;
 }
 
-ULONG IDirect3DDevice8_AddRef(LPDIRECT3DDEVICE8 pThis) {
-    assert(pThis == &g_d3ddev.iface);
+D3DAPI ULONG Direct3DDevice8_AddRef(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_AddRef();
 }
 
 ULONG D3DDevice_Release(void) {
-    return g_d3ddev.refcount.c;
+    return g_pDevice->refcount.c;
 }
 
-ULONG IDirect3DDevice8_Release(LPDIRECT3DDEVICE8 pThis) {
-    assert(pThis == &g_d3ddev.iface);
+D3DAPI ULONG Direct3DDevice8_Release(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_Release();
 }
 
@@ -557,10 +569,11 @@ HRESULT D3DDevice_Reset(D3DPRESENT_PARAMETERS* pPresentationParameters) {
     return Direct3D_ResetDevice(pPresentationParameters);
 }
 
-HRESULT IDirect3DDevice8_Reset(LPDIRECT3DDEVICE8 pThis, 
-                               D3DPRESENT_PARAMETERS* pPresentationParameters)
+D3DAPI HRESULT Direct3DDevice8_Reset(
+    LPDIRECT3DDEVICE8 pThis, 
+    D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_Reset(pPresentationParameters);
 }
 
@@ -568,27 +581,30 @@ HRESULT D3DDevice_CreateVertexBuffer(
     UINT Length, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer) 
 {
     D3DVertexBuffer* vb = malloc(sizeof(*vb));
-    vb->iface.lpVtbl                 = &g_d3dVertexBufferVtbl;
-    vb->resource.bManuallyRegistered = FALSE;
-    vb->resource.Data                = 0;
-    vb->lock.bLocked                 = FALSE;
-    vb->resource.pContiguousMemory   = 
+    if (vb == NULL)
+        return E_OUTOFMEMORY;
+
+    PVOID pContiguousMemory = 
         D3D_AllocContiguousMemory(Length, D3DVERTEXBUFFER_ALIGNMENT);
-    if (vb->resource.pContiguousMemory == NULL) {
+    if (pContiguousMemory == NULL) {
         free(vb);
         return E_OUTOFMEMORY;
     }
+
+    vb->iface.lpVtbl                = g_pVertexBufferVtbl;
+    D3D_CreateResource(D3DRTYPE_VERTEXBUFFER, 0, 
+                       pContiguousMemory, &vb->resource);
     vb->desc.Format                 = D3DFMT_VERTEXDATA;
     vb->desc.Type                   = D3DRTYPE_VERTEXBUFFER;
     *ppVertexBuffer                 = &vb->iface;
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_CreateVertexBuffer(
+D3DAPI HRESULT Direct3DDevice8_CreateVertexBuffer(
     LPDIRECT3DDEVICE8 pThis, UINT Length, DWORD Usage, DWORD FVF, 
-    D3DPOOL Pool, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer)
+    DWORD Pool, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_CreateVertexBuffer(Length, ppVertexBuffer);
 }
 
@@ -596,41 +612,41 @@ void D3DDevice_BlockUntilVerticalBlank(void) {
     pb_wait_for_vbl();
 }
 
-void IDirect3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis) {
-    assert(pThis == &g_d3ddev.iface);
+D3DAPI VOID Direct3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_BlockUntilVerticalBlank();
 }
 
 HRESULT D3DDevice_BeginScene(void) {
-    if (g_d3ddev.bInScene == TRUE) 
+    if (g_pDevice->bInScene == TRUE) 
         return D3DERR_INVALIDCALL;
 
-    g_d3ddev.bInScene = TRUE;
+    g_pDevice->bInScene = TRUE;
 
-    if (g_d3ddev.pCurrentPB == NULL)
-        g_d3ddev.pCurrentPB = &g_d3ddev.pDefaultPB;
+    if (g_pDevice->pCurrentPB == NULL)
+        g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
 
-    if (g_d3ddev.pCurrentPB == &g_d3ddev.pDefaultPB)
+    if (g_pDevice->pCurrentPB == &g_pDevice->DefaultPB)
         pb_reset();
 
     pb_target_back_buffer();
     while(pb_busy()) {
         /* Wait for completion... */
     }
-    D3DDevice_BeginPushBuffer(g_d3ddev.pCurrentPB);
+    D3DDevice_BeginPushBuffer(g_pDevice->pCurrentPB);
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_BeginScene(LPDIRECT3DDEVICE8 pThis) {
-    assert(pThis == &g_d3ddev.iface);
+D3DAPI HRESULT Direct3DDevice8_BeginScene(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_BeginScene();
 }
 
 HRESULT D3DDevice_EndScene(void) {
-    if (g_d3ddev.bInScene == FALSE) 
+    if (g_pDevice->bInScene == FALSE) 
         return D3DERR_INVALIDCALL;
 
-    g_d3ddev.bInScene = FALSE;
+    g_pDevice->bInScene = FALSE;
 
     while(pb_busy()) {
         /* Wait for completion... */
@@ -639,8 +655,8 @@ HRESULT D3DDevice_EndScene(void) {
     return D3DDevice_EndPushBuffer();
 }
 
-HRESULT IDirect3DDevice8_EndScene(LPDIRECT3DDEVICE8 pThis) {
-    assert(pThis == &g_d3ddev.iface);
+D3DAPI HRESULT Direct3DDevice8_EndScene(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_EndScene();
 }
 
@@ -653,55 +669,55 @@ HRESULT D3DDevice_Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) {
         /* Not ready to swap yet */
     }
 
-    g_d3ddev.CurrentSurface = 
-        (g_d3ddev.CurrentSurface + 1) % g_d3ddev.MaxSurfaces;
-    UINT lastVBL = g_d3ddev.LastPresentVBlankCount;
-    g_d3ddev.LastPresentVBlankCount = pb_get_vbl_counter();
-    UINT diff = g_d3ddev.LastPresentVBlankCount - lastVBL;
+    g_pDevice->CurrentSurface = 
+        (g_pDevice->CurrentSurface + 1) % g_pDevice->MaxSurfaces;
+    UINT lastVBL = g_pDevice->LastPresentVBlankCount;
+    g_pDevice->LastPresentVBlankCount = pb_get_vbl_counter();
+    UINT diff = g_pDevice->LastPresentVBlankCount - lastVBL;
 
     // If the interval is immediate, or the interval is *_OR_IMMEDIATE and 
     // we've surpassed the interval, there's no need to wait for a vblank.
-    if (g_d3ddev.PresentInterval  == D3DPRESENT_INTERVAL_IMMEDIATE || 
-        (g_d3ddev.PresentInterval == 
+    if (g_pDevice->PresentInterval  == D3DPRESENT_INTERVAL_IMMEDIATE || 
+        (g_pDevice->PresentInterval == 
             D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE && diff >= 1) ||
-        (g_d3ddev.PresentInterval == 
+        (g_pDevice->PresentInterval == 
             D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE && diff >= 2) ||
-        (g_d3ddev.PresentInterval == 
+        (g_pDevice->PresentInterval == 
             D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE && diff >= 3))
     {
         return D3D_OK;
     }
 
     // Otherwise we need to wait for the interval.
-    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_ONE || 
-        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE)
+    if (g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_ONE || 
+        g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE)
     {
         D3DDevice_BlockUntilVerticalBlank();
         return D3D_OK;
     }
 
     UINT Interval = 0;
-    if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_TWO || 
-        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE)
+    if (g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_TWO || 
+        g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE)
     {
         Interval = 2;
-    } else if (g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_THREE || 
-        g_d3ddev.PresentInterval == D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE)
+    } else if (g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_THREE || 
+        g_pDevice->PresentInterval == D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE)
     {
        Interval = 3;
     }
 
-    while(pb_get_vbl_counter() < g_d3ddev.LastPresentVBlankCount + Interval)
+    while(pb_get_vbl_counter() < g_pDevice->LastPresentVBlankCount + Interval)
         D3DDevice_BlockUntilVerticalBlank();
     
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_Present(LPDIRECT3DDEVICE8 pThis, 
+D3DAPI HRESULT Direct3DDevice8_Present(LPDIRECT3DDEVICE8 pThis, 
                                  CONST RECT* pSourceRect, 
                                  CONST RECT* pDestRect) 
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_Present(pSourceRect, pDestRect);
 }
 
@@ -710,28 +726,28 @@ HRESULT D3DDevice_DrawVertices(D3DPRIMITIVETYPE PrimitiveType,
 {
     HRESULT hr = D3D_OK;
     for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
-        if (g_d3ddev.pTexture[Stage] == NULL || 
-            g_d3ddev.TextureStageState[Stage].Dirty == 0)
+        if (g_pDevice->pTexture[Stage] == NULL || 
+            g_pDevice->TextureStageState[Stage].Dirty == 0)
         {
             continue;
         }
 
-        DWORD Dirty = g_d3ddev.TextureStageState[Stage].Dirty;
-        g_d3ddev.TextureStageState[Stage].Dirty = 0;
+        DWORD Dirty = g_pDevice->TextureStageState[Stage].Dirty;
+        g_pDevice->TextureStageState[Stage].Dirty = 0;
 
         if (Dirty & D3DTSS_ADDRESS_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_ADDRESS(Stage), 
-                                   g_d3ddev.TextureStageState[Stage].Address);
+                                   g_pDevice->TextureStageState[Stage].Address);
             if (FAILED(hr)) return hr;
         }
         if (Dirty & D3DTSS_FILTER_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_FILTER(Stage), 
-                                   g_d3ddev.TextureStageState[Stage].Filter);
+                                   g_pDevice->TextureStageState[Stage].Filter);
             if (FAILED(hr)) return hr;
         }
         if (Dirty & D3DTSS_CONTROL0_DIRTY) {
             hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
-                g_d3ddev.TextureStageState[Stage].Control0);
+                g_pDevice->TextureStageState[Stage].Control0);
             if (FAILED(hr)) return hr;
         }
     }
@@ -751,11 +767,12 @@ HRESULT D3DDevice_DrawVertices(D3DPRIMITIVETYPE PrimitiveType,
     return D3DDevice_PushCmd(NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
 }
 
-HRESULT IDirect3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis, 
-                                      D3DPRIMITIVETYPE PrimitiveType, 
-                                      UINT StartVertex, UINT VertexCount)
+D3DAPI HRESULT Direct3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis, 
+                                             D3DPRIMITIVETYPE PrimitiveType,
+                                             UINT StartVertex, 
+                                             UINT VertexCount)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_DrawVertices(PrimitiveType, StartVertex, VertexCount);
 }
 
@@ -795,25 +812,26 @@ HRESULT D3DDevice_DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
     return D3DDevice_DrawVertices(PrimitiveType, StartVertex, VertexCount);
 }
 
-HRESULT IDirect3DDevice8_DrawPrimitive(LPDIRECT3DDEVICE8 pThis, 
-                                       D3DPRIMITIVETYPE PrimitiveType, 
-                                       UINT StartVertex, UINT PrimitiveCount)
+D3DAPI HRESULT Direct3DDevice8_DrawPrimitive(LPDIRECT3DDEVICE8 pThis, 
+                                              D3DPRIMITIVETYPE PrimitiveType, 
+                                              UINT StartVertex,
+                                              UINT PrimitiveCount)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 
 HRESULT D3DDevice_SetViewport(CONST D3DVIEWPORT8* pViewport) {
     pb_set_viewport(pViewport->X, pViewport->Y, pViewport->Width, 
                     pViewport->Height, pViewport->MinZ, pViewport->MaxZ);
-    g_d3ddev.Viewport = *pViewport;
+    g_pDevice->Viewport = *pViewport;
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_SetViewport(LPDIRECT3DDEVICE8 pThis, 
-                                     CONST D3DVIEWPORT8* pViewport) 
+D3DAPI HRESULT Direct3DDevice8_SetViewport(LPDIRECT3DDEVICE8 pThis, 
+                                            CONST D3DVIEWPORT8* pViewport) 
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetViewport(pViewport);
 }
 
@@ -844,13 +862,13 @@ HRESULT D3DDevice_SetVertexShaderInputDirect(
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
+D3DAPI HRESULT Direct3DDevice8_SetVertexShaderInputDirect(
     LPDIRECT3DDEVICE8 pThis,
     D3DVERTEXATTRIBUTEFORMAT *pVAF,
     UINT StreamCount, 
     D3DSTREAM_INPUT *pStreamInputs) 
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetVertexShaderInputDirect(pVAF, StreamCount, 
                                                 pStreamInputs);
 }
@@ -875,12 +893,12 @@ HRESULT D3DDevice_CreateTexture(
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_CreateTexture(
+D3DAPI HRESULT Direct3DDevice8_CreateTexture(
     LPDIRECT3DDEVICE8 pThis, UINT Width, UINT Height, 
     UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
     LPDIRECT3DTEXTURE8* ppTexture)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_CreateTexture(Width, Height, Levels, Usage, 
                                    Format, ppTexture);
 }
@@ -899,12 +917,12 @@ HRESULT D3DDevice_CreateCubeTexture(
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_CreateCubeTexture(
+D3DAPI HRESULT Direct3DDevice8_CreateCubeTexture(
     LPDIRECT3DDEVICE8 pThis, UINT EdgeLength, UINT Levels, 
     DWORD Usage, D3DFORMAT Format, D3DPOOL Pool,
     LPDIRECT3DCUBETEXTURE8* ppCubeTexture)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_CreateCubeTexture(EdgeLength, Levels, Format, 
                                        ppCubeTexture);
 }
@@ -958,34 +976,34 @@ HRESULT D3DDevice_SetTextureStageState_Deferred(
 #endif // NXDK_DEBUG
     switch (Type) {
     case D3DTSS_ADDRESSU:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_U, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_ADDRESSV:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_V, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_ADDRESSW:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Address, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Address, 
                      NV097_SET_TEXTURE_ADDRESS_P, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_ADDRESS_DIRTY;
         return D3D_OK;
     case D3DTSS_MAGFILTER:
     case D3DTSS_MINFILTER: {
         // TODO: figure out how to handle the min and mag filters' convolution
         // kernel differing.
         if (Value < D3DTEXF_QUINCUNX) {
-            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+            MASK_INPLACE(g_pDevice->TextureStageState[Stage].Filter, 
                          NV097_SET_TEXTURE_FILTER_MIN, Value);
         } else {
             if (Value == D3DTEXF_QUINCUNX) {
-                MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                MASK_INPLACE(g_pDevice->TextureStageState[Stage].Filter, 
                     NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
                     NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_QUINCUNX);
             } else {
-                 MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+                 MASK_INPLACE(g_pDevice->TextureStageState[Stage].Filter, 
                     NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, 
                     NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_GAUSSIAN_CUBIC
                 );
@@ -993,39 +1011,39 @@ HRESULT D3DDevice_SetTextureStageState_Deferred(
             DWORD Filter = NV097_SET_TEXTURE_FILTER_MIN;
             if (Type == D3DTSS_MAGFILTER)   
                 Filter = NV097_SET_TEXTURE_FILTER_MAG;
-            MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+            MASK_INPLACE(g_pDevice->TextureStageState[Stage].Filter, 
                          Filter, 
                          NV097_SET_TEXTURE_FILTER_MIN_CONVOLUTION_2D_LOD0);
         } 
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
         return D3D_OK;
     }
     case D3DTSS_MIPMAPLODBIAS:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Filter, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Filter, 
                      NV097_SET_TEXTURE_FILTER_MIPMAP_LOD_BIAS, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_FILTER_DIRTY;
         return D3D_OK;
     case D3DTSS_MAXANISOTROPY:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Control0, 
                      NV097_SET_TEXTURE_CONTROL0_ANISOTROPY, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_COLORKEYOP:
-        MASK_INPLACE(g_d3ddev.TextureStageState[Stage].Control0, 
+        MASK_INPLACE(g_pDevice->TextureStageState[Stage].Control0, 
                      NV097_SET_TEXTURE_CONTROL0_COLOR_KEY_MODE, Value);
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_COLORSIGN:
-        g_d3ddev.TextureStageState[Stage].Control0 = 
-            (g_d3ddev.TextureStageState[Stage].Control0 & 
+        g_pDevice->TextureStageState[Stage].Control0 = 
+            (g_pDevice->TextureStageState[Stage].Control0 & 
                 ~NV097_SET_TEXTURE_FILTER_SIGN) | Value;
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     case D3DTSS_ALPHAKILL:
-        g_d3ddev.TextureStageState[Stage].Control0 = 
-            (g_d3ddev.TextureStageState[Stage].Control0 &
+        g_pDevice->TextureStageState[Stage].Control0 = 
+            (g_pDevice->TextureStageState[Stage].Control0 &
                  ~NV097_SET_TEXTURE_CONTROL0_ALPHA_KILL_ENABLE) | Value;
-        g_d3ddev.TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
+        g_pDevice->TextureStageState[Stage].Dirty |= D3DTSS_CONTROL0_DIRTY;
         return D3D_OK;
     default:
         // TODO: implement remaining texture stage states
@@ -1107,11 +1125,11 @@ HRESULT D3DDevice_SetTextureStageState(
         return D3DDevice_SetTextureStageState_Deferred(Stage, Type, Value);
 }
 
-HRESULT IDirect3DDevice8_SetTextureStageState(
+D3DAPI HRESULT Direct3DDevice8_SetTextureStageState(
     LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
     D3DTEXTURESTAGESTATETYPE Type, DWORD Value)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetTextureStageState(Stage, Type, Value);
 }
 
@@ -1127,11 +1145,11 @@ HRESULT D3DDevice_CreatePushBuffer(
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_CreatePushBuffer(
+D3DAPI HRESULT Direct3DDevice8_CreatePushBuffer(
     LPDIRECT3DDEVICE8 pThis, UINT Size, 
     BOOL RunUsingCpuCopy, LPDIRECT3DPUSHBUFFER8* ppPushBuffer)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_CreatePushBuffer(Size, RunUsingCpuCopy, ppPushBuffer);
 }
 
@@ -1165,10 +1183,10 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_LoadVertexShaderProgram(
+D3DAPI HRESULT Direct3DDevice8_LoadVertexShaderProgram(
     LPDIRECT3DDEVICE8 pThis, CONST DWORD *pFunction, DWORD Address)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_LoadVertexShaderProgram(pFunction, Address);
 }
 
@@ -1354,14 +1372,14 @@ HRESULT D3DDevice_SetRenderState_Simple(D3DRENDERSTATETYPE Type, DWORD Value) {
     if (FAILED(hr)) return hr;
 #endif // NXDK_DEBUG
     if (Type == D3DRS_ZWRITEENABLE) {
-        DWORD Control0 = g_d3ddev.Control0;
-        MASK_INPLACE(g_d3ddev.Control0, 
+        DWORD Control0 = g_pDevice->Control0;
+        MASK_INPLACE(g_pDevice->Control0, 
                      NV097_SET_CONTROL0_STENCIL_WRITE_ENABLE, Value);
 
-        if (g_d3ddev.Control0 == Control0)
+        if (g_pDevice->Control0 == Control0)
             return D3D_OK;
         
-        Value = g_d3ddev.Control0;
+        Value = g_pDevice->Control0;
     }
     DWORD Cmd = D3D_SimpleRenderState[Type];
     return D3DDevice_PushCmd(Cmd, Value);
@@ -1397,7 +1415,7 @@ HRESULT D3DDevice_SetRenderState_Deferred(D3DRENDERSTATETYPE Type, DWORD Value)
     case D3DRS_FOGENABLE:
         return D3DDevice_PushCmd(NV097_SET_FOG_ENABLE, Value);
     case D3DRS_PRESENTATIONINTERVAL:
-        g_d3ddev.PresentInterval = Value;
+        g_pDevice->PresentInterval = Value;
         return D3D_OK;
     default:
         // TODO: implement remaining render states
@@ -1539,7 +1557,7 @@ HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
     case D3DRS_STENCILFAIL:
         return D3DDevice_PushCmd(NV097_SET_STENCIL_OP_FAIL, Value);
     case D3DRS_CULLMODE:
-        D3DCULL FaceCull = g_d3ddev.RenderState.FaceCull;
+        D3DCULL FaceCull = g_pDevice->RenderState.FaceCull;
         BOOL bWasFaceCullingEnabled = FaceCull == D3DCULL_NONE;
         BOOL bIsFaceCullingEnabled = Value == D3DCULL_NONE;
         if (bWasFaceCullingEnabled != bIsFaceCullingEnabled) {
@@ -1552,18 +1570,18 @@ HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
     case D3DRS_TEXTUREFACTOR:
         return D3DDevice_PushCmd(NV097_SET_BLEND_COLOR, Value);
     case D3DRS_LOGICOP: {
-        DWORD LogicOp = g_d3ddev.RenderState.LogicOp;
+        DWORD LogicOp = g_pDevice->RenderState.LogicOp;
         BOOL bWasLogicOpEnabled = LogicOp != D3DLOGICOP_NONE;
-        g_d3ddev.RenderState.LogicOp = Value;
+        g_pDevice->RenderState.LogicOp = Value;
         BOOL bIsLogicOpEnabled = 
-            g_d3ddev.RenderState.LogicOp != D3DLOGICOP_NONE;
+            g_pDevice->RenderState.LogicOp != D3DLOGICOP_NONE;
         if (bWasLogicOpEnabled != bIsLogicOpEnabled) {
             HRESULT hr = D3DDevice_PushCmd(NV097_SET_LOGIC_OP_ENABLE, 
                                            bIsLogicOpEnabled);
             if (FAILED(hr)) return hr;
         }
         
-        if (LogicOp != g_d3ddev.RenderState.LogicOp) 
+        if (LogicOp != g_pDevice->RenderState.LogicOp) 
             return D3DDevice_PushCmd(NV097_SET_LOGIC_OP, LogicOp);
         
         return D3D_OK;
@@ -1572,16 +1590,16 @@ HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
         return D3DDevice_PushCmd(NV097_SET_LINE_SMOOTH_ENABLE, Value);
     case D3DRS_MULTISAMPLEANTIALIAS:
     case D3DRS_MULTISAMPLEMASK: {
-        DWORD MultiSample = g_d3ddev.RenderState.MultiSample;
+        DWORD MultiSample = g_pDevice->RenderState.MultiSample;
         DWORD Mask = NV097_SET_MULTISAMPLE_ENABLE;
         if (Type == D3DRS_MULTISAMPLEMASK)
             Mask = NV097_SET_MULTISAMPLE_MASK;
         
-        MASK_INPLACE(g_d3ddev.RenderState.MultiSample, Mask, Value);
+        MASK_INPLACE(g_pDevice->RenderState.MultiSample, Mask, Value);
 
-        if (MultiSample != g_d3ddev.RenderState.MultiSample) {
+        if (MultiSample != g_pDevice->RenderState.MultiSample) {
             return D3DDevice_PushCmd(NV097_SET_MULTISAMPLE, 
-                                     g_d3ddev.RenderState.MultiSample);
+                                     g_pDevice->RenderState.MultiSample);
         }
 
         return D3D_OK;
@@ -1594,48 +1612,48 @@ HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
         return D3DDevice_FireInterrupt(PB_SETNOISE, Value);
     case D3DRS_OCCLUSIONCULLENABLE:
     case D3DRS_STENCILCULLENABLE: {
-        DWORD CullMode = g_d3ddev.RenderState.CullMode;
+        DWORD CullMode = g_pDevice->RenderState.CullMode;
         BOOL bWasCullingEnabled = CullMode == 0;
 
         DWORD Mask = NV097_SET_CULL_MODE_OCCLUSION;
         if (Type == D3DRS_STENCILCULLENABLE)
             Mask = NV097_SET_CULL_MODE_STENCIL;
 
-        MASK_INPLACE(g_d3ddev.RenderState.CullMode, Mask, Value);
+        MASK_INPLACE(g_pDevice->RenderState.CullMode, Mask, Value);
 
-        BOOL bIsCullingEnabled = g_d3ddev.RenderState.CullMode == 0;
+        BOOL bIsCullingEnabled = g_pDevice->RenderState.CullMode == 0;
         if (bWasCullingEnabled != bIsCullingEnabled) {
             hr = D3DDevice_PushCmd(NV097_SET_CULL_FACE_ENABLE, CullMode);
             if (FAILED(hr)) return hr;
         }
         
-        if (CullMode != g_d3ddev.RenderState.CullMode) 
+        if (CullMode != g_pDevice->RenderState.CullMode) 
             return D3DDevice_PushCmd(NV097_SET_CULL_MODE, CullMode);
 
         return D3D_OK;
     }
     case D3DRS_ROPZCMPALWAYSREAD:
     case D3DRS_ROPZREAD: {
-        DWORD RopZ = g_d3ddev.RenderState.RopZ;
+        DWORD RopZ = g_pDevice->RenderState.RopZ;
 
         DWORD Mask = NV_PGRAPH_UNKNOWN_400B80_ROPZ_CMP_ALWAYS_READ;
         if (Type == D3DRS_ROPZREAD)
             Mask = NV_PGRAPH_UNKNOWN_400B80_ROPZ_READ;
 
-        MASK_INPLACE(g_d3ddev.RenderState.RopZ, Mask, Value);
-        if (RopZ != g_d3ddev.RenderState.RopZ) {
+        MASK_INPLACE(g_pDevice->RenderState.RopZ, Mask, Value);
+        if (RopZ != g_pDevice->RenderState.RopZ) {
             return D3DDevice_FireInterrupt2(PB_SETOUTER, 
                                             NV_PGRAPH_UNKNOWN_400B80, 
-                                            g_d3ddev.RenderState.RopZ);
+                                            g_pDevice->RenderState.RopZ);
         }
 
         return D3D_OK;
     }
     case D3DRS_DONOTCULLUNCOMPRESSED:
-        DWORD Debug5 = g_d3ddev.RenderState.Debug5;
-        MASK_INPLACE(g_d3ddev.RenderState.Debug5, 
+        DWORD Debug5 = g_pDevice->RenderState.Debug5;
+        MASK_INPLACE(g_pDevice->RenderState.Debug5, 
                      NV_PGRAPH_DEBUG_5_ZCULL_SPARE2_ENABLED, Value);
-        if (Debug5 != g_d3ddev.RenderState.Debug5) {
+        if (Debug5 != g_pDevice->RenderState.Debug5) {
             return D3DDevice_FireInterrupt2(PB_SETOUTER, 
                                             NV_PGRAPH_DEBUG_5, Debug5);
         }
@@ -1665,10 +1683,10 @@ HRESULT D3DDevice_SetRenderState(D3DRENDERSTATETYPE Type, DWORD Value) {
         return D3DDevice_SetRenderState_Complex(Type, Value);
 }
 
-HRESULT IDirect3DDevice8_SetRenderState(
+D3DAPI HRESULT Direct3DDevice8_SetRenderState(
     LPDIRECT3DDEVICE8 pThis, D3DRENDERSTATETYPE Type, DWORD Value)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetRenderState(Type, Value);
 }
 
@@ -1730,10 +1748,10 @@ HRESULT D3DDevice_SetPixelShaderProgram(CONST D3DPIXELSHADERDEF *pPSDef) {
                                     pPSDef->PSInputTexture);
 }
 
-HRESULT IDirect3DDevice8_SetPixelShaderProgram(LPDIRECT3DDEVICE8 pThis, 
-                                               CONST D3DPIXELSHADERDEF *pPSDef)
+D3DAPI HRESULT Direct3DDevice8_SetPixelShaderProgram(
+    LPDIRECT3DDEVICE8 pThis, CONST D3DPIXELSHADERDEF *pPSDef)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetPixelShaderProgram(pPSDef);
 }
 
@@ -1755,21 +1773,21 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
                         D3DCOLOR Color, float Z, DWORD Stencil)
 {
     HRESULT hr = D3D_OK;
-    if (Stencil != g_d3ddev.Stencil) {
-        g_d3ddev.Stencil = 
+    if (Stencil != g_pDevice->Stencil) {
+        g_pDevice->Stencil = 
             MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_DEPTH, 
                  (DWORD)(Z * D3DZ_MAX_D24S8)) |
             MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_STENCIL, Stencil);
-        g_d3ddev.ZStencilClearDirty = TRUE;
+        g_pDevice->ZStencilClearDirty = TRUE;
             
     }
 
-    if (Color != g_d3ddev.ClearColor) {
-        g_d3ddev.ClearColor = Color;
-        g_d3ddev.ColorClearDirty = TRUE;
+    if (Color != g_pDevice->ClearColor) {
+        g_pDevice->ClearColor = Color;
+        g_pDevice->ColorClearDirty = TRUE;
     }
 
-    if ((Flags & D3DCLEAR_ZSTENCIL) && g_d3ddev.ZStencilClearDirty) {
+    if ((Flags & D3DCLEAR_ZSTENCIL) && g_pDevice->ZStencilClearDirty) {
         hr = D3DDevice_PushCmd(NV097_SET_ZSTENCIL_CLEAR_VALUE, 
             MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_DEPTH, 
                  (DWORD)(Z * D3DZ_MAX_D24S8)) |
@@ -1777,7 +1795,7 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
         if (FAILED(hr)) return hr;
     }
 
-    if ((Flags & D3DCLEAR_TARGET) && g_d3ddev.ColorClearDirty) {
+    if ((Flags & D3DCLEAR_TARGET) && g_pDevice->ColorClearDirty) {
         hr = D3DDevice_PushCmd(NV097_SET_COLOR_CLEAR_VALUE, Color);
         if (FAILED(hr)) return hr;
     }
@@ -1789,7 +1807,7 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
 #endif // NXDK_DEBUG
         D3DSURFACE_DESC desc;
         hr = IDirect3DSurface8_GetDesc(
-            &g_d3ddev.pSurfaces[g_d3ddev.CurrentSurface]->iface, &desc);
+            &g_pDevice->pSurfaces[g_pDevice->CurrentSurface]->iface, &desc);
         D3DRECT rect;
         rect.x1 = 0;
         rect.y1 = 0;
@@ -1805,11 +1823,11 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
     return hr;
 }
 
-HRESULT IDirect3DDevice8_Clear(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
-                               CONST D3DRECT* pRects, DWORD Flags,
-                               D3DCOLOR Color, float Z, DWORD Stencil)
+D3DAPI HRESULT Direct3DDevice8_Clear(LPDIRECT3DDEVICE8 pThis, DWORD Count, 
+                                      CONST D3DRECT* pRects, DWORD Flags,
+                                      D3DCOLOR Color, float Z, DWORD Stencil)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_Clear(Count, pRects, Flags, Color, Z, Stencil);
 }
 
@@ -1859,27 +1877,27 @@ HRESULT D3DDevice_SetTile(DWORD Index, CONST D3DTILE* pTile) {
     return D3D_OK;
 }
 
-HRESULT IDirect3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index, 
-                                 CONST D3DTILE* pTile) 
+D3DAPI HRESULT Direct3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index, 
+                                        CONST D3DTILE* pTile) 
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetTile(Index, pTile);
 }
 
 HRESULT D3DDevice_SetTexture(DWORD Stage, LPDIRECT3DBASETEXTURE8 pTexture) {
     if (pTexture == NULL) {
-        IDirect3DBaseTexture8_Release(&g_d3ddev.pTexture[Stage]->iface);
-        g_d3ddev.pTexture[Stage] = NULL;
-        g_d3ddev.TextureStageState[Stage].Control0 &= 
+        IDirect3DBaseTexture8_Release(&g_pDevice->pTexture[Stage]->iface);
+        g_pDevice->pTexture[Stage] = NULL;
+        g_pDevice->TextureStageState[Stage].Control0 &= 
             ~NV097_SET_TEXTURE_CONTROL0_ENABLE;
         return D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
-                                 g_d3ddev.TextureStageState[Stage].Control0);
+                                 g_pDevice->TextureStageState[Stage].Control0);
     }
 
-    IDirect3DBaseTexture8_AddRef(&g_d3ddev.pTexture[Stage]->iface);
+    IDirect3DBaseTexture8_AddRef(&g_pDevice->pTexture[Stage]->iface);
     D3DBaseTexture* pBase = (D3DBaseTexture*)pTexture;
-    D3DBaseTexture* pOldBase = g_d3ddev.pTexture[Stage];
-    g_d3ddev.pTexture[Stage] = pBase;
+    D3DBaseTexture* pOldBase = g_pDevice->pTexture[Stage];
+    g_pDevice->pTexture[Stage] = pBase;
 
     D3DRESOURCETYPE Type = IDirect3DBaseTexture8_GetType(pTexture);
     if (Type != D3DRTYPE_TEXTURE && Type != D3DRTYPE_CUBETEXTURE) {
@@ -1950,13 +1968,13 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, LPDIRECT3DBASETEXTURE8 pTexture) {
         if (FAILED(hr)) return hr;
     }
 
-    if ((g_d3ddev.TextureStageState[Stage].Control0 & 
+    if ((g_pDevice->TextureStageState[Stage].Control0 & 
         NV097_SET_TEXTURE_CONTROL0_ENABLE) == 0) 
     {
-        g_d3ddev.TextureStageState[Stage].Control0 |= 
+        g_pDevice->TextureStageState[Stage].Control0 |= 
             NV097_SET_TEXTURE_CONTROL0_ENABLE;
         hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage), 
-                               g_d3ddev.TextureStageState[Stage].Control0);
+                               g_pDevice->TextureStageState[Stage].Control0);
         if (FAILED(hr)) return hr;
     }
 
@@ -1995,10 +2013,11 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, LPDIRECT3DBASETEXTURE8 pTexture) {
     return hr;
 }
 
-HRESULT IDirect3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis, DWORD Stage, 
-                                    LPDIRECT3DBASETEXTURE8 pTexture)
+D3DAPI HRESULT Direct3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis, 
+                                           DWORD Stage, 
+                                           LPDIRECT3DBASETEXTURE8 pTexture)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetTexture(Stage, pTexture);
 }
 
@@ -2007,14 +2026,88 @@ HRESULT D3DDevice_InsertCallback(D3DCALLBACKTYPE Type,
                                  DWORD Context)
 {
     // TODO: avoid pipeline flush if Type == D3DCALLBACKTYPE_READ
-    return D3DDevice_FireInterrupt2(PB_USER, (DWORD)pCallback, Context);
+    return D3DDevice_FireInterrupt2(PB_CALLBACK, (DWORD)pCallback, Context);
 }
 
-HRESULT IDirect3DDevice8_InsertCallback(LPDIRECT3DDEVICE8 pThis,
-                                        D3DCALLBACKTYPE Type, 
-                                        D3DCALLBACK pCallback, 
-                                        DWORD Context)
+D3DAPI HRESULT Direct3DDevice8_InsertCallback(LPDIRECT3DDEVICE8 pThis,
+                                               D3DCALLBACKTYPE Type, 
+                                               D3DCALLBACK pCallback, 
+                                               DWORD Context)
 {
-    assert(pThis == &g_d3ddev.iface);
+    assert(pThis == &g_pDevice->iface);
     return D3DDevice_InsertCallback(Type, pCallback, Context);
+}
+
+DWORD D3DDevice_InsertFence() {
+    if (g_pDevice->dwNextFence == ~0) {
+        assert(false && "Fence counter overflow");
+        return 0;
+    }
+
+    DWORD Fence = g_pDevice->dwNextFence++;
+    if (FAILED(D3DDevice_FireInterrupt(PB_FENCE, Fence)))
+        return 0;
+
+    return Fence;
+}
+
+D3DAPI DWORD Direct3DDevice8_InsertFence(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
+    return D3DDevice_InsertFence();
+}
+
+BOOL D3DDevice_IsFencePending(DWORD Fence) {
+    if (Fence == 0)
+        return FALSE;
+
+    if (Fence >= g_pDevice->dwLastFenceCompleted)
+        return TRUE;
+
+    return FALSE;
+}
+
+D3DAPI BOOL Direct3DDevice8_IsFencePending(LPDIRECT3DDEVICE8 pThis, 
+                                           DWORD Fence) 
+{
+    assert(pThis == &g_pDevice->iface);
+    return D3DDevice_IsFencePending(Fence);
+}
+
+VOID D3DDevice_BlockOnFence(DWORD Fence) {
+    while (D3DDevice_IsFencePending(Fence) == TRUE) {
+        if (!NT_SUCCESS(NtWaitForSingleObject(g_pDevice->hFenceEvent, 
+                                              FALSE, NULL)))
+        {
+            assert(false);
+        }
+    }
+}
+
+D3DAPI VOID Direct3DDevice8_BlockOnFence(LPDIRECT3DDEVICE8 pThis, DWORD Fence) 
+{
+    assert(pThis == &g_pDevice->iface);
+    D3DDevice_BlockOnFence(Fence);
+}
+
+BOOL D3DDevice_SetFence(DWORD Fence) {
+    if (Fence <= g_pDevice->dwLastFenceCompleted) {
+        assert(false);
+        return FALSE;
+    }
+
+    if (!NT_SUCCESS(NtSetEvent(g_pDevice->hFenceEvent, NULL))) { 
+        assert(false);
+        return FALSE;
+    }
+
+    g_pDevice->dwLastFenceCompleted = Fence;
+    return TRUE;
+}
+
+DWORD D3DDevice_GetCurrentFence(void) {
+    return g_pDevice->dwLastFenceCompleted + 1;
+}
+
+DWORD D3DDevice_GetLastCompletedFence(void) {
+    return g_pDevice->dwLastFenceCompleted;
 }
