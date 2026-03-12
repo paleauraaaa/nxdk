@@ -384,3 +384,35 @@ D3DAPI BOOL IDirect3DDevice8_IsFencePending(LPDIRECT3DDEVICE8 pThis,
 {
     return pThis->IsFencePending(Fence);
 }
+
+D3DAPI HRESULT D3DDevice::SetVertexShaderConstant(
+    INT Register, CONST VOID* pConstantData, DWORD ConstantCount) 
+{
+    return Direct3DDevice8_SetVertexShaderConstant(this, Register, 
+                                                   pConstantData, 
+                                                   ConstantCount);
+}
+
+D3DAPI HRESULT IDirect3DDevice8_SetVertexShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, INT Register, CONST VOID* pConstantData, 
+    DWORD ConstantCount) 
+{
+    return pThis->SetVertexShaderConstant(Register, pConstantData, 
+                                         ConstantCount);
+}
+
+D3DAPI HRESULT D3DDevice::SetPixelShaderConstant(
+    DWORD Register, CONST VOID* pConstantData, DWORD ConstantCount) 
+{
+    return Direct3DDevice8_SetPixelShaderConstant(this, Register, 
+                                                  pConstantData, 
+                                                  ConstantCount);
+}
+
+D3DAPI HRESULT IDirect3DDevice8_SetPixelShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
+    DWORD ConstantCount) 
+{
+    return pThis->SetPixelShaderConstant(Register, pConstantData, 
+                                         ConstantCount);
+}

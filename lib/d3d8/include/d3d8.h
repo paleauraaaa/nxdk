@@ -523,6 +523,12 @@ typedef struct IDirect3DDeviceVtbl8 {
     DWORD (D3DAPI *InsertFence)(LPDIRECT3DDEVICE8 pThis);
     VOID (D3DAPI *BlockOnFence)(LPDIRECT3DDEVICE8 pThis, DWORD Fence);
     BOOL (D3DAPI *IsFencePending)(LPDIRECT3DDEVICE8 pThis, DWORD Fence);
+    HRESULT (D3DAPI *SetVertexShaderConstant)(
+        LPDIRECT3DDEVICE8 pThis, INT Register, CONST VOID* pConstantData, 
+        DWORD ConstantCount);
+    HRESULT (D3DAPI *SetPixelShaderConstant)(
+        LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
+        DWORD ConstantCount);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
 
 struct IDirect3DDevice8 INHERITS(IUnknown) {
@@ -603,6 +609,11 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
     virtual D3DAPI DWORD InsertFence() = 0;
     virtual D3DAPI VOID BlockOnFence(DWORD Fence) = 0;
     virtual D3DAPI BOOL IsFencePending(DWORD Fence) = 0;
+    virtual D3DAPI HRESULT SetVertexShaderConstant(
+        INT Register, CONST VOID* pConstantData, DWORD ConstantCount) = 0;
+    virtual D3DAPI HRESULT SetPixelShaderConstant(
+        DWORD Register, CONST VOID* pConstantData, DWORD ConstantCount) = 0;
+    
 #endif // __cplusplus
 };
 
@@ -686,6 +697,15 @@ D3DAPI VOID  IDirect3DDevice8_BlockOnFence(LPDIRECT3DDEVICE8 pThis,
                                            DWORD Fence);
 D3DAPI BOOL  IDirect3DDevice8_IsFencePending(LPDIRECT3DDEVICE8 pThis, 
                                              DWORD Fence);
+D3DAPI HRESULT IDirect3DDevice8_SetVertexShaderConstant(
+    LPDIRECT3DDEVICE8 pThis,
+    INT Register, 
+    CONST void* pConstantData, DWORD ConstantCount);
+
+D3DAPI HRESULT IDirect3DDevice8_SetPixelShaderConstant(
+    LPDIRECT3DDEVICE8 pThis,
+    DWORD Register, 
+    CONST void* pConstantData, DWORD ConstantCount);
 
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;

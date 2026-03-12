@@ -752,7 +752,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pD3DVtbl->SetPushBufferSize         = Direct3D8_SetPushBufferSize;
     g_pD3DVtbl->CreateDevice              = Direct3D8_CreateDevice;
     g_pD3DVtbl->GetDeviceCaps             = Direct3D8_GetDeviceCaps;
-    g_pD3D->iface.lpVtbl = &g_pD3DVtbl;
+    g_pD3D->iface.lpVtbl = g_pD3DVtbl;
 
     g_pDeviceVtbl = malloc(sizeof(*g_pDeviceVtbl));
     if (g_pDeviceVtbl == NULL) goto failed;
@@ -791,6 +791,11 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->InsertFence               = Direct3DDevice8_InsertFence;
     g_pDeviceVtbl->BlockOnFence              = Direct3DDevice8_BlockOnFence;
     g_pDeviceVtbl->IsFencePending            = Direct3DDevice8_IsFencePending;
+    g_pDeviceVtbl->SetVertexShaderConstant = 
+        Direct3DDevice8_SetVertexShaderConstant;
+    g_pDeviceVtbl->SetPixelShaderConstant = 
+        Direct3DDevice8_SetPixelShaderConstant;
+
 
     g_pResourceVtbl = malloc(sizeof(*g_pResourceVtbl));
     if (g_pResourceVtbl == NULL) goto failed;

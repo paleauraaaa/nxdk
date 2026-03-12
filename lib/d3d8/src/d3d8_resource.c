@@ -162,6 +162,19 @@ HRESULT D3DPushBuffer_PushCmd(
     return D3D_OK;
 }
 
+HRESULT D3DPushBuffer_PushCmdA(
+    D3DPushBuffer* pThis, DWORD cmd, CONST DWORD* pdwData, SIZE_T n)
+{
+    pThis->SizeNeeded += 1 + n;
+    if (pThis->SizeNeeded > pThis->Size - (1 + n))
+        return D3DERR_BUFFERTOOSMALL;
+
+    pb_push((uint32_t*)pThis->p, cmd, n);
+    memcpy(pThis->p, pdwData, n * sizeof(DWORD));
+    pThis->p += n;
+    return D3D_OK;
+}
+
 HRESULT D3DPushBuffer_PushCmd2(
     D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, DWORD dwData2)
 {

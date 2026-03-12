@@ -113,6 +113,11 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     virtual D3DAPI DWORD InsertFence() override;
     virtual D3DAPI VOID BlockOnFence(DWORD Fence) override;
     virtual D3DAPI BOOL IsFencePending(DWORD Fence) override;
+    virtual D3DAPI HRESULT SetVertexShaderConstant(
+        INT Register, CONST VOID* pConstantData, DWORD ConstantCount) override;
+    virtual D3DAPI HRESULT SetPixelShaderConstant(
+        DWORD Register, CONST VOID* pConstantData, 
+        DWORD ConstantCount) override;
 #endif // __cplusplus
     D3DRefcount             refcount;
     DWORD                   KickOffSize;
@@ -222,6 +227,12 @@ D3DAPI VOID  Direct3DDevice8_BlockOnFence(LPDIRECT3DDEVICE8 pThis,
                                           DWORD Fence);
 D3DAPI BOOL  Direct3DDevice8_IsFencePending(LPDIRECT3DDEVICE8 pThis, 
                                             DWORD Fence);
+D3DAPI HRESULT Direct3DDevice8_SetVertexShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, INT Register, 
+    CONST VOID* pConstantData, DWORD ConstantCount);
+D3DAPI HRESULT Direct3DDevice8_SetPixelShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
+    DWORD ConstantCount); 
 
 HRESULT D3DDevice_Push1    (DWORD dwData);
 HRESULT D3DDevice_PushCmd  (DWORD cmd, DWORD dwData);

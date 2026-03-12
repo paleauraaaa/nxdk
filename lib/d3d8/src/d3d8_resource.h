@@ -109,6 +109,8 @@ HRESULT D3DPushBuffer_Push1(
     D3DPushBuffer* pThis, DWORD dwData);
 HRESULT D3DPushBuffer_PushCmd(
     D3DPushBuffer* pThis, DWORD cmd, DWORD dwData);
+HRESULT D3DPushBuffer_PushCmdA(
+    D3DPushBuffer* pThis, DWORD cmd, CONST DWORD* pdwData, SIZE_T n);
 HRESULT D3DPushBuffer_PushCmd2(
     D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, DWORD dwData2);
 HRESULT D3DPushBuffer_PushCmd3(

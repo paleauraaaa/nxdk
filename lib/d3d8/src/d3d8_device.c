@@ -108,7 +108,23 @@ HRESULT D3DDevice_PushCmd(DWORD cmd, DWORD dwData) {
     return D3DPushBuffer_PushCmd(g_pDevice->pCurrentPB, cmd, dwData);
 }
 
-HRESULT D3DDevice_PushCmd2(DWORD cmd, DWORD dwData1, DWORD dwData2) {
+HRESULT D3DDevice_PushCmdA(DWORD cmd, CONST DWORD* pdwData, SIZE_T n) {
+#if NXDK_DEBUG
+    if (g_pDevice->pCurrentPB == NULL)
+        return D3DERR_NOTAVAILABLE;
+    if (cmd == 0)
+        return D3DERR_INVALIDCALL;
+#endif // NXDK_DEBUG
+    if (D3DDevice_IsKickoffReady() == TRUE) {
+        HRESULT hr = D3DDevice_KickPushBuffer();
+        if (FAILED(hr)) return hr; 
+    }
+    D3DPushBuffer_PushCmdA(g_pDevice->pCurrentPB, cmd, pdwData, n);
+    return D3D_OK;
+}
+
+HRESULT D3DDevice_PushCmd2(DWORD cmd, DWORD dwData1, DWORD dwData2) 
+{
 #if NXDK_DEBUG
     if (g_pDevice->pCurrentPB == NULL)
         return D3DERR_NOTAVAILABLE;
@@ -1691,6 +1707,9 @@ D3DAPI HRESULT Direct3DDevice8_SetRenderState(
 }
 
 HRESULT D3DDevice_SetPixelShaderProgram(CONST D3DPIXELSHADERDEF *pPSDef) {
+    // TODO: Optimize this function by setting the hardware registers directly
+    // without going through D3DDevice_SetRenderState for each register.
+
     HRESULT hr = D3D_OK;
     for (int i = 0; i < countof(pPSDef->PSAlphaInputs); i++) {
         hr = D3DDevice_SetRenderState(D3DRS_PSALPHAINPUTS0 + i, 
@@ -2110,4 +2129,76 @@ DWORD D3DDevice_GetCurrentFence(void) {
 
 DWORD D3DDevice_GetLastCompletedFence(void) {
     return g_pDevice->dwLastFenceCompleted;
+}
+
+HRESULT D3DDevice_SetVertexShaderConstant(INT Register, CONST VOID* pConstantData, 
+                                          DWORD ConstantCount) 
+{
+#if NXDK_DEBUG
+    if (Register < 0 || 
+        Register + ConstantCount > 96 || 
+        ConstantCount == 0 || 
+        pConstantData == NULL)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+#endif // NXDK_DEBUG
+
+    D3DDevice_PushCmd(NV097_SET_TRANSFORM_CONSTANT_LOAD, Register);
+    return D3DDevice_PushCmdA(NV097_SET_TRANSFORM_CONSTANT, 
+                              pConstantData, 
+                              ConstantCount * 4);
+}
+
+HRESULT Direct3DDevice8_SetVertexShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, INT Register, CONST VOID* pConstantData, 
+    DWORD ConstantCount) 
+{
+    assert(pThis == &g_pDevice->iface);
+    return D3DDevice_SetVertexShaderConstant(Register, pConstantData, 
+                                            ConstantCount);
+}
+
+HRESULT D3DDevice_SetPixelShaderConstant(DWORD Register, 
+                                         CONST VOID* pConstantData, 
+                                         DWORD ConstantCount) 
+{
+    // TODO: Optimize this function by setting the hardware registers directly
+    // without going through D3DDevice_SetRenderState for each register.
+#if NXDK_DEBUG
+    if (Register + ConstantCount > 16 || 
+        ConstantCount == 0 || 
+        pConstantData == NULL)
+    {
+        return D3DERR_INVALIDCALL;
+    }
+#endif // NXDK_DEBUG
+
+    // Zero out all registers before Register.
+    int i = 0;
+    for (; i < Register; i++) {
+        HRESULT hr = D3DDevice_SetRenderState(D3DRS_PSCONSTANT0_0 + i, 0);
+        if (FAILED(hr)) return hr;
+    }
+    for (; i < ConstantCount; i++) {
+        DWORD Data = ((CONST DWORD*)pConstantData)[i];
+        HRESULT hr = D3DDevice_SetRenderState(D3DRS_PSCONSTANT0_0 + i, 
+                                              Data);
+        if (FAILED(hr)) return hr;
+    }
+    // Also zero out all registers after (Register + ConstantCount).
+    for (; i < 16; i++) {
+        HRESULT hr = D3DDevice_SetRenderState(D3DRS_PSCONSTANT0_0 + i, 0);
+        if (FAILED(hr)) return hr;
+    }
+    return D3D_OK;
+}
+
+D3DAPI HRESULT Direct3DDevice8_SetPixelShaderConstant(
+    LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
+    DWORD ConstantCount) 
+{
+    assert(pThis == &g_pDevice->iface);
+    return D3DDevice_SetPixelShaderConstant(Register, pConstantData, 
+                                            ConstantCount);
 }
