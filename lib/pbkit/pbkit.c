@@ -209,7 +209,7 @@ static void pb_load_gr_ctx(int ctx_id);
 static NTAPI VOID pb_shutdown_notification_routine (PHAL_SHUTDOWN_REGISTRATION ShutdownRegistration);
 
 
-static int pb_BackBufferCount = 0;
+static int pb_BackBufferCount = 2;
 
 //private functions
 static void pb_vbl_handler(void)
@@ -1474,34 +1474,17 @@ void pb_create_gr_ctx(int ChannelID,
     pb_create_gr_instance(ChannelID, Class, Inst, flags, flags3D, pGrObject);
 }
 
+static uint32_t *pb_OldHead=NULL;     
+static uint32_t *pb_OldTail=NULL;     
+static uint32_t *pb_OldPut =NULL; 
 
-static void pb_start(void)
-{
-    if (pb_disable_gpu==0) //do we really want to send data to GPU?
+static void pb_start(void) {
+     if (pb_disable_gpu==0) //do we really want to send data to GPU?
     {
         //asks push buffer Dma engine to detect incoming Dma data (written at pb_Put)
 
         pb_cache_flush();
         *(pb_DmaUserAddr+0x40/4)=((DWORD)pb_Put)&0x03FFFFFF;
-        //from now any write will be detected
-
-#ifdef DBG
-        if ((*(pb_DmaUserAddr+0x44/4))>0x04000000)
-        {
-            debugPrint("pb_start: wrong GetAddr\n");
-            return;
-        }
-#endif
-    }
-}
-
-void pb_start_at(void* p) {
-    if (pb_disable_gpu==0) //do we really want to send data to GPU?
-    {
-        //asks push buffer Dma engine to detect incoming Dma data (written at pb_Put)
-
-        pb_cache_flush();
-        *(pb_DmaUserAddr+0x40/4)=((DWORD)p)&0x03FFFFFF;
         //from now any write will be detected
 
 #ifdef DBG
@@ -1805,30 +1788,94 @@ void pb_reset(void)
     pb_jump_to_head();
 }
 
-
-uint32_t *pb_begin(void)
-{
-#ifdef DBG
-    if (pb_Put>=pb_Tail) debugPrint("ERROR! Push buffer overflow! Use pb_reset more often or enlarge push buffer!\n");
-
-    if (pb_BeginEndPair==1) debugPrint("pb_begin without a pb_end earlier\n");
-    pb_BeginEndPair=1;
-    pb_PushIndex=0;
-    pb_PushNext=pb_Put;
-    pb_PushStart=pb_Put;
-#endif
-    return pb_Put;
+static void pb_set_dma_head(void) {
+    //This is the magic part of the whole push buffer DMA engine thing...
+    //Both these instructions are necessary, remove one, then no dma engine!
+    *((DWORD *)0x80000000)=(((DWORD)pb_Head)&0x0FFFFFFF)+1;
+    __asm__ __volatile__ ("wbinvd");
+    //assembler instruction wbinvd : write back and invalidate cache
 }
 
-uint32_t* pb_begin_at(uint32_t* p) {
+static int pb_wait_until_dma_ready(void) {
+    DWORD       GetAddr;
+    DWORD       PutAddr;
+    DWORD       TimeStamp1;
+    DWORD       TimeStamp2;
+    
+    //wait until DMA is ready
+    TimeStamp1=KeTickCount;
+    while(1)
+    {
+        GetAddr=*(pb_DmaUserAddr+0x44/4);
+
+        if (GetAddr>0x04000000)
+        {
+            debugPrint("pb_init: Bad getaddr\n");
+            pb_kill();
+            return -9;
+        }
+
+        PutAddr=((DWORD)pb_Put);
+
+        if (((GetAddr^PutAddr)&0x0FFFFFFF)==0) break; //means same addresses (Dma is ready)
+
+        TimeStamp2=KeTickCount;
+
+        if (TimeStamp2-TimeStamp1>TICKSTIMEOUT)
+        {
+            debugPrint("pb_init: Dma didn't get ready in time\n");
+            pb_kill();
+            return -10;
+        }
+    }
+    *((DWORD *)0x80000000)=0xFFFFFFFF;
+    return 0;
+}
+
+static uint32_t* pb_begin_internal(uint32_t* p) 
+{
 #ifdef DBG
-    if (pb_BeginEndPair==1) debugPrint("pb_begin_at without a pb_end earlier\n");
+    if (pb_BeginEndPair==1) debugPrint("pb_begin without a pb_end earlier\n");
     pb_BeginEndPair=1;
     pb_PushIndex=0;
     pb_PushNext=(uint32_t*)p;
     pb_PushStart=(uint32_t*)p;
 #endif
     return p;
+}
+
+uint32_t *pb_begin(void)
+{
+    // Unless the internal pushbuffer was already being used, a refresh is
+    // necessary.
+    if (pb_OldHead != NULL) {
+        pb_Head    = pb_OldHead;
+        pb_Tail    = pb_OldTail;
+        pb_Put     = pb_OldPut;
+        pb_OldHead = NULL;
+        pb_OldTail = NULL;
+        pb_OldPut  = NULL;
+        pb_set_dma_head();
+        pb_wait_until_dma_ready();
+    }
+    return pb_begin_internal(pb_Put);
+}
+
+uint32_t* pb_begin_at(uint32_t* p) 
+{
+    // Unless p lies within the previous pushbuffer, a refresh is necessary.
+    if (pb_OldHead == NULL || p < pb_Head || p > pb_Tail) {
+        pb_OldHead = pb_Head;
+        pb_OldTail = pb_Tail;
+        pb_OldPut  = pb_Put;
+        pb_Head    = p;
+        pb_Tail    = (uint32_t*)((DWORD)p + pb_Size);
+        pb_set_dma_head();
+        pb_wait_until_dma_ready();
+    }
+
+    pb_Put = p;
+    return pb_begin_internal(p);
 }
 
 #ifdef LOG
@@ -1897,72 +1944,6 @@ void pb_end(uint32_t *pEnd)
     pb_Put=pEnd;
 
     pb_start(); //start (or continue) reading and sending data to GPU
-
-    if (pb_trace_mode) //do we want to wait until block data has been sent (for debugging GPU errors)?
-    {
-
-        TimeStamp1=KeTickCount;
-
-        //wait until all begin-end block has been sent to GPU
-        while(pb_busy())
-        {
-            TimeStamp2=KeTickCount;
-            if (TimeStamp2-TimeStamp1>TICKSTIMEOUT)
-            {
-                debugPrint("pb_end: Busy for too long (%lu) (%08x)\n",
-                    ((DWORD)(pb_Put)-(DWORD)(pb_Head)),
-                    VIDEOREG(NV_PFIFO_CACHE1_DMA_GET)
-                    );
-                break;
-            }
-        }
-    }
-}
-
-void pb_end_at(uint32_t *pEnd, uint32_t* pNewStart)
-{
-    DWORD           TimeStamp1;
-    DWORD           TimeStamp2;
-
-    int         i;
-
-#ifdef LOG
-    uint32_t    *p;
-    int         n;
-
-    if (logging)
-    {
-        p=pb_PushStart;
-        while (p!=pEnd)
-        {
-            n=(*p>>18)&0x7FF;
-            fprintf(fd,"0x%08x, ",*(p++));
-            for(i=0;i<n;i++) fprintf(fd,"0x%x, ",*(p++));
-            fprintf(fd,"\n");
-        }
-
-    }
-#endif
-
-#ifdef DBG
-    if (pEnd!=pb_PushNext)
-    {
-        debugPrint("pb_end: input pointer invalid or not following previous write addresses\n");
-        assert(false);
-    }
-    if (pb_BeginEndPair==0)
-    {
-        debugPrint("pb_end without a pb_begin\n");
-        assert(false);
-    }
-    pb_BeginEndPair=0;
-#endif
-
-    //start (or continue) reading and sending data to GPU
-    if (pNewStart)
-        pb_start_at(pNewStart);
-    else 
-        pb_start();
 
     if (pb_trace_mode) //do we want to wait until block data has been sent (for debugging GPU errors)?
     {
@@ -2338,10 +2319,6 @@ int pb_init(void)
 
     DWORD           UserAddr;
 
-    DWORD           TimeStamp1;
-    DWORD           TimeStamp2;
-    DWORD           GetAddr;
-    DWORD           PutAddr;
                         //Dma channel properties
     int             dma_trig=128;   //min 8     max 256
     int         dma_size=128;   //min 32    max 256
@@ -2442,7 +2419,7 @@ int pb_init(void)
     pb_BackBufferNxtVBL=0;      //increments when VBlank event fires
 
     //initialize push buffer DMA engine
-    //DMA=Direct Memory Access (means CPU is not involved in the data transfert)
+    //DMA=Direct Memory Access (means CPU is not involved in the data transfer)
 
     NtCreateEvent(&pb_VBlankEvent, NULL, NotificationEvent, FALSE);
 
@@ -2875,51 +2852,19 @@ int pb_init(void)
     pb_PushBase=(DWORD)pb_Head;
     pb_PushLimit=(DWORD)pb_Tail;
 
-    //This is the magic part of the whole push buffer DMA engine thing...
-    //Both these instructions are necessary, remove one, then no dma engine!
-    *((DWORD *)0x80000000)=(((DWORD)pb_Head)&0x0FFFFFFF)+1;
-    __asm__ __volatile__ ("wbinvd");
-    //assembler instruction wbinvd : write back and invalidate cache
+    pb_set_dma_head();
 
     pb_start(); //start checking if new data has been written and send it to GPU
     //(nothing will be sent, since we sent nothing yet)
-
-    TimeStamp1=KeTickCount;
-
 #ifdef DBG
 //  debugPrint("Waiting undil DMA is ready\n");
 #endif
-    //wait until DMA is ready
-    while(1)
-    {
-        GetAddr=*(pb_DmaUserAddr+0x44/4);
-
-        if (GetAddr>0x04000000)
-        {
-            debugPrint("pb_init: Bad getaddr\n");
-            pb_kill();
-            return -9;
-        }
-
-        PutAddr=((DWORD)pb_Put);
-
-        if (((GetAddr^PutAddr)&0x0FFFFFFF)==0) break; //means same addresses (Dma is ready)
-
-        TimeStamp2=KeTickCount;
-
-        if (TimeStamp2-TimeStamp1>TICKSTIMEOUT)
-        {
-            debugPrint("pb_init: Dma didn't get ready in time\n");
-            pb_kill();
-            return -10;
-        }
-    }
+    i = pb_wait_until_dma_ready();
+    if (i < 0) 
+        return i;
 #ifdef DBG
 //  debugPrint("Dma is ready!!!\n");
 #endif
-
-    *((DWORD *)0x80000000)=0xFFFFFFFF;
-
     //Let's start initializing inner GPU registers!!!
 
     //These commands assign DMA channels to push buffer subchannels
