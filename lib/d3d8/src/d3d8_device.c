@@ -46,8 +46,7 @@ HRESULT D3DDevice_BeginPushBuffer(D3DPushBuffer* pPushBuffer) {
 // D3DDevice_BeginPushBuffer *MUST* be called before further data is sent.
 HRESULT D3DDevice_EndPushBuffer(void) {
     if (g_pDevice->pCurrentPB->bCpu == FALSE) {
-        pb_end_at((uint32_t*)(g_pDevice->pCurrentPB->p - 1), 
-                  (uint32_t*)g_pDevice->pCurrentPB->p);
+        pb_end((uint32_t*)g_pDevice->pCurrentPB->p);
     }
     g_pDevice->pCurrentPB = NULL;
     return D3D_OK;
@@ -69,6 +68,9 @@ HRESULT D3DDevice_KickPushBuffer(void) {
 #endif // NXDK_DEBUG
 
     if (g_pDevice->pCurrentPB->bCpu == TRUE) {
+        // TODO: Switching back to pbkit's internal pushbuffer takes time and
+        // defeats the whole purpose of using CPU-based pushbuffers.
+        // Change this to pb_begin_at.
         uint32_t* p = pb_begin();
         memcpy(p, g_pDevice->pCurrentPB->p, 
                g_pDevice->pCurrentPB->SizeNeeded * sizeof(DWORD));
@@ -642,13 +644,7 @@ HRESULT D3DDevice_BeginScene(void) {
     if (g_pDevice->pCurrentPB == NULL)
         g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
 
-    if (g_pDevice->pCurrentPB == &g_pDevice->DefaultPB)
-        pb_reset();
-
     pb_target_back_buffer();
-    while(pb_busy()) {
-        /* Wait for completion... */
-    }
     D3DDevice_BeginPushBuffer(g_pDevice->pCurrentPB);
     return D3D_OK;
 }
@@ -663,12 +659,7 @@ HRESULT D3DDevice_EndScene(void) {
         return D3DERR_INVALIDCALL;
 
     g_pDevice->bInScene = FALSE;
-
-    while(pb_busy()) {
-        /* Wait for completion... */
-    }
-
-    return D3DDevice_EndPushBuffer();
+    return D3D_OK;
 }
 
 D3DAPI HRESULT Direct3DDevice8_EndScene(LPDIRECT3DDEVICE8 pThis) {
@@ -1172,17 +1163,20 @@ D3DAPI HRESULT Direct3DDevice8_CreatePushBuffer(
 HRESULT D3DDevice_LoadVertexShaderProgram(
     CONST DWORD *pFunction, DWORD Address)
 {
+    D3D_DebugPrintf("Here?\n");
     HRESULT hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_LOAD, Address);
     if(FAILED(hr)) return hr;
+
 
     int i = 0;
     for (; pFunction[i] != D3DVS_END() && Address + i < 136; i += 4) {
         hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM, 4);
-        if(FAILED(hr))
-            return hr;
+        if(FAILED(hr)) return hr;
         hr = D3DDevice_PushA(&pFunction[i], 4);
         if(FAILED(hr)) return hr;
     }
+
+    D3D_DebugPrintf("Or here?\n");
 
     // If we overran, this means pFunction did not contain a D3DVS_END() token.
     // Either pFunction does not point to a valid vertex shader program, or 

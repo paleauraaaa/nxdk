@@ -259,7 +259,7 @@ D3DAPI HRESULT IDirect3DDevice8_SetRenderState(
 D3DAPI HRESULT D3DDevice::LoadVertexShaderProgram(
     CONST DWORD *pFunction, DWORD Address) 
 {
-    return Direct3DDevice8_LoadVertexShaderProgram(this,pFunction, Address);
+    return Direct3DDevice8_LoadVertexShaderProgram(this, pFunction, Address);
 }
 
 D3DAPI HRESULT IDirect3DDevice8_LoadVertexShaderProgram(
@@ -285,7 +285,7 @@ D3DAPI HRESULT D3DDevice::Clear(DWORD Count, CONST D3DRECT* pRects,
                                              float Z, DWORD Stencil) 
 {
     return Direct3DDevice8_Clear(this, Count, pRects, 
-                                  Flags, Color, Z, Stencil);
+                                 Flags, Color, Z, Stencil);
 }
 
 D3DAPI HRESULT IDirect3DDevice8_Clear(

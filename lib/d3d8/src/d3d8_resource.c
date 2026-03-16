@@ -747,8 +747,7 @@ HRESULT D3D_CreatePushBuffer(
     pPB->bCpu = bCpu;
     if (bCpu == TRUE) {
         pPB->p = (PDWORD)malloc(Size);
-        if (pPB->p == NULL)
-            return E_OUTOFMEMORY;
+        D3D_ASSERT_IF(E_OUTOFMEMORY, pPB->p == NULL);
         pPB->resource.pContiguousMemory = NULL;
     }
     else {
@@ -758,8 +757,7 @@ HRESULT D3D_CreatePushBuffer(
             pPB->resource.pContiguousMemory = 
                 (PDWORD)D3D_AllocContiguousMemory(Size,
                                                   D3DPUSHBUFFER_ALIGNMENT);
-            if (pPB->resource.pContiguousMemory == NULL)
-                return D3DERR_OUTOFVIDEOMEMORY;
+            D3D_ASSERT_IF(D3DERR_OUTOFVIDEOMEMORY, pPB->resource.pContiguousMemory == NULL)
         }
         pPB->p = pPB->resource.pContiguousMemory;
     }

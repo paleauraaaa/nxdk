@@ -24,6 +24,8 @@
 
 #include <stdlib.h>
 
+#include <pbkit/pbkit.h>
+
 #define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))
 
 #define D3D_FALLTHROUGH() [[fallthrough]]
@@ -31,6 +33,27 @@
     HRESULT hr = __VA_ARGS__; \
     if(FAILED(hr)) return hr; \
     hr;})                     \
+
+#define D3D__STRINGIFY(...) #__VA_ARGS__
+#define D3D_STRINGIFY(...) D3D__STRINGIFY(__VA_ARGS__)
+#define D3D_EXPAND(...) __VA_ARGS__
+#define D3D__CAT(a, b) a##b
+#define D3D_CAT(a, b) D3D__CAT(a, b)
+#define D3D_ASSERT_IF_NO_RETURN(...)                        \
+    BOOL D3D_CAT(D3D__temp_, __LINE__) = (__VA_ARGS__);      \
+    if (D3D_CAT(D3D__temp_, __LINE__)) {                    \
+        OutputDebugStringA(D3D_STRINGIFY(__VA_ARGS__));     \
+        pb_show_debug_screen();                             \
+        assert(false && D3D_STRINGIFY(__VA_ARGS__));        \
+    } if (D3D_CAT(D3D__temp_, __LINE__))
+
+#define D3D_ASSERT_IF(ret, ...)                             \
+    if (__VA_ARGS__) {                                      \
+        OutputDebugStringA(D3D_STRINGIFY(__VA_ARGS__));     \
+        pb_show_debug_screen();                             \
+        assert(false && D3D_STRINGIFY(__VA_ARGS__));        \
+        return ret;                                         \
+    }                                      
 
 #define memcpyp(dest, src) ({                                                 \
     _Static_assert(sizeof(*(src)) == sizeof(*dest),                           \
@@ -47,6 +70,7 @@ extern "C" {
 
 int D3D_FormatBPP(D3DFORMAT fmt);
 int D3D_FormatBytesPerPixel(D3DFORMAT fmt);
+void D3D_DebugPrintf(const char* fmt, ...);
 
 HRESULT Direct3D_ResetDevice(D3DPRESENT_PARAMETERS* pPresentationParameters);
 

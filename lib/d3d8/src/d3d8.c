@@ -1,6 +1,9 @@
 #include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 
+#include <hal/debug.h>
 #include <hal/video.h>
 #include <pbkit/pbkit.h>
 #include <xboxkrnl/xboxkrnl.h>
@@ -28,12 +31,15 @@ int D3D_FormatBPP(D3DFORMAT fmt) {
     switch (fmt) {
     case D3DFMT_A8R8G8B8:
     case D3DFMT_X8R8G8B8:
+    case D3DFMT_LIN_A8R8G8B8:
     case D3DFMT_D24S8:
         return 32;
     case D3DFMT_A1R5G5B5:
     case D3DFMT_X1R5G5B5:
+    case D3DFMT_LIN_X1R5G5B5:
         return 15;
     case D3DFMT_R5G6B5:
+    case D3DFMT_LIN_R5G6B5:
         return 16;
     default:
         assert(false);
@@ -43,6 +49,16 @@ int D3D_FormatBPP(D3DFORMAT fmt) {
 
 int D3D_FormatBytesPerPixel(D3DFORMAT fmt) {
     return (D3D_FormatBPP(fmt)+7)/8;
+}
+
+void D3D_DebugPrintf(const char* fmt, ...) {
+    char buf[4096];
+    va_list va;
+    va_start(va, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, va);
+    OutputDebugStringA(buf);
+    debugPrint("%s", buf);
+    va_end(va);
 }
 
 static Direct3D* g_pD3D = NULL;
@@ -144,7 +160,7 @@ HRESULT Direct3D_EnumAdapterModes(UINT Mode, D3DDISPLAYMODE* pMode)  {
 }
 
 D3DAPI HRESULT Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter, 
-                                    UINT Mode, D3DDISPLAYMODE* pMode) 
+                                          UINT Mode, D3DDISPLAYMODE* pMode) 
 {
     assert(pThis == &g_pD3D->iface);
 #if NXDK_DEBUG
@@ -163,7 +179,7 @@ HRESULT Direct3D_GetAdapterDisplayMode(D3DDISPLAYMODE* pMode)
 }
 
 D3DAPI HRESULT Direct3D8_GetAdapterDisplayMode(LPDIRECT3D8 pThis, UINT Adapter, 
-                                         D3DDISPLAYMODE* pMode)
+                                               D3DDISPLAYMODE* pMode)
 {
     assert(pThis == &g_pD3D->iface);
 #if NXDK_DEBUG
@@ -296,45 +312,35 @@ BOOL Direct3D_IsDisplayModeValid(D3DDISPLAYMODE* pMode, int* pIndex) {
 HRESULT D3D_PresentParameters_Validate(
     D3DPRESENT_PARAMETERS* pPresentationParameters) 
 {
-if (pPresentationParameters == NULL)
-        return D3DERR_INVALIDCALL;
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pPresentationParameters == NULL));
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        (pPresentationParameters->Windowed != FALSE));
 
-    if (pPresentationParameters->Windowed != FALSE)
-        return D3DERR_INVALIDCALL;
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        (pPresentationParameters->BackBufferCount > 2))
 
-    if (pPresentationParameters->BackBufferCount > 2)
-        return D3DERR_INVALIDCALL;
-
-    if (pPresentationParameters->Flags & 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, pPresentationParameters->Flags & 
         (D3DPRESENTFLAG_FIELD | D3DPRESENTFLAG_10X11PIXELASPECTRATIO |
-         D3DPRESENTFLAG_EMULATE_REFRESH_RATE)
-    ) {
-        return D3DERR_INVALIDCALL;
-    }
+         D3DPRESENTFLAG_EMULATE_REFRESH_RATE));
 
-    if ((pPresentationParameters->Flags & D3DPRESENTFLAG_PROGRESSIVE) && 
-        (pPresentationParameters->Flags & D3DPRESENTFLAG_INTERLACED)) 
-    {
-        return D3DERR_INVALIDCALL;
-    }
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        ((pPresentationParameters->Flags & D3DPRESENTFLAG_PROGRESSIVE) && 
+         (pPresentationParameters->Flags & D3DPRESENTFLAG_INTERLACED)));
 
     // D3DPRESENT_INTERVAL_FOUR is invalid on Xbox, 
     // and any higher values aren't valid D3DPRESENT values.
-    if (pPresentationParameters->FullScreen_PresentationInterval > 
-        D3DPRESENT_INTERVAL_THREE)
-    {
-        return D3DERR_INVALIDCALL;
-    }
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        (pPresentationParameters->FullScreen_PresentationInterval > 
+         D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE));
     
-    if (pPresentationParameters->EnableAutoDepthStencil == TRUE) {
-        if (FAILED(Direct3D_CheckDepthStencilMatch(
-            pPresentationParameters->AutoDepthStencilFormat))) 
-        {
-            return D3DERR_INVALIDCALL;
-        }
 
-        if (pPresentationParameters->DepthStencilSurface != NULL)
-            return D3DERR_INVALIDCALL;
+    if (pPresentationParameters->EnableAutoDepthStencil == TRUE) {
+        HRESULT hr = Direct3D_CheckDepthStencilMatch(
+            pPresentationParameters->AutoDepthStencilFormat);
+        D3D_ASSERT_IF(hr, FAILED(hr));
+
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pPresentationParameters->DepthStencilSurface != NULL));
     }
 
     DWORD Width = pPresentationParameters->BackBufferWidth;
@@ -346,86 +352,67 @@ if (pPresentationParameters == NULL)
     // Ensure the BufferSurfaces are all either NULL, or non-NULL 
     // *and* contiguous.
     if (pPresentationParameters->BufferSurfaces[0] != NULL) {
-        if (pPresentationParameters->BufferSurfaces[1] == NULL)
-            return D3DERR_INVALIDCALL;
+         D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pPresentationParameters->BufferSurfaces[1] == NULL));
 
         D3DSurface* pBufferSurface0 = 
             (D3DSurface*)pPresentationParameters->BufferSurfaces[0];
-        if (pBufferSurface0->desc.Size == 0)
-            return D3DERR_INVALIDCALL; 
-        if (pBufferSurface0->desc.Width  != Width ||
-            pBufferSurface0->desc.Height != Height)
-        {
-            return D3DERR_INVALIDCALL;
-        }
-        if (pBufferSurface0->desc.Format != Format)
-            return D3DERR_INVALIDCALL;
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface0->desc.Size == 0));
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pBufferSurface0->desc.Width  != Width ||
+             pBufferSurface0->desc.Height != Height));
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface0->desc.Format != Format))
 
         D3DSurface* pBufferSurface1 = 
             (D3DSurface*)pPresentationParameters->BufferSurfaces[1];
-        if (pBufferSurface1->desc.Size == 0)
-            return D3DERR_INVALIDCALL; 
-        if (pBufferSurface1->desc.Width  != Width ||
-            pBufferSurface1->desc.Height != Height)
-        {
-            return D3DERR_INVALIDCALL;
-        }
-        if (pBufferSurface1->desc.Format != Format)
-            return D3DERR_INVALIDCALL;
-        if ((DWORD)pBufferSurface0->resource.pContiguousMemory 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface1->desc.Size == 0))
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pBufferSurface1->desc.Width  != Width ||
+             pBufferSurface1->desc.Height != Height));
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface1->desc.Format != Format));
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (((DWORD)pBufferSurface0->resource.pContiguousMemory 
                 + pBufferSurface0->desc.Size 
-            != (DWORD)pBufferSurface1->resource.pContiguousMemory)
-        {
-            return D3DERR_INVALIDCALL;
-        }
+            != (DWORD)pBufferSurface1->resource.pContiguousMemory)));
+
 
         if (pPresentationParameters->BackBufferCount == 2) {
-            if(pPresentationParameters->BufferSurfaces[2] == NULL)
-                return D3DERR_INVALIDCALL;
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+                (pPresentationParameters->BufferSurfaces[2] == NULL));
             
             D3DSurface* pBufferSurface2 = 
                 (D3DSurface*)pPresentationParameters->BufferSurfaces[2];
-            if (pBufferSurface2->desc.Size == 0)
-                return D3DERR_INVALIDCALL; 
-            if (pBufferSurface2->desc.Width  != Width ||
-                pBufferSurface2->desc.Height != Height)
-            {
-                return D3DERR_INVALIDCALL;
-            }
-            if (pBufferSurface2->desc.Format != Format)
-                return D3DERR_INVALIDCALL;
-            return D3DERR_INVALIDCALL;
-            if ((DWORD)pBufferSurface1->resource.pContiguousMemory 
-                + pBufferSurface1->desc.Size 
-            != (DWORD)pBufferSurface2->resource.pContiguousMemory)
-            {
-                return D3DERR_INVALIDCALL;
-            }
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+                (pBufferSurface2->desc.Size == 0));
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+                (pBufferSurface2->desc.Width  != Width ||
+                 pBufferSurface2->desc.Height != Height));
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+                (pBufferSurface2->desc.Format != Format));
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+                (((DWORD)pBufferSurface1->resource.pContiguousMemory 
+                    + pBufferSurface1->desc.Size 
+                != (DWORD)pBufferSurface2->resource.pContiguousMemory)));
         }
     } 
     else {
-        if (pPresentationParameters->BufferSurfaces[1] != NULL)
-            return D3DERR_INVALIDCALL;
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pPresentationParameters->BufferSurfaces[1] != NULL))
 
-        if (pPresentationParameters->BackBufferCount == 2 &&
-            pPresentationParameters->BufferSurfaces[2] != NULL)
-        {
-            return D3DERR_INVALIDCALL;
-        }
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            (pPresentationParameters->BackBufferCount == 2 &&
+             pPresentationParameters->BufferSurfaces[2] != NULL));
     }
 
     if (pPresentationParameters->DepthStencilSurface != NULL) {
         D3DSurface* pDSSurf = 
             (D3DSurface*)pPresentationParameters->DepthStencilSurface;
-        if (pDSSurf->desc.Width  < Width ||
-            pDSSurf->desc.Height < Height)
-        {
-            return D3DERR_INVALIDCALL;
-        }
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pDSSurf->desc.Width  < Width ||
+            pDSSurf->desc.Height < Height));
 
         HRESULT hr = Direct3D_CheckDepthStencilMatch(
             pDSSurf->desc.Format);
-        if (FAILED(hr)) return hr;
+        D3D_ASSERT_IF(hr, FAILED(hr));
     }
 
     return D3D_OK;
@@ -435,15 +422,25 @@ HRESULT Direct3D_CreateDevice_Validate(
     DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
-    if (BehaviorFlags !=
-        (D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE))
-    {
-        return D3DERR_INVALIDCALL;
-    }
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, (BehaviorFlags !=
+        (D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_PUREDEVICE)));
 
     return D3D_PresentParameters_Validate(pPresentationParameters);
 }
 #endif // NXDK_DEBUG
+
+DWORD D3D_FormatToColorFormat(D3DFORMAT Format) {
+    switch (Format) {
+    case D3DFMT_LIN_A8R8G8B8:
+        return NV097_SET_SURFACE_FORMAT_COLOR_LE_A8R8G8B8;
+    case D3DFMT_LIN_R5G6B5:
+        return NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5;
+    case D3DFMT_LIN_X1R5G5B5:
+        return NV097_SET_SURFACE_FORMAT_COLOR_LE_X1R5G5B5_O1R5G5B5;
+    default:
+        D3D_ASSERT_IF(0, true);
+    }
+}
 
 HRESULT Direct3D_ResetDevice(
     D3DPRESENT_PARAMETERS* pPresentationParameters) 
@@ -489,6 +486,10 @@ HRESULT Direct3D_ResetDevice(
         (void)b;
 #endif // NXDK_DEBUG
         g_pD3D->CurrentDisplayMode = i;
+        D3D_DebugPrintf("Set video mode %ux%u%c@%uHz (%dbpp).\n", 
+                        mode.Width, mode.Height, 
+                        (mode.Flags & D3DPRESENTFLAG_INTERLACED) ? 
+                            'i' : 'p', mode.RefreshRate, bpp);
     }
 #if NXDK_DEBUG
     else {
@@ -518,7 +519,8 @@ HRESULT Direct3D_ResetDevice(
     if (BackBufferCount == 0)
         BackBufferCount = 1;
     pb_back_buffer_count(BackBufferCount);
-    pb_set_color_format(pPresentationParameters->BackBufferFormat, false);
+    DWORD ColorFormat = D3D_FormatToColorFormat(mode.Format);
+    pb_set_color_format(ColorFormat, false);
 
     g_pDevice->dwLastFenceCompleted = 0;
     g_pDevice->dwNextFence = 1;
@@ -553,41 +555,43 @@ HRESULT Direct3D_CreateDevice(
 #if NXDK_DEBUG
     HRESULT hr = Direct3D_CreateDevice_Validate(BehaviorFlags, 
                                                 pPresentationParameters);
-    assert(SUCCEEDED(hr));
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF(hr, FAILED(hr));
 #else 
     HRESULT hr = D3D_OK;
 #endif // NXDK_DEBUG
-    if (g_pDevice != NULL || g_pDevice->refcount.c != 0)
-        return D3DERR_DEVICENOTRESET;
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, (g_pDevice != NULL)) 
+    if (g_pDevice)
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, g_pDevice->refcount.c != 0);
 
     g_pDevice = malloc(sizeof(*g_pDevice));
-    if (g_pDevice == NULL)
-        return E_OUTOFMEMORY;
-    
-    g_pDeviceVtbl = malloc(sizeof(*g_pDeviceVtbl));
-    if (g_pDeviceVtbl == NULL) {
-        free(g_pDevice);
-        g_pDevice = NULL;
-        return E_OUTOFMEMORY;
+    D3D_ASSERT_IF_NO_RETURN(g_pDevice == NULL) {
+        hr = E_OUTOFMEMORY;
+        goto failed;
     }
 
     g_pDevice->iface.lpVtbl = g_pDeviceVtbl;
     hr = Direct3D_ResetDevice(pPresentationParameters);
+    if (FAILED(hr))
+        goto failed;
 
+    D3D_DebugPrintf("pb_init()\n");
     int ret = pb_init();
-    if (ret != 0) {
+    D3D_ASSERT_IF_NO_RETURN(ret != 0) {
+        D3D_DebugPrintf("pb_init failed %d.\n", ret);
         switch (ret) {
         case -8:
-            return D3DERR_DEVICENOTRESET;
+            hr = D3DERR_DEVICENOTRESET;
         case -2:
         case -3:
         case -11:
-            return D3DERR_OUTOFVIDEOMEMORY;
+            hr = D3DERR_OUTOFVIDEOMEMORY;
         default:
-            return D3DERR_DRIVERINTERNALERROR;
+            hr = D3DERR_DRIVERINTERNALERROR;
         }
+        goto failed;
     }
+    pb_show_debug_screen();
+    D3D_DebugPrintf("pb_init successful.\n");
 
     UINT BackBufferCount = pPresentationParameters->BackBufferCount;
     if (BackBufferCount == 0)
@@ -601,8 +605,10 @@ HRESULT Direct3D_CreateDevice(
         }
 
         g_pDevice->pSurfaces[i] = malloc(sizeof(D3DSurface));
-        if (!g_pDevice->pSurfaces[i])
-            return E_OUTOFMEMORY;
+        D3D_ASSERT_IF_NO_RETURN(!g_pDevice->pSurfaces[i]) {
+            hr = E_OUTOFMEMORY;
+            goto failed;
+        }
 
         D3D_CreateSurface(
             pPresentationParameters->BackBufferWidth, 
@@ -616,9 +622,12 @@ HRESULT Direct3D_CreateDevice(
     }
         
     if (pPresentationParameters->EnableAutoDepthStencil) {
+        D3D_DebugPrintf("Creating ZStencil surface.\n");
         g_pDevice->pDepthStencilSurface = malloc(sizeof(D3DSurface));
-        if (!g_pDevice->pDepthStencilSurface)
-            return E_OUTOFMEMORY;
+        D3D_ASSERT_IF_NO_RETURN(!g_pDevice->pDepthStencilSurface) {
+            hr = E_OUTOFMEMORY;
+            goto failed;
+        }
 
         D3D_CreateSurface(
             pPresentationParameters->BackBufferWidth, 
@@ -631,47 +640,74 @@ HRESULT Direct3D_CreateDevice(
             g_pDevice->pDepthStencilSurface);
     }
 
+#if !NXDK_DEBUG
     pb_show_front_screen();
+#endif // !NXDK_DEBUG
 
     g_pDevice->refcount.c              = 1;
-    g_pDevice->KickOffSize             = g_pD3D->KickOffSize;
+    g_pDevice->KickOffSize             = g_pD3D->KickOffSize / sizeof(DWORD);
     g_pDevice->bInScene                = FALSE;
-    g_pDevice->MaxSurfaces             = BackBufferCount;
+    g_pDevice->MaxSurfaces             = BackBufferCount + 1;
     g_pDevice->CurrentSurface          = 0;
+
+    D3D_DebugPrintf("Creating default push buffer.\n");
     hr = D3D_CreatePushBuffer(g_pD3D->PushBufferSize, FALSE, 
                               NULL, &g_pDevice->DefaultPB);
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
     g_pDevice->LastPresentVBlankCount  = 0;
     g_pDevice->PresentInterval = 
         pPresentationParameters->FullScreen_PresentationInterval;
 
-    if (FAILED(hr)) return hr;
     g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
     DWORD ZFormat = D3D_IsDepthStencilFormatFixed(
         g_pDevice->pDepthStencilSurface->desc.Format) ? 
                     NV097_SET_CONTROL0_Z_FORMAT_FIXED : 
                     NV097_SET_CONTROL0_Z_FORMAT_FLOAT;
+    D3D_DebugPrintf("Setting Control0.\n");
     g_pDevice->Control0 = 
         NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE | ZFormat;
     hr = D3DDevice_PushCmd(NV097_SET_CONTROL0, g_pDevice->Control0);
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
 
     for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
         g_pDevice->pTexture[Stage] = NULL;
         memzrop(&g_pDevice->TextureStageState[Stage]);
     }
 
+    D3D_DebugPrintf("Setting execution mode.\n");
     hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_EXECUTION_MODE, 
             MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE, 
                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM)
                 | MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE, 
                   NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV));
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
 
+    D3D_DebugPrintf("Initing device state.\n");
     hr = D3DDevice_InitDeviceState();
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
 
     return D3D_OK;
+
+failed:
+    free(g_pDevice->DefaultPB.resource.pContiguousMemory);
+
+    if (pPresentationParameters->EnableAutoDepthStencil)
+        free(g_pDevice->pDepthStencilSurface);
+
+    for (int i = 0; i < BackBufferCount + 1; i++)
+        free(g_pDevice->pSurfaces[i]);
+
+    free(g_pDevice);
+    assert(false && "hr");
+    return hr;
 }
 
 D3DAPI HRESULT Direct3D8_CreateDevice(
@@ -682,24 +718,14 @@ D3DAPI HRESULT Direct3D8_CreateDevice(
 {
     assert(pThis == &g_pD3D->iface);
 #if NXDK_DEBUG
-    if (Adapter != D3DADAPTER_DEFAULT) {
-        assert(false);
-        return 0;
-    }
-
-    if (DeviceType != D3DDEVTYPE_HAL) {
-        assert(false);
-        return D3DERR_INVALIDDEVICE;
-    }
-
-    if (hFocusWindow != NULL) {
-        assert(false);
-        return D3DERR_INVALIDCALL;
-    }
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   (Adapter != D3DADAPTER_DEFAULT));
+    D3D_ASSERT_IF(D3DERR_INVALIDDEVICE, (DeviceType != D3DDEVTYPE_HAL));
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   (hFocusWindow != NULL));
 #endif // NXDK_DEBUG
     HRESULT hr = Direct3D_CreateDevice(BehaviorFlags, 
                                        pPresentationParameters);
     *ppReturnedDevice = &g_pDevice->iface;
+    assert(SUCCEEDED(hr));
     return hr;
 }
 
@@ -716,10 +742,19 @@ UINT Direct3D_EnumDisplayModes(int bpp) {
         DWORD dwFlags = (vm.interlaced == TRUE ? D3DPRESENTFLAG_INTERLACED 
                                                : D3DPRESENTFLAG_PROGRESSIVE)
                         | (vm.width == 640 ? 0 : D3DPRESENTFLAG_WIDESCREEN);
+
+        D3DFORMAT Format = D3DFMT_UNKNOWN;
+        if (bpp == 32)
+            Format = D3DFMT_LIN_A8R8G8B8;
+        else if (bpp == 16) 
+            Format = D3DFMT_LIN_R5G6B5;
+        else if (bpp == 15) 
+            Format = D3DFMT_LIN_X1R5G5B5;
+
         pDisplayMode->Width       = vm.width;
         pDisplayMode->Height      = vm.height;
         pDisplayMode->RefreshRate = vm.refresh;
-        pDisplayMode->Format      = D3DFMT_A1R5G5B5;
+        pDisplayMode->Format      = Format;
         pDisplayMode->Flags       = dwFlags;
         g_pD3D->DisplayModeCount++;
     }
@@ -760,10 +795,10 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->AddRef                    = Direct3DDevice8_AddRef;
     g_pDeviceVtbl->Release                   = Direct3DDevice8_Release;
     g_pDeviceVtbl->BlockUntilVerticalBlank = 
-        IDirect3DDevice8_BlockUntilVerticalBlank;
+        Direct3DDevice8_BlockUntilVerticalBlank;
     g_pDeviceVtbl->CreateImageSurface = Direct3DDevice8_CreateImageSurface;
     g_pDeviceVtbl->CreateDepthStencilSurface = 
-        IDirect3DDevice8_CreateDepthStencilSurface;
+        Direct3DDevice8_CreateDepthStencilSurface;
     g_pDeviceVtbl->CreateVertexBuffer = Direct3DDevice8_CreateVertexBuffer;
     g_pDeviceVtbl->CreatePushBuffer          = Direct3DDevice8_CreatePushBuffer;
     g_pDeviceVtbl->BeginScene                = Direct3DDevice8_BeginScene;
@@ -777,11 +812,11 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->SetRenderState            = Direct3DDevice8_SetRenderState;
     g_pDeviceVtbl->SetTextureStageState = Direct3DDevice8_SetTextureStageState;
     g_pDeviceVtbl->SetVertexShaderInputDirect = 
-        IDirect3DDevice8_SetVertexShaderInputDirect;
+        Direct3DDevice8_SetVertexShaderInputDirect;
     g_pDeviceVtbl->LoadVertexShaderProgram = 
-        IDirect3DDevice8_LoadVertexShaderProgram;
+        Direct3DDevice8_LoadVertexShaderProgram;
     g_pDeviceVtbl->SetPixelShaderProgram = 
-        IDirect3DDevice8_SetPixelShaderProgram;
+        Direct3DDevice8_SetPixelShaderProgram;
     g_pDeviceVtbl->Clear                     = Direct3DDevice8_Clear;
     g_pDeviceVtbl->SetScissors               = Direct3DDevice8_SetScissors;
     g_pDeviceVtbl->SetTile                   = Direct3DDevice8_SetTile;
@@ -887,12 +922,9 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     Direct3D_EnumDisplayModes(16);
     Direct3D_EnumDisplayModes(32);
 
-    if (g_pD3D->DisplayModeCount == 0) {
-        assert(false);
-        return NULL;
-    }
+    D3D_ASSERT_IF(NULL, g_pD3D->DisplayModeCount == 0);
 
-    g_pD3D->CurrentDisplayMode = g_pD3D->DisplayModeCount - 1;
+    g_pD3D->CurrentDisplayMode = 0;
     D3DDISPLAYMODE* pDM = &g_pD3D->DisplayModes[g_pD3D->CurrentDisplayMode];
     // set the current mode to whatever the last retrieved mode was
     if (XVideoSetMode(pDM->Width, pDM->Height, 
@@ -902,7 +934,8 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
         return NULL;
     }
 
-    g_pD3D->KickOffSize = 32 * 1024 / sizeof(DWORD);
+    g_pD3D->KickOffSize    = 16 * 1024;
+    g_pD3D->PushBufferSize = 64 * 1024;
     return &g_pD3D->iface;
 
 failed:
