@@ -45,8 +45,8 @@ TOOLS        = cxbe vp20compiler fp20compiler extract-xiso
 
 ifeq ($(DEBUG),y)
 NXDK_ASFLAGS += -g -gdwarf-4
-NXDK_CFLAGS += -g -gdwarf-4
-NXDK_CXXFLAGS += -g -gdwarf-4
+NXDK_CFLAGS += -g -gdwarf-4 -DDGB=1
+NXDK_CXXFLAGS += -g -gdwarf-4 -DDBG=1
 NXDK_LDFLAGS += -debug
 endif
 
