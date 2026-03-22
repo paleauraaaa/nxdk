@@ -280,3 +280,68 @@ void debugPrintHex(const char *buffer, int length)
 		debugPrint("%s", tmp);
 	}
 }
+
+__asm__(
+	".globl _dbg_output_isr_stub\n"
+	"_dbg_output_isr_stub:\n\t"
+	    "pushl %ebp;"
+	    "pushl %edi;"
+	    "pushl %esi;"
+	    "pushl %edx;"
+	    "pushl %ecx;"
+	    "pushl %ebx;"
+	    "pushl %eax;"
+	    "call _dbg_output;"
+	    "popl %eax;"
+	    "popl %ebx;"
+	    "popl %ecx;"
+	    "popl %edx;"
+	    "popl %esi;"
+	    "popl %edi;"
+	    "popl %ebp;"
+	".extern dbg_output_original_isr_addr"
+	    "jmp *_dbg_output_original_isr_addr"
+);
+
+void __cdecl dbg_output(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx,
+	                    uint32_t esi, uint32_t edi, uint32_t ebp) 
+{
+	if (eax == 1) {
+        PANSI_STRING s = (PANSI_STRING)ecx;
+        debugPrint("%s\n", s->Buffer);
+    }
+}
+
+struct idtr_t {
+    uint16_t limit;
+    uint32_t base;
+} __attribute__((packed));
+
+struct idt_descriptor_t {
+	uint16_t offset_low;
+	uint16_t selector;
+    uint8_t zero;
+	uint8_t type_attr;
+	uint16_t offset_high;
+} __attribute__((packed));
+
+static void get_idtr(struct idtr_t *idtr) {
+    asm ("sidt %0" : "=m" (*idtr));
+}
+
+static uint32_t dbg_output_original_isr_addr;
+extern char     dbg_output_isr_stub;
+
+void debugEnableOutputDebugString(void) {
+	struct idtr_t idtr;
+    struct idt_descriptor_t *entries;
+    uint32_t new_isr = (uint32_t)&dbg_output_isr_stub;
+
+    get_idtr(&idtr);
+    entries = (struct idt_descriptor_t *)idtr.base;
+
+    uint32_t old_isr = (((uint32_t)entries[0x2d].offset_high) << 16) | entries[0x2d].offset_low;
+    dbg_output_original_isr_addr = old_isr;
+    entries[0x2d].offset_low = ((uint32_t)new_isr) & 0xffff;
+    entries[0x2d].offset_high = (((uint32_t)new_isr) >> 16) & 0xffff;
+}

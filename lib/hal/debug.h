@@ -44,7 +44,7 @@ void debugClearScreen( void );
 void debugAdvanceScreen( void );
 void debugMoveCursor(int x, int y);
 void debugResetCursor( void );
-
+void debugEnableOutputDebugString( void );
 #ifdef __cplusplus
 }
 #endif
