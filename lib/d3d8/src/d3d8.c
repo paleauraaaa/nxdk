@@ -669,14 +669,12 @@ HRESULT Direct3D_CreateDevice(
                     NV097_SET_CONTROL0_Z_FORMAT_FIXED : 
                     NV097_SET_CONTROL0_Z_FORMAT_FLOAT;
     D3D_DebugPrintf("Setting Control0.\n");
-    dump_push_buffer(g_pDevice);
     g_pDevice->Control0 = 
         NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE | ZFormat;
     hr = D3DDevice_PushCmd(NV097_SET_CONTROL0, g_pDevice->Control0);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
-    dump_push_buffer(g_pDevice);
 
     for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
         g_pDevice->pTexture[Stage] = NULL;
@@ -692,7 +690,6 @@ HRESULT Direct3D_CreateDevice(
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
-    dump_push_buffer(g_pDevice);
 
     D3DVIEWPORT8 Viewport;
     Viewport.X      = 0;
@@ -707,14 +704,14 @@ HRESULT Direct3D_CreateDevice(
         goto failed;
     }
 
-    // D3D_DebugPrintf("Initing device state.\n");
-    // hr = D3DDevice_InitDeviceState();
-    // D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
-    //     debugPrint("Device state init failed %d,\n", hr);
-    //     goto failed;
-    // }
+    D3D_DebugPrintf("Initing device state.\n");
+    hr = D3DDevice_InitDeviceState();
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        debugPrint("Device state init failed %d,\n", hr);
+        goto failed;
+    }
 
-    // D3D_DebugPrintf("Device state init successful.\n");
+    D3D_DebugPrintf("Device state init successful.\n");
     return D3D_OK;
 
 failed:
@@ -727,7 +724,7 @@ failed:
         free(g_pDevice->pSurfaces[i]);
 
     free(g_pDevice);
-    assert(false && "hr");
+    D3D_ASSERT_IF(hr, FAILED(hr) || false);
     return hr;
 }
 

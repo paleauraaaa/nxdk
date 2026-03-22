@@ -515,14 +515,15 @@ HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos) {
         DWORD method = *p;
         DWORD pos = (DWORD)((DWORD)p - (DWORD)pHead);
         if (D3D_VerifyMethod(method) == FALSE) {
-            D3D_DebugPrintf("method=0x%08X\n", method);
             if (pdwPos)
                 *pdwPos = pos;
             return D3DERR_DRIVERINTERNALERROR;
         }
         DWORD nparam = D3D_NV2A_PFIFO_METHOD_NPARAM(method);
-        if (nparam == 0 || nparam > 16) {
-            D3D_DebugPrintf("nparam=0x%08X\n", nparam);
+        if ((nparam == 0 && 
+             D3D_NV2A_PFIFO_METHOD_CMD(method) != NV097_NO_OPERATION) || 
+            nparam > 16) 
+        {
             if (pdwPos)
                 *pdwPos = pos;
             return D3DERR_DRIVERINTERNALERROR;

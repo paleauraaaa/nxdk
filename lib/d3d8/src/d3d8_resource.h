@@ -115,8 +115,8 @@ HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
 #define D3D_NV2A_PFIFO_METHOD_SUBCH_MASK    0x0000E000
 #define D3D_NV2A_PFIFO_METHOD_NPARAM_MASK   0x1FFC0000
 
-#define D3D_NV2A_PFIFO_METHOD_CMD   (method)  (method &        0x00001FFC)
-#define D3D_NV2A_PFIFO_METHOD_SUBCH (method) ((method >> 13) & 0x00000007)
+#define D3D_NV2A_PFIFO_METHOD_CMD(method)     (method &        0x00001FFC)
+#define D3D_NV2A_PFIFO_METHOD_SUBCH(method)  ((method >> 13) & 0x00000007)
 #define D3D_NV2A_PFIFO_METHOD_NPARAM(method) ((method >> 18) & 0x000007FF)
 
 #define D3D_NV2A_PFIFO_SUBCHANNEL_3D       0
