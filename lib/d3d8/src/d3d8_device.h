@@ -118,6 +118,9 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     virtual D3DAPI HRESULT SetPixelShaderConstant(
         DWORD Register, CONST VOID* pConstantData, 
         DWORD ConstantCount) override;
+    virtual D3DAPI HRESULT GetPushBuffer(
+        LPDIRECT3DPUSHBUFFER8* ppPushBuffer) override;
+    virtual D3DAPI VOID KickPushBuffer() override;
 #endif // __cplusplus
     D3DRefcount             refcount;
     DWORD                   KickOffSize;
@@ -233,20 +236,27 @@ D3DAPI HRESULT Direct3DDevice8_SetVertexShaderConstant(
 D3DAPI HRESULT Direct3DDevice8_SetPixelShaderConstant(
     LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
     DWORD ConstantCount); 
+D3DAPI HRESULT Direct3DDevice8_GetPushBuffer(
+    LPDIRECT3DDEVICE8 pThis, LPDIRECT3DPUSHBUFFER8* ppPushBuffer);
+D3DAPI VOID Direct3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis);
 
+HRESULT D3DDevice_BeginPushBuffer(D3DPushBuffer* pPushBuffer);
+VOID    D3DDevice_KickPushBuffer(void);
 HRESULT D3DDevice_Push1    (DWORD dwData);
 HRESULT D3DDevice_PushCmd  (DWORD cmd, DWORD dwData);
-HRESULT D3DDevice_PushCmd2 (DWORD cmd, DWORD dwData1, DWORD dwData2);
+HRESULT D3DDevice_PushCmd2 (DWORD cmd, DWORD dwData1, 
+                            DWORD dwData2, BOOL bIncrement);
 HRESULT D3DDevice_PushCmd3 (DWORD cmd, DWORD dwData1, 
-                            DWORD dwData2, DWORD dwData3);
+                            DWORD dwData2, DWORD dwData3, BOOL bIncrement);
 HRESULT D3DDevice_PushCmd4 (DWORD cmd, DWORD dwData1, DWORD dwData2, 
-                                       DWORD dwData3, DWORD dwData4);
+                            DWORD dwData3, DWORD dwData4, BOOL bIncrement);
 HRESULT D3DDevice_PushCmdf (DWORD cmd, float fData);
-HRESULT D3DDevice_PushCmd2f(DWORD cmd, float fData1, float fData2);
+HRESULT D3DDevice_PushCmd2f(DWORD cmd, float fData1, 
+                            float fData2, BOOL bIncrement);
 HRESULT D3DDevice_PushCmd3f(DWORD cmd, float fData1, 
-                            float fData2, float fData3);
+                            float fData2, float fData3, BOOL bIncrement);
 HRESULT D3DDevice_PushCmd4f(DWORD cmd, float fData1, float fData2, 
-                                       float fData3, float fData4);
+                            float fData3, float fData4, BOOL bIncrement);
 HRESULT D3DDevice_PushN    (DWORD dwData, SIZE_T n);
 HRESULT D3DDevice_PushA    (CONST DWORD* pdwData, SIZE_T n);
 HRESULT D3DDevice_InitDeviceState(void);
@@ -255,7 +265,9 @@ DWORD   D3DDevice_GetLastCompletedFence(void);
 VOID    D3DDevice_BlockOnFence(DWORD Fence);
 
 extern D3DDevice*            g_pDevice;
+#ifndef __cplusplus
 extern IDirect3DDeviceVtbl8* g_pDeviceVtbl;
+#endif
 
 #ifdef __cplusplus
 }

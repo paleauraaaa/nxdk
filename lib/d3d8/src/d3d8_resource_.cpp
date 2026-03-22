@@ -146,6 +146,16 @@ D3DEXTERN D3DAPI HRESULT IDirect3DPushBuffer8_GetSize(
 {
     return pThis->GetSize(pSize);
 }
+
+D3DAPI HRESULT D3DPushBuffer::GetData(CONST DWORD** ppData) {
+    return D3DPushBuffer_GetData(this, ppData);
+}
+
+D3DEXTERN D3DAPI HRESULT IDirect3DPushBuffer8_GetData(
+    LPDIRECT3DPUSHBUFFER8 pThis, CONST DWORD** ppData) 
+{
+    return pThis->GetData(ppData);
+}
 // ============================================================================
 
 // ============================================================================

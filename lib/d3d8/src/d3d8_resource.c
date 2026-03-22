@@ -129,9 +129,17 @@ BOOL D3DPushBuffer_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis) {
 }
 
 HRESULT D3DPushBuffer_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, 
-                                            UINT* pSize) 
+                              UINT* pSize) 
 {
+    D3DPushBuffer* pPB = (D3DPushBuffer*)pThis;
     *pSize = ((D3DPushBuffer*)pThis)->SizeNeeded;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_GetData(LPDIRECT3DPUSHBUFFER8 pThis, 
+                              CONST DWORD** ppData)
+{
+    *ppData = ((D3DPushBuffer*)pThis)->pLastPush;
     return D3D_OK;
 }
 
@@ -141,129 +149,41 @@ BOOL D3DPushBuffer_IsFull(LPDIRECT3DPUSHBUFFER8 pThis) {
 }
 
 HRESULT D3DPushBuffer_Push1(
-    D3DPushBuffer* pThis, DWORD dwData)
+    D3DPushBuffer* pThis, DWORD dwData, BOOL bLoop)
 {
     pThis->SizeNeeded++;
-    if (pThis->SizeNeeded > pThis->Size - 1)
-        return D3DERR_BUFFERTOOSMALL;
+    // Size - 1 so that we don't disturb the jump command at the end.
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 1 == pTail) {
+        if (bLoop == TRUE)
+            pThis->p = pThis->resource.pContiguousMemory;
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
 
     *(pThis->p++) = dwData;
     return D3D_OK;
 }
 
-HRESULT D3DPushBuffer_PushCmd(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData)
-{
-    pThis->SizeNeeded += 2;
-    if (pThis->SizeNeeded > pThis->Size - 2)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push1((uint32_t*)pThis->p, cmd, dwData);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmdA(
-    D3DPushBuffer* pThis, DWORD cmd, CONST DWORD* pdwData, SIZE_T n)
-{
-    pThis->SizeNeeded += 1 + n;
-    if (pThis->SizeNeeded > pThis->Size - (1 + n))
-        return D3DERR_BUFFERTOOSMALL;
-
-    pb_push((uint32_t*)pThis->p, cmd, n);
-    memcpy(pThis->p, pdwData, n * sizeof(DWORD));
-    pThis->p += n;
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd2(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, DWORD dwData2)
-{
-    pThis->SizeNeeded += 3;
-    if (pThis->SizeNeeded > pThis->Size - 3)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push2((uint32_t*)pThis->p, cmd, dwData1, dwData2);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd3(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
-    DWORD dwData2, DWORD dwData3)
-{
-    pThis->SizeNeeded += 4;
-    if (pThis->SizeNeeded > pThis->Size - 4)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push3((uint32_t*)pThis->p, cmd, dwData1, 
-                                 dwData2, dwData3);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd4(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
-    DWORD dwData2, DWORD dwData3, DWORD dwData4)
-{
-    pThis->SizeNeeded += 5;
-    if (pThis->SizeNeeded > pThis->Size - 5)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push4((uint32_t*)pThis->p, cmd, dwData1, 
-                                 dwData2, dwData3, dwData4);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd, float fData)
-{
-    pThis->SizeNeeded += 2;
-    if (pThis->SizeNeeded > pThis->Size - 2)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push1f((uint32_t*)pThis->p, cmd, fData);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2)
-{
-    pThis->SizeNeeded += 3;
-    if (pThis->SizeNeeded > pThis->Size - 3)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push2f((uint32_t*)pThis->p, cmd, fData1, fData2);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, float fData3)
-{
-    pThis->SizeNeeded += 4;
-    if (pThis->SizeNeeded > pThis->Size - 4)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push3f((uint32_t*)pThis->p, cmd, 
-                                 fData1, fData2, fData3);
-    return D3D_OK;
-}
-
-HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, 
-                                float fData3, float fData4)
-{
-    pThis->SizeNeeded += 5;
-    if (pThis->SizeNeeded > pThis->Size - 5)
-        return D3DERR_BUFFERTOOSMALL;
-
-    pThis->p = (PDWORD)pb_push4f((uint32_t*)pThis->p, cmd, 
-                                 fData1, fData2, fData3, fData4);
-    return D3D_OK;
-}
-
 HRESULT D3DPushBuffer_PushN(
-    D3DPushBuffer* pThis, DWORD dwData, SIZE_T n)
+    D3DPushBuffer* pThis, DWORD dwData, SIZE_T n, BOOL bLoop)
 {
     pThis->SizeNeeded += n;
-    if (pThis->SizeNeeded > pThis->Size - n)
+    if (pThis->SizeNeeded > pThis->Size)
         return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + n >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
 
     memset(pThis->p, dwData, n * sizeof(DWORD));
     pThis->p += n;
@@ -271,14 +191,344 @@ HRESULT D3DPushBuffer_PushN(
 }
 
 HRESULT D3DPushBuffer_PushA(
-    D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n)
+    D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n, BOOL bLoop)
 {
     pThis->SizeNeeded += n;
-    if (pThis->SizeNeeded > pThis->Size - n)
+    if (pThis->SizeNeeded > pThis->Size)
         return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + n >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
 
     memcpy(pThis->p, pdwData, n * sizeof(DWORD));
     pThis->p += n;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd(
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData, BOOL bLoop)
+{
+    pThis->SizeNeeded += 2;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 2 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 1);
+    *pThis->p++ = dwData;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd2(
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
+    DWORD dwData2, BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 3;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 3 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 2);
+    *pThis->p++ = dwData1;
+    *pThis->p++ = dwData2;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd3(
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
+    DWORD dwData2, DWORD dwData3, BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 4;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 4 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 3);
+    *pThis->p++ = dwData1;
+    *pThis->p++ = dwData2;
+    *pThis->p++ = dwData3;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd4(
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
+    DWORD dwData2, DWORD dwData3, DWORD dwData4, BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 5;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 5 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 4);
+    *pThis->p++ = dwData1;
+    *pThis->p++ = dwData2;
+    *pThis->p++ = dwData3;
+    *pThis->p++ = dwData4;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmdA(
+    D3DPushBuffer* pThis, DWORD cmd, CONST DWORD* pdwData, 
+    SIZE_T n, BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 1 + n;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 1 + n >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, n);
+    memcpy(pThis->p, pdwData, n * sizeof(DWORD));
+    pThis->p += n;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd, 
+                               float fData, BOOL bLoop)
+{
+    pThis->SizeNeeded += 2;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 2 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+ 
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 1);
+    *pThis->p++ = *(DWORD*)&fData;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd, 
+                                float fData1, float fData2, 
+                                BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 3;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 3 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 2);
+    *pThis->p++ = *(DWORD*)&fData1;
+    *pThis->p++ = *(DWORD*)&fData2;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
+                                float fData2, float fData3, BOOL bIncrement, 
+                                BOOL bLoop)
+{
+    pThis->SizeNeeded += 4;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 4 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 3);
+    *pThis->p++ = *(DWORD*)&fData1;
+    *pThis->p++ = *(DWORD*)&fData2;
+    *pThis->p++ = *(DWORD*)&fData3;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
+                                float fData2, float fData3, float fData4,
+                                BOOL bIncrement, BOOL bLoop)
+{
+    pThis->SizeNeeded += 5;
+    if (pThis->SizeNeeded > pThis->Size)
+        return D3DERR_BUFFERTOOSMALL;
+
+    PDWORD pTail = (PDWORD)pThis->resource.pContiguousMemory + pThis->Size - 1;
+    if (pThis->p + 5 >= pTail) {
+        if (bLoop == TRUE) {
+            while (pThis->p != pTail) {
+                *pThis->p++ = 
+                    D3D_NV2A_PFIFO_ENCODE_3D_METHOD(NV097_NO_OPERATION, 0);
+            }
+            pThis->p = pThis->resource.pContiguousMemory;
+        }
+        else
+            return D3DERR_BUFFERTOOSMALL;
+    }
+
+    if (bIncrement == FALSE)
+        cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
+
+    *pThis->p++ = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 4);
+    *pThis->p++ = *(DWORD*)&fData1;
+    *pThis->p++ = *(DWORD*)&fData2;
+    *pThis->p++ = *(DWORD*)&fData3;
+    *pThis->p++ = *(DWORD*)&fData4;
+    return D3D_OK;
+}
+
+HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop) {
+    return D3DPushBuffer_Push1(
+        pThis, D3D_NV2A_PFIFO_ENCODE_JUMP(vaddr), bLoop);
+}
+
+BOOL D3D_VerifyMethod(DWORD method) {
+    if (method == 0)
+        return FALSE;
+    
+    // Malformed command. Bit 0 indicates a jump, but for now those will fail
+    // verification.
+    if (method & 0x00000003)
+        return FALSE;
+
+    // Malformed subchannel.
+    if (method & 0x00030000)
+        return FALSE;
+
+    // Bit 31 is reserved for methods. 
+    // Bit 29 indicates an "old" jump, which D3D doesn't use.
+    if (method & 0xA0000000)
+        return FALSE;
+
+    return TRUE;
+}
+
+HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos) {
+    D3DPushBuffer* pPB = (D3DPushBuffer*)pThis;
+    if (pPB->SizeNeeded == 0)
+        return 0;
+
+    PDWORD pHead = pPB->resource.pContiguousMemory;
+    PDWORD pEnd  = pHead + pPB->SizeNeeded;
+    PDWORD p = pHead;
+    do {
+        DWORD method = *p;
+        DWORD pos = (DWORD)((DWORD)p - (DWORD)pHead);
+        if (D3D_VerifyMethod(method) == FALSE) {
+            D3D_DebugPrintf("method=0x%08X\n", method);
+            if (pdwPos)
+                *pdwPos = pos;
+            return D3DERR_DRIVERINTERNALERROR;
+        }
+        DWORD nparam = D3D_NV2A_PFIFO_METHOD_NPARAM(method);
+        if (nparam == 0 || nparam > 16) {
+            D3D_DebugPrintf("nparam=0x%08X\n", nparam);
+            if (pdwPos)
+                *pdwPos = pos;
+            return D3DERR_DRIVERINTERNALERROR;
+        }
+        p += nparam + 1;
+    } while (p < pEnd);
     return D3D_OK;
 }
 // ============================================================================
@@ -738,7 +988,6 @@ HRESULT D3D_CreatePushBuffer(
     if (bCpu == TRUE && pContiguousMemory != NULL)
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
-    
     pPB->iface.lpVtbl = g_pPushBufferVtbl;
     D3D_CreateResource(D3DRTYPE_PUSHBUFFER, 0, 
                        pContiguousMemory, &pPB->resource);
@@ -748,9 +997,8 @@ HRESULT D3D_CreatePushBuffer(
     if (bCpu == TRUE) {
         pPB->p = (PDWORD)malloc(Size);
         D3D_ASSERT_IF(E_OUTOFMEMORY, pPB->p == NULL);
-        pPB->resource.pContiguousMemory = NULL;
-    }
-    else {
+        pPB->resource.pContiguousMemory = pPB->p;
+    } else {
         if (pContiguousMemory != NULL) {
             pPB->resource.pContiguousMemory = (PDWORD)pContiguousMemory;
         } else {

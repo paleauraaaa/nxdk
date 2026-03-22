@@ -41,7 +41,9 @@ D3DAPI VOID D3DDevice::BlockUntilVerticalBlank() {
     Direct3DDevice8_BlockUntilVerticalBlank(this);
 }
 
-D3DAPI D3DEXTERN VOID IDirect3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis) {
+D3DAPI D3DEXTERN VOID IDirect3DDevice8_BlockUntilVerticalBlank(
+    LPDIRECT3DDEVICE8 pThis) 
+{
     pThis->BlockUntilVerticalBlank();
 }
 
@@ -50,7 +52,7 @@ D3DAPI HRESULT D3DDevice::CreateImageSurface(
     LPDIRECT3DSURFACE8* ppSurface) 
 {
     return Direct3DDevice8_CreateImageSurface(this, Width, Height, 
-                                               Format, ppSurface);
+                                              Format, ppSurface);
 }
 
 D3DAPI D3DEXTERN HRESULT IDirect3DDevice8_CreateImageSurface(
@@ -83,7 +85,7 @@ D3DAPI HRESULT D3DDevice::CreateVertexBuffer(
     DWORD Pool, LPDIRECT3DVERTEXBUFFER8* ppVertexBuffer) 
 {
     return Direct3DDevice8_CreateVertexBuffer(this, Length, Usage, FVF, 
-                                               Pool, ppVertexBuffer);
+                                              Pool, ppVertexBuffer);
 }
 
 D3DAPI D3DEXTERN HRESULT IDirect3DDevice8_CreateVertexBuffer(
@@ -142,7 +144,7 @@ D3DAPI D3DEXTERN HRESULT IDirect3DDevice8_CreateCubeTexture(
     D3DFORMAT Format, D3DPOOL Pool, LPDIRECT3DCUBETEXTURE8* ppCubeTexture) 
 {
     return pThis->CreateCubeTexture(EdgeLength, Levels, Usage, Format, Pool, 
-                                   ppCubeTexture);
+                                    ppCubeTexture);
 }
 
 D3DAPI HRESULT D3DDevice::BeginScene() {
@@ -218,8 +220,9 @@ D3DAPI HRESULT D3DDevice::SetVertexShaderInputDirect(
     UINT StreamCount, 
     D3DSTREAM_INPUT *pStreamInputs) 
 {
-    return Direct3DDevice8_SetVertexShaderInputDirect(this, pVAF, StreamCount, 
-                                                pStreamInputs);
+    return Direct3DDevice8_SetVertexShaderInputDirect(this, pVAF, 
+                                                      StreamCount, 
+                                                      pStreamInputs);
 }
 
 D3DAPI D3DEXTERN HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
@@ -296,7 +299,7 @@ D3DAPI HRESULT IDirect3DDevice8_Clear(
 }
 
 D3DAPI HRESULT D3DDevice::SetScissors(DWORD Count, BOOL Exclusive, 
-                                                 CONST D3DRECT *pRects) 
+                                      CONST D3DRECT *pRects) 
 {
     return Direct3DDevice8_SetScissors(this, Count, Exclusive, pRects);
 }
@@ -307,8 +310,7 @@ D3DAPI HRESULT IDirect3DDevice8_SetScissors(
     return pThis->SetScissors(Count, Exclusive, pRects);
 }
 
-D3DAPI HRESULT D3DDevice::SetTile(DWORD Index, 
-                                             CONST D3DTILE* pTile) 
+D3DAPI HRESULT D3DDevice::SetTile(DWORD Index, CONST D3DTILE* pTile) 
 {
     return Direct3DDevice8_SetTile(this, Index, pTile);
 }
@@ -332,8 +334,8 @@ D3DAPI HRESULT IDirect3DDevice8_SetTexture(
 }
 
 D3DAPI HRESULT D3DDevice::InsertCallback(D3DCALLBACKTYPE Type, 
-                                                    D3DCALLBACK pCallback, 
-                                                    DWORD Context) 
+                                         D3DCALLBACK pCallback, 
+                                         DWORD Context) 
 {
     return Direct3DDevice8_InsertCallback(this, Type, pCallback, Context);
 }
@@ -398,7 +400,7 @@ D3DAPI HRESULT IDirect3DDevice8_SetVertexShaderConstant(
     DWORD ConstantCount) 
 {
     return pThis->SetVertexShaderConstant(Register, pConstantData, 
-                                         ConstantCount);
+                                          ConstantCount);
 }
 
 D3DAPI HRESULT D3DDevice::SetPixelShaderConstant(
@@ -416,3 +418,22 @@ D3DAPI HRESULT IDirect3DDevice8_SetPixelShaderConstant(
     return pThis->SetPixelShaderConstant(Register, pConstantData, 
                                          ConstantCount);
 }
+
+D3DAPI HRESULT D3DDevice::GetPushBuffer(LPDIRECT3DPUSHBUFFER8* ppPushBuffer) {
+    return Direct3DDevice8_GetPushBuffer(this, ppPushBuffer);
+}
+
+D3DAPI HRESULT IDirect3DDevice8_GetPushBuffer(
+    LPDIRECT3DDEVICE8 pThis, LPDIRECT3DPUSHBUFFER8* ppPushBuffer)
+{
+    return pThis->GetPushBuffer(ppPushBuffer);
+}
+
+D3DAPI VOID D3DDevice::KickPushBuffer() {
+    return Direct3DDevice8_KickPushBuffer(this);
+}
+
+D3DAPI VOID IDirect3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis) {
+    pThis->KickPushBuffer();
+}
+

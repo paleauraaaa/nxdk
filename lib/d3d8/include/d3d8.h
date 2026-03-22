@@ -1,13 +1,6 @@
 // This file contains the public interfaces to the D3D8 implementation, and is
 // the only file that need be included by external code. The headers in src/ 
 // explicitly should not be included.
-//
-// In general, the aim of this implementation is source- but NOT 
-// binary-compatibility with existing D3D8 code. Unless stated otherwise 
-// (e.g. IDirect3DDevice8 explicitly does not implement fixed-function pipeline
-// methods or most getters for the moment, IUnknown::QueryInterface will not be
-// implemented, etc.), errors in compiling existing D3D8 code are to be treated
-// as errors in this implementation and should be fixed accordingly.
 
 #pragma once
 
@@ -20,8 +13,13 @@
 #define DIRECT3D_VERSION 0x0800
 #endif // DIRECT3D_VERSION
 
+// TODO: set this in build process
+#ifndef NXDK_DEBUG
+#define NXDK_DEBUG 1
+#endif // NXDK_DEBUG
+
 #ifdef __cplusplus 
-#define INHERITS(base) : public base
+#define INHERITS(base)   : public base
 #define IMPLEMENTS(base) : public base
 #else 
 #define INHERITS(base)
@@ -29,6 +27,7 @@
 #endif // __cplusplus
 
 #define STDMETHODCALLTYPE __stdcall
+#define D3DAPI STDMETHODCALLTYPE
 
 #ifdef __cplusplus 
 #   define D3DEXTERN extern "C"
@@ -36,7 +35,11 @@
 #   define D3DEXTERN extern
 #endif // __cplusplus
 
-#define D3DAPI STDMETHODCALLTYPE
+#ifdef __cplusplus 
+#define D3DINTERFACE class __declspec(novtable)
+#else
+#define D3DINTERFACE struct
+#endif // __cplusplus
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,10 +53,11 @@ typedef struct UnknownVtbl {
     ULONG (D3DAPI *Release)(LPUNKNOWN pThis);
 } UnknownVtbl, *LPUNKNOWNVTBL;
 
-struct IUnknown {
+D3DINTERFACE IUnknown {
 #ifndef __cplusplus
     LPUNKNOWNVTBL lpVtbl;
 #else
+public:
     virtual D3DAPI ULONG AddRef()  = 0;
     virtual D3DAPI ULONG Release() = 0;
 #endif // __cplusplus
@@ -63,9 +67,10 @@ struct IUnknown {
 struct IDirect3DResource8;
 typedef struct IDirect3DResource8 IDirect3DResource8, *LPDIRECT3DRESOURCE8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DResourceVtbl8 {
     /*** IUnknown methods ***/
-    ULONG (D3DAPI *AddRef)(LPDIRECT3DRESOURCE8 pThis);
+    ULONG (D3DAPI *AddRef) (LPDIRECT3DRESOURCE8 pThis);
     ULONG (D3DAPI *Release)(LPDIRECT3DRESOURCE8 pThis);
 
     /*** IDirect3DResource8 methods ***/
@@ -74,15 +79,21 @@ typedef struct IDirect3DResourceVtbl8 {
     VOID (D3DAPI *BlockUntilNotBusy)(LPDIRECT3DRESOURCE8 pThis);
     BOOL (D3DAPI *IsBusy)(LPDIRECT3DRESOURCE8 pThis);
 } IDirect3DResourceVtbl8, *LPDIRECT3DRESOURCEVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DResource8 INHERITS(IUnknown) {
+D3DINTERFACE IDirect3DResource8 INHERITS(IUnknown) {
+#ifndef __cplusplus
     LPDIRECT3DRESOURCEVTBL8 lpVtbl;
-#ifdef __cplusplus
+#else
+public:
     virtual D3DAPI D3DRESOURCETYPE GetType() = 0;
     virtual D3DAPI VOID            Register(PVOID pBase) = 0;
     virtual D3DAPI VOID            BlockUntilNotBusy() = 0;
     virtual D3DAPI BOOL            IsBusy() = 0;
 #endif // __cplusplus
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
 };
 
 D3DAPI ULONG IDirect3DResource8_AddRef(LPDIRECT3DRESOURCE8 pThis);
@@ -99,6 +110,7 @@ struct IDirect3DBaseTexture8;
 typedef struct IDirect3DBaseTexture8 IDirect3DBaseTexture8, 
                                      *LPDIRECT3DBASETEXTURE8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DBaseTextureVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DBASETEXTURE8 pThis);
@@ -113,11 +125,17 @@ typedef struct IDirect3DBaseTextureVtbl8 {
     /*** IDirect3DBaseTexture8 methods ***/
     DWORD (D3DAPI *GetLevelCount)(LPDIRECT3DBASETEXTURE8 pThis);
 } IDirect3DBaseTextureVtbl8, *LPDIRECT3DBASETEXTUREVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DBaseTexture8 INHERITS(IDirect3DResource8) {
+D3DINTERFACE IDirect3DBaseTexture8 INHERITS(IDirect3DResource8) {
+#ifndef __cplusplus
     LPDIRECT3DBASETEXTUREVTBL8 lpVtbl;
-#ifdef __cplusplus
-    virtual STDMETHODCALLTYPE DWORD GetLevelCount() = 0;
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
+#else
+public:
+    virtual D3DAPI DWORD GetLevelCount() = 0;
 #endif // __cplusplus
 };
 
@@ -138,6 +156,7 @@ struct IDirect3DTexture8;
 typedef struct IDirect3DTexture8 IDirect3DTexture8, 
                                  *LPDIRECT3DTEXTURE8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DTextureVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DTEXTURE8 pThis);
@@ -167,10 +186,16 @@ typedef struct IDirect3DTextureVtbl8 {
     HRESULT (D3DAPI *UnlockRect)(LPDIRECT3DTEXTURE8 pThis, 
                                  UINT Level);
 } IDirect3DTextureVtbl8, *LPDIRECT3DTEXTUREVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DTexture8 INHERITS(IDirect3DBaseTexture8) {
+D3DINTERFACE IDirect3DTexture8 INHERITS(IDirect3DBaseTexture8) {
+#ifndef __cplusplus
     LPDIRECT3DTEXTUREVTBL8 lpVtbl;
-#ifdef __cplusplus
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
+#else
+public:
     virtual D3DAPI HRESULT GetLevelDesc(UINT Level, 
                                                    D3DSURFACE_DESC* pDesc) = 0;
     virtual D3DAPI HRESULT GetSurfaceLevel(UINT Level, 
@@ -206,10 +231,11 @@ D3DAPI HRESULT IDirect3DTexture8_UnlockRect(LPDIRECT3DTEXTURE8 pThis,
 // ============================================================================
 
 // ============================================================================
-struct IDirect3DCubeTexture8;
-typedef struct IDirect3DCubeTexture8 IDirect3DCubeTexture8, 
-                                     *LPDIRECT3DCUBETEXTURE8;
+D3DINTERFACE IDirect3DCubeTexture8;
+typedef D3DINTERFACE IDirect3DCubeTexture8 IDirect3DCubeTexture8, 
+                                           *LPDIRECT3DCUBETEXTURE8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DCubeTextureVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DCUBETEXTURE8 pThis);
@@ -242,10 +268,16 @@ typedef struct IDirect3DCubeTextureVtbl8 {
                                         UINT Level, 
                                         LPDIRECT3DSURFACE8* ppCubeMapSurface);
 } IDirect3DCubeTextureVtbl8, *LPDIRECT3DCUBETEXTUREVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DCubeTexture8 INHERITS(IDirect3DBaseTexture8) {
+D3DINTERFACE IDirect3DCubeTexture8 INHERITS(IDirect3DBaseTexture8) {
+#ifndef __cplusplus
     LPDIRECT3DCUBETEXTUREVTBL8 lpVtbl;
-#ifdef __cplusplus
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
+#else
+public:
     virtual D3DAPI HRESULT GetLevelDesc(
         UINT Level, D3DSURFACE_DESC* pDesc) = 0;
     virtual D3DAPI HRESULT LockRect(
@@ -287,6 +319,7 @@ D3DAPI HRESULT IDirect3DCubeTexture8_GetCubeMapSurface(
 // ============================================================================
 
 // ============================================================================
+#ifndef __cplusplus
 typedef struct IDirect3DSurfaceVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DSURFACE8 pThis);
@@ -309,11 +342,16 @@ typedef struct IDirect3DSurfaceVtbl8 {
                                const RECT* pRect, DWORD Flags);
     HRESULT (D3DAPI *UnlockRect)(LPDIRECT3DSURFACE8 pThis);
 } IDirect3DSurfaceVtbl8, *LPDIRECT3DSURFACEVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DSurface8 INHERITS(IDirect3DResource8) {
+D3DINTERFACE IDirect3DSurface8 INHERITS(IDirect3DResource8) {
 #ifndef __cplusplus
     LPDIRECT3DSURFACEVTBL8 lpVtbl;
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
 #else
+public:
     virtual D3DAPI HRESULT GetContainer(
         LPDIRECT3DBASETEXTURE8* ppContainer, REFIID riid) = 0;
     virtual D3DAPI HRESULT GetDesc(D3DSURFACE_DESC* pDesc) = 0;
@@ -342,15 +380,16 @@ D3DAPI HRESULT IDirect3DSurface8_UnlockRect(LPDIRECT3DSURFACE8 pThis);
 // ============================================================================
 
 // ============================================================================
-struct IDirect3DVertexBuffer8;
-typedef struct IDirect3DVertexBuffer8 IDirect3DVertexBuffer8, 
-                                      *LPDIRECT3DVERTEXBUFFER8;
+D3DINTERFACE IDirect3DVertexBuffer8;
+typedef D3DINTERFACE IDirect3DVertexBuffer8 IDirect3DVertexBuffer8, 
+                                            *LPDIRECT3DVERTEXBUFFER8;
 
 typedef struct _D3DVERTEXBUFFER_DESC {
     D3DFORMAT           Format;
     D3DRESOURCETYPE     Type;
 } D3DVERTEXBUFFER_DESC;
 
+#ifndef __cplusplus
 typedef struct IDirect3DVertexBufferVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DVERTEXBUFFER8 pThis);
@@ -369,10 +408,16 @@ typedef struct IDirect3DVertexBufferVtbl8 {
                            UINT SizeToLock, BYTE** ppbData, DWORD Flags);
     HRESULT (D3DAPI *Unlock)(LPDIRECT3DVERTEXBUFFER8 pThis);
 } IDirect3DVertexBufferVtbl8, *LPDIRECT3DVERTEXBUFFERVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DVertexBuffer8 INHERITS(IDirect3DResource8) {
+D3DINTERFACE IDirect3DVertexBuffer8 INHERITS(IDirect3DResource8) {
+#ifndef __cplusplus
     LPDIRECT3DVERTEXBUFFERVTBL8 lpVtbl;
-#ifdef __cplusplus
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
+#else
+public:
     virtual D3DAPI HRESULT GetDesc(D3DVERTEXBUFFER_DESC* pDesc) = 0;
     virtual D3DAPI HRESULT Lock(UINT OffsetToLock, UINT SizeToLock, 
                          BYTE** ppbData, DWORD Flags) = 0;
@@ -402,10 +447,11 @@ D3DAPI HRESULT IDirect3DVertexBuffer8_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis);
 // ============================================================================
 
 // ============================================================================
-struct IDirect3DPushBuffer8;
-typedef struct IDirect3DPushBuffer8 IDirect3DPushBuffer8, 
+D3DINTERFACE IDirect3DPushBuffer8;
+typedef D3DINTERFACE IDirect3DPushBuffer8 IDirect3DPushBuffer8, 
                                     *LPDIRECT3DPUSHBUFFER8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DPushBufferVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DPUSHBUFFER8 pThis);
@@ -418,13 +464,22 @@ typedef struct IDirect3DPushBufferVtbl8 {
     BOOL    (D3DAPI *IsBusy)(LPDIRECT3DPUSHBUFFER8 pThis);
 
     /*** IDirect3DPushBuffer8 methods ***/
-    HRESULT (D3DAPI *GetSize)(LPDIRECT3DPUSHBUFFER8 pThis, UINT* pSize);
+    HRESULT (D3DAPI *GetSize)(LPDIRECT3DPUSHBUFFER8 pThis, UINT*  pSize);
+    HRESULT (D3DAPI *GetData)(LPDIRECT3DPUSHBUFFER8 pThis, 
+                              CONST DWORD** ppData);
 } IDirect3DPushBufferVtbl8, *LPDIRECT3DPUSHBUFFERVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DPushBuffer8 INHERITS(IDirect3DResource8) {
+D3DINTERFACE IDirect3DPushBuffer8 INHERITS(IDirect3DResource8) {
+#ifndef __cplusplus
     LPDIRECT3DPUSHBUFFERVTBL8 lpVtbl;
-#ifdef __cplusplus
-    virtual STDMETHODCALLTYPE HRESULT GetSize(UINT *pSize) = 0;
+    DWORD Common;
+    DWORD Data;
+    DWORD Lock;
+#else
+public:
+    virtual D3DAPI HRESULT GetSize(UINT *pSize)  = 0;
+    virtual D3DAPI HRESULT GetData(CONST DWORD** ppData) = 0;
 #endif // __cplusplus
 };
 
@@ -439,12 +494,20 @@ D3DAPI VOID IDirect3DPushBuffer8_BlockUntilNotBusy(
 D3DAPI BOOL IDirect3DPushBuffer8_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis);
 D3DAPI HRESULT IDirect3DPushBuffer8_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, 
                                             UINT* pSize);
+D3DAPI HRESULT IDirect3DPushBuffer8_GetData(LPDIRECT3DPUSHBUFFER8 pThis, 
+                                            CONST DWORD** ppData);
+#ifdef NXDK_DEBUG
+HRESULT D3DPushBuffer_DebugDump(
+    LPDIRECT3DPUSHBUFFER8 pThis, DWORD* pdwData, SIZE_T n);
+#endif // NXDK_DEBUG
+HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
 // ============================================================================
 
 // ============================================================================
-struct IDirect3DDevice8;
-typedef struct IDirect3DDevice8 IDirect3DDevice8, *LPDIRECT3DDEVICE8;
+D3DINTERFACE IDirect3DDevice8;
+typedef D3DINTERFACE IDirect3DDevice8 IDirect3DDevice8, *LPDIRECT3DDEVICE8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DDeviceVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3DDEVICE8 pThis);
@@ -529,12 +592,17 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (D3DAPI *SetPixelShaderConstant)(
         LPDIRECT3DDEVICE8 pThis, DWORD Register, CONST VOID* pConstantData, 
         DWORD ConstantCount);
+    HRESULT (D3DAPI *GetPushBuffer)(
+        LPDIRECT3DDEVICE8 pThis, LPDIRECT3DPUSHBUFFER8* ppPushBuffer);
+    VOID (D3DAPI *KickPushBuffer)(LPDIRECT3DDEVICE8 pThis);
 } IDirect3DDeviceVtbl8, *LPDIRECT3DDEVICEVTBL8;
+#endif // __cplusplus
 
-struct IDirect3DDevice8 INHERITS(IUnknown) {
+D3DINTERFACE IDirect3DDevice8 INHERITS(IUnknown) {
 #ifndef __cplusplus
     LPDIRECT3DDEVICEVTBL8 lpVtbl;
 #else
+public:
     virtual D3DAPI VOID BlockUntilVerticalBlank() = 0;
     virtual D3DAPI HRESULT CreateImageSurface(
         UINT Width, UINT Height, D3DFORMAT Format, 
@@ -613,7 +681,9 @@ struct IDirect3DDevice8 INHERITS(IUnknown) {
         INT Register, CONST VOID* pConstantData, DWORD ConstantCount) = 0;
     virtual D3DAPI HRESULT SetPixelShaderConstant(
         DWORD Register, CONST VOID* pConstantData, DWORD ConstantCount) = 0;
-    
+    virtual D3DAPI HRESULT GetPushBuffer(
+        LPDIRECT3DPUSHBUFFER8* ppPushBuffer) = 0;
+    virtual D3DAPI VOID KickPushBuffer() = 0;
 #endif // __cplusplus
 };
 
@@ -707,9 +777,14 @@ D3DAPI HRESULT IDirect3DDevice8_SetPixelShaderConstant(
     DWORD Register, 
     CONST void* pConstantData, DWORD ConstantCount);
 
+D3DAPI HRESULT IDirect3DDevice8_GetPushBuffer(
+    LPDIRECT3DDEVICE8 pThis, LPDIRECT3DPUSHBUFFER8* ppPushBuffer);
+D3DAPI VOID IDirect3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis);
+
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;
 
+#ifndef __cplusplus
 typedef struct IDirect3DVtbl8 {
     /*** IUnknown methods ***/
     ULONG   (D3DAPI *AddRef)(LPDIRECT3D8 pThis);
@@ -757,11 +832,13 @@ typedef struct IDirect3DVtbl8 {
         D3DPRESENT_PARAMETERS* pPresentationParameters, 
         LPDIRECT3DDEVICE8* ppReturnedDeviceInterface);
 } IDirect3DVtbl8, *LPDIRECT3DVTBL8;
+#endif // __cplusplus
 
-struct IDirect3D8 INHERITS(IUnknown) {
+D3DINTERFACE IDirect3D8 INHERITS(IUnknown) {
 #ifndef __cplusplus
     LPDIRECT3DVTBL8 lpVtbl;
 #else
+public:
     virtual D3DAPI UINT    GetAdapterCount() = 0;
     virtual D3DAPI HRESULT GetAdapterIdentifier(
         UINT Adapter, DWORD Flags, D3DADAPTER_IDENTIFIER8* pIdentifier) = 0;

@@ -13,11 +13,6 @@
 #include "d3d8_resource.h"
 #include "d3d8_device.h"
 
-// TODO: set this in build process
-#ifndef NXDK_DEBUG
-#define NXDK_DEBUG 1
-#endif // NXDK_DEBUG
-
 PVOID D3D_AllocContiguousMemory(DWORD Size, DWORD Alignment) {
     return MmAllocateContiguousMemoryEx(Size, 0, 0x03FFB000, Alignment,
                                         PAGE_READWRITE | PAGE_WRITECOMBINE);
@@ -261,8 +256,6 @@ HRESULT Direct3D_SetPushBufferSize(DWORD PushBufferSize, DWORD KickOffSize) {
         return D3DERR_INVALIDCALL;
     }
 #endif // NXDK_DEBUG
-    
-    pb_size(PushBufferSize);
     g_pD3D->KickOffSize       = KickOffSize;
     g_pD3D->PushBufferSize    = PushBufferSize;
     return D3D_OK;
@@ -574,6 +567,7 @@ HRESULT Direct3D_CreateDevice(
     if (FAILED(hr))
         goto failed;
 
+    pb_size(g_pD3D->PushBufferSize);
     D3D_DebugPrintf("pb_init()\n");
     int ret = pb_init();
     D3D_ASSERT_IF_NO_RETURN(ret != 0) {
@@ -590,7 +584,6 @@ HRESULT Direct3D_CreateDevice(
         }
         goto failed;
     }
-    pb_show_debug_screen();
     D3D_DebugPrintf("pb_init successful.\n");
 
     UINT BackBufferCount = pPresentationParameters->BackBufferCount;
@@ -640,9 +633,7 @@ HRESULT Direct3D_CreateDevice(
             g_pDevice->pDepthStencilSurface);
     }
 
-#if !NXDK_DEBUG
     pb_show_front_screen();
-#endif // !NXDK_DEBUG
 
     g_pDevice->refcount.c              = 1;
     g_pDevice->KickOffSize             = g_pD3D->KickOffSize / sizeof(DWORD);
@@ -650,28 +641,42 @@ HRESULT Direct3D_CreateDevice(
     g_pDevice->MaxSurfaces             = BackBufferCount + 1;
     g_pDevice->CurrentSurface          = 0;
 
+    pb_reset();
     D3D_DebugPrintf("Creating default push buffer.\n");
-    hr = D3D_CreatePushBuffer(g_pD3D->PushBufferSize, FALSE, 
-                              NULL, &g_pDevice->DefaultPB);
-    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
-        goto failed;
-    }
+    g_pDevice->DefaultPB.iface.lpVtbl = g_pPushBufferVtbl;
+    D3D_CreateResource(D3DRTYPE_PUSHBUFFER, 0, 
+                       NULL, &g_pDevice->DefaultPB.resource);
+    g_pDevice->DefaultPB.Size = pb_get_size() / sizeof(DWORD);
+    g_pDevice->DefaultPB.SizeNeeded = 0;
+    g_pDevice->DefaultPB.bCpu = FALSE;
+    g_pDevice->DefaultPB.resource.pContiguousMemory = (PDWORD)pb_begin();
+    D3D_ASSERT_IF(D3DERR_DRIVERINTERNALERROR, 
+                  g_pDevice->DefaultPB.resource.pContiguousMemory == NULL);
+    g_pDevice->DefaultPB.p = g_pDevice->DefaultPB.resource.pContiguousMemory;
+    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
+    g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
+
+    // Insert a jump back to the beginning of the push buffer at the end.
+    *(g_pDevice->DefaultPB.p + g_pDevice->DefaultPB.Size - 1) = 
+        D3D_NV2A_PFIFO_ENCODE_JUMP(g_pDevice->DefaultPB.p);
+
     g_pDevice->LastPresentVBlankCount  = 0;
     g_pDevice->PresentInterval = 
         pPresentationParameters->FullScreen_PresentationInterval;
 
-    g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
     DWORD ZFormat = D3D_IsDepthStencilFormatFixed(
         g_pDevice->pDepthStencilSurface->desc.Format) ? 
                     NV097_SET_CONTROL0_Z_FORMAT_FIXED : 
                     NV097_SET_CONTROL0_Z_FORMAT_FLOAT;
     D3D_DebugPrintf("Setting Control0.\n");
+    dump_push_buffer(g_pDevice);
     g_pDevice->Control0 = 
         NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE | ZFormat;
     hr = D3DDevice_PushCmd(NV097_SET_CONTROL0, g_pDevice->Control0);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
+    dump_push_buffer(g_pDevice);
 
     for (UINT Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
         g_pDevice->pTexture[Stage] = NULL;
@@ -687,13 +692,29 @@ HRESULT Direct3D_CreateDevice(
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
+    dump_push_buffer(g_pDevice);
 
-    D3D_DebugPrintf("Initing device state.\n");
-    hr = D3DDevice_InitDeviceState();
+    D3DVIEWPORT8 Viewport;
+    Viewport.X      = 0;
+    Viewport.Y      = 0;
+    Viewport.Width  = pPresentationParameters->BackBufferWidth;
+    Viewport.Height = pPresentationParameters->BackBufferHeight;
+    Viewport.MinZ   = 0.2f;
+    Viewport.MaxZ   = 1000.0f;
+    
+    hr = IDirect3DDevice8_SetViewport(&g_pDevice->iface, &Viewport);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
 
+    // D3D_DebugPrintf("Initing device state.\n");
+    // hr = D3DDevice_InitDeviceState();
+    // D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+    //     debugPrint("Device state init failed %d,\n", hr);
+    //     goto failed;
+    // }
+
+    // D3D_DebugPrintf("Device state init successful.\n");
     return D3D_OK;
 
 failed:
@@ -830,7 +851,8 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
         Direct3DDevice8_SetVertexShaderConstant;
     g_pDeviceVtbl->SetPixelShaderConstant = 
         Direct3DDevice8_SetPixelShaderConstant;
-
+    g_pDeviceVtbl->GetPushBuffer = Direct3DDevice8_GetPushBuffer;
+    g_pDeviceVtbl->KickPushBuffer = Direct3DDevice8_KickPushBuffer;
 
     g_pResourceVtbl = malloc(sizeof(*g_pResourceVtbl));
     if (g_pResourceVtbl == NULL) goto failed;
@@ -915,6 +937,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pPushBufferVtbl->IsBusy             = D3DPushBuffer_IsBusy;
     g_pPushBufferVtbl->BlockUntilNotBusy  = D3DPushBuffer_BlockUntilNotBusy;
     g_pPushBufferVtbl->GetSize            = D3DPushBuffer_GetSize;
+    g_pPushBufferVtbl->GetData            = D3DPushBuffer_GetData;
 
     g_pD3D->DisplayModeCount = 0;
     

@@ -27,6 +27,7 @@
 #include <pbkit/pbkit.h>
 
 #define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))
+#define MASK_INV(mask, val) (((val) >> (__builtin_ffs(mask)-1)) & (mask))
 
 #define D3D_FALLTHROUGH() [[fallthrough]]
 #define D3D_CALL(...) ({      \
@@ -40,16 +41,16 @@
 #define D3D__CAT(a, b) a##b
 #define D3D_CAT(a, b) D3D__CAT(a, b)
 #define D3D_ASSERT_IF_NO_RETURN(...)                        \
-    BOOL D3D_CAT(D3D__temp_, __LINE__) = (__VA_ARGS__);      \
+    BOOL D3D_CAT(D3D__temp_, __LINE__) = (__VA_ARGS__);     \
     if (D3D_CAT(D3D__temp_, __LINE__)) {                    \
-        OutputDebugStringA(D3D_STRINGIFY(__VA_ARGS__));     \
+        D3D_DebugPrintf(D3D_STRINGIFY(__VA_ARGS__) "\n");   \
         pb_show_debug_screen();                             \
         assert(false && D3D_STRINGIFY(__VA_ARGS__));        \
     } if (D3D_CAT(D3D__temp_, __LINE__))
 
 #define D3D_ASSERT_IF(ret, ...)                             \
     if (__VA_ARGS__) {                                      \
-        OutputDebugStringA(D3D_STRINGIFY(__VA_ARGS__));     \
+        D3D_DebugPrintf(D3D_STRINGIFY(__VA_ARGS__) "\n");   \
         pb_show_debug_screen();                             \
         assert(false && D3D_STRINGIFY(__VA_ARGS__));        \
         return ret;                                         \
@@ -71,6 +72,8 @@ extern "C" {
 int D3D_FormatBPP(D3DFORMAT fmt);
 int D3D_FormatBytesPerPixel(D3DFORMAT fmt);
 void D3D_DebugPrintf(const char* fmt, ...);
+HRESULT D3D_PresentParameters_Validate(
+    D3DPRESENT_PARAMETERS* pPresentationParameters);
 
 HRESULT Direct3D_ResetDevice(D3DPRESENT_PARAMETERS* pPresentationParameters);
 

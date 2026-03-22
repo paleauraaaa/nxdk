@@ -15,6 +15,7 @@
 extern "C" {
 #endif // __cplusplus   
 
+#ifndef __cplusplus
 extern IDirect3DResourceVtbl8*      g_pResourceVtbl;
 extern IDirect3DBaseTextureVtbl8*   g_pBaseTextureVtbl;
 extern IDirect3DTextureVtbl8*       g_pTextureVtbl;
@@ -22,6 +23,7 @@ extern IDirect3DCubeTextureVtbl8*   g_pCubeTextureVtbl;
 extern IDirect3DSurfaceVtbl8*       g_pSurfaceVtbl;
 extern IDirect3DVertexBufferVtbl8*  g_pVertexBufferVtbl;
 extern IDirect3DPushBufferVtbl8*    g_pPushBufferVtbl;
+#endif // __cplusplus
 
 typedef struct D3DRectLock {
     RECT  Rect;
@@ -84,12 +86,14 @@ typedef struct D3DPushBuffer IMPLEMENTS(IDirect3DPushBuffer8) {
     virtual D3DAPI VOID    BlockUntilNotBusy() override;
     virtual D3DAPI BOOL    IsBusy() override;
     virtual D3DAPI HRESULT GetSize(UINT* pSize) override;
+    virtual D3DAPI HRESULT GetData(CONST DWORD** ppData) override;
 #endif // __cplusplus
     D3DResourceInner     resource;
     DWORD                Size;       // in DWORDs
     DWORD                SizeNeeded; // in DWORDs
     BOOL                 bCpu;
     PDWORD               p;
+    PDWORD               pLastPush;
 } D3DPushBuffer;
 
 D3DEXTERN D3DAPI ULONG D3DPushBuffer_AddRef(LPDIRECT3DPUSHBUFFER8 pThis);
@@ -103,34 +107,78 @@ D3DEXTERN D3DAPI VOID D3DPushBuffer_BlockUntilNotBusy(
 D3DEXTERN D3DAPI BOOL D3DPushBuffer_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis);
 D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, 
                                                UINT* pSize);
+D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetData(LPDIRECT3DPUSHBUFFER8 pThis, 
+                                               CONST DWORD** ppData);
+HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
+
+#define D3D_NV2A_PFIFO_METHOD_CMD_MASK      0x00001FFC
+#define D3D_NV2A_PFIFO_METHOD_SUBCH_MASK    0x0000E000
+#define D3D_NV2A_PFIFO_METHOD_NPARAM_MASK   0x1FFC0000
+
+#define D3D_NV2A_PFIFO_METHOD_CMD   (method)  (method &        0x00001FFC)
+#define D3D_NV2A_PFIFO_METHOD_SUBCH (method) ((method >> 13) & 0x00000007)
+#define D3D_NV2A_PFIFO_METHOD_NPARAM(method) ((method >> 18) & 0x000007FF)
+
+#define D3D_NV2A_PFIFO_SUBCHANNEL_3D       0
+#define D3D_NV2A_PFIFO_SUBCHANNEL_2        2
+#define D3D_NV2A_PFIFO_SUBCHANNEL_3        3
+#define D3D_NV2A_PFIFO_SUBCHANNEL_4        4
+#define D3D_NV2A_PFIFO_NEXT_SUBCHANNEL     5
+#define D3D_NV2A_PFIFO_ENCODE_METHOD(subchannel, command, nparam) ({          \
+    DWORD method = ((nparam << 18) + (subchannel << 13) + command);           \
+    if (method & 0xA0030003)                                                  \
+        D3D_DebugPrintf("Invalid method 0x%08X\n", method);                   \
+    D3D_ASSERT_IF(D3DERR_DRIVERINTERNALERROR, (method & 0xA0030003) != 0);    \
+    method;                                                                   \
+})
+
+#define D3D_NV2A_PFIFO_ENCODE_3D_METHOD(command, nparam) \
+    D3D_NV2A_PFIFO_ENCODE_METHOD(D3D_NV2A_PFIFO_SUBCHANNEL_3D, command, nparam)
+
+#define D3D_NV2A_PFIFO_ENCODE_JUMP(vaddr) ({                                  \
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, ((DWORD)vaddr & 0x00000003) != 0);      \
+    ((DWORD)vaddr | 0x00000001);                                              \
+})
 
 BOOL D3DPushBuffer_IsFull(LPDIRECT3DPUSHBUFFER8 pThis);
 HRESULT D3DPushBuffer_Push1(
-    D3DPushBuffer* pThis, DWORD dwData);
+    D3DPushBuffer* pThis, DWORD dwData, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData);
+    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmdA(
-    D3DPushBuffer* pThis, DWORD cmd, CONST DWORD* pdwData, SIZE_T n);
+    D3DPushBuffer* pThis, DWORD cmd, 
+    CONST DWORD* pdwData, SIZE_T n, 
+    BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd2(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, DWORD dwData2);
+    D3DPushBuffer* pThis, DWORD cmd, 
+    DWORD dwData1, DWORD dwData2, 
+    BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd3(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
-    DWORD dwData2, DWORD dwData3);
+    D3DPushBuffer* pThis, DWORD cmd, 
+    DWORD dwData1, DWORD dwData2, DWORD dwData3, 
+    BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd4(
-    D3DPushBuffer* pThis, DWORD cmd, DWORD dwData1, 
-    DWORD dwData2, DWORD dwData3, DWORD dwData4);
-HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd, float fData);
+    D3DPushBuffer* pThis, DWORD cmd, 
+    DWORD dwData1, DWORD dwData2, 
+    DWORD dwData3, DWORD dwData4, 
+    BOOL bIncrement, BOOL bLoop);
+HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd, 
+                               float fData, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2);
+                                float fData1, float fData2, 
+                                BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, float fData3);
+                                float fData1, float fData2, 
+                                float fData3, BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, 
                                 float fData1, float fData2, 
-                                float fData3, float fData4);
+                                float fData3, float fData4,
+                                BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushN(
-    D3DPushBuffer* pThis, DWORD dwData, SIZE_T n);
+    D3DPushBuffer* pThis, DWORD dwData, SIZE_T n, BOOL bLoop);
 HRESULT D3DPushBuffer_PushA(
-    D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n);
+    D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n, BOOL bLoop);
+HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop);
 // ============================================================================
 
 struct D3DBaseTexture;

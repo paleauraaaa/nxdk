@@ -1182,6 +1182,8 @@ typedef enum _D3DCALLBACKTYPE {
 
 typedef void (*D3DCALLBACK)(DWORD Context);
 
+#define D3DFENCE_IN_USE 0xFFFFFFFF
+
 #ifdef __cplusplus
 }
 #endif
