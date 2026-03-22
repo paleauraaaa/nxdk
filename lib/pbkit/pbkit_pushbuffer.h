@@ -51,7 +51,6 @@ extern "C" {
 // There is a hard limit of PBKIT_PUSHBUFFER_SIZE between flushes, so avoid pushing more than PBKIT_PUSHBUFFER_SIZE /
 // 4096 DWORDs per block.
 uint32_t *pb_begin (void);
-uint32_t* pb_begin_at(uint32_t* p);
 
 // Pushes the given command to the given subchannel with nparam following DWORDs as parameters.
 void pb_push_to (DWORD subchannel, uint32_t *p, DWORD command, DWORD nparam);

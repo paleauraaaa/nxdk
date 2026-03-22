@@ -98,9 +98,6 @@ static  float           pb_CpuFrequency;
 
 static  DWORD           pb_GpuInstMem;
 
-static  DWORD           pb_PushBase;
-static  DWORD           pb_PushLimit;
-
 static  DWORD           pb_FifoHTAddr;
 static  DWORD           pb_FifoFCAddr;
 static  DWORD           pb_FifoU1Addr;
@@ -1474,12 +1471,8 @@ void pb_create_gr_ctx(int ChannelID,
     pb_create_gr_instance(ChannelID, Class, Inst, flags, flags3D, pGrObject);
 }
 
-static uint32_t *pb_OldHead=NULL;     
-static uint32_t *pb_OldTail=NULL;     
-static uint32_t *pb_OldPut =NULL; 
-
 static void pb_start(void) {
-     if (pb_disable_gpu==0) //do we really want to send data to GPU?
+    if (pb_disable_gpu==0) //do we really want to send data to GPU?
     {
         //asks push buffer Dma engine to detect incoming Dma data (written at pb_Put)
 
@@ -1782,6 +1775,19 @@ void pb_size(DWORD size)
     }
 }
 
+DWORD pb_get_size() {
+    return pb_Size;
+}
+
+int pb_len(void) {
+    return (int)((int)pb_Put - (int)pb_Head);
+}
+
+
+DWORD* pb_head(void) {
+    return (DWORD*)pb_Head;
+}
+
 
 void pb_reset(void)
 {
@@ -1832,50 +1838,16 @@ static int pb_wait_until_dma_ready(void) {
     return 0;
 }
 
-static uint32_t* pb_begin_internal(uint32_t* p) 
+uint32_t *pb_begin(void)
 {
-#ifdef DBG
+    #ifdef DBG
     if (pb_BeginEndPair==1) debugPrint("pb_begin without a pb_end earlier\n");
     pb_BeginEndPair=1;
     pb_PushIndex=0;
     pb_PushNext=(uint32_t*)p;
     pb_PushStart=(uint32_t*)p;
 #endif
-    return p;
-}
-
-uint32_t *pb_begin(void)
-{
-    // Unless the internal pushbuffer was already being used, a refresh is
-    // necessary.
-    if (pb_OldHead != NULL) {
-        pb_Head    = pb_OldHead;
-        pb_Tail    = pb_OldTail;
-        pb_Put     = pb_OldPut;
-        pb_OldHead = NULL;
-        pb_OldTail = NULL;
-        pb_OldPut  = NULL;
-        pb_set_dma_head();
-        pb_wait_until_dma_ready();
-    }
-    return pb_begin_internal(pb_Put);
-}
-
-uint32_t* pb_begin_at(uint32_t* p) 
-{
-    // Unless p lies within the previous pushbuffer, a refresh is necessary.
-    if (pb_OldHead == NULL || p < pb_Head || p > pb_Tail) {
-        pb_OldHead = pb_Head;
-        pb_OldTail = pb_Tail;
-        pb_OldPut  = pb_Put;
-        pb_Head    = p;
-        pb_Tail    = (uint32_t*)((DWORD)p + pb_Size);
-        pb_set_dma_head();
-        pb_wait_until_dma_ready();
-    }
-
-    pb_Put = p;
-    return pb_begin_internal(p);
+    return pb_Put;
 }
 
 #ifdef LOG
@@ -1900,7 +1872,6 @@ void pb_stop_log(void)
     fclose(fd);
 }
 #endif
-
 
 void pb_end(uint32_t *pEnd)
 {
@@ -2533,11 +2504,6 @@ int pb_init(void)
     //(2 first dwords will point at the 2 graphic contexts for the 2 channels)
     pb_GrCtxTableInst=pb_FreeInst; pb_FreeInst+=8;
 
-
-
-
-
-
     VIDEOREG8(NV_PRMCIO_CRX__COLOR)=31; old_color_31=VIDEOREG8(NV_PRMCIO_CR__COLOR);
     VIDEOREG8(NV_PRMCIO_CRX__COLOR)=31; VIDEOREG8(NV_PRMCIO_CR__COLOR)=87;
 
@@ -2848,9 +2814,6 @@ int pb_init(void)
     pb_bind_channel(&sGrObject17);
 
     pb_DmaUserAddr=(DWORD *)UserAddr;   //VIDEOBASE+NV_USER+(0<<16)
-
-    pb_PushBase=(DWORD)pb_Head;
-    pb_PushLimit=(DWORD)pb_Tail;
 
     pb_set_dma_head();
 

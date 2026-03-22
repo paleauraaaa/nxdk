@@ -69,10 +69,13 @@ void pb_assign_tile(int     tile_index,
                     DWORD   tile_z_offset,
                     DWORD   tile_flags);
 
-void    pb_extra_buffers(int n);//requests additional back buffers (default is 0) (call it before pb_init)
-void    pb_size(DWORD size);    //sets push buffer size (default is 512Kb) (call it before pb_init)
-int     pb_init(void);      //returns 0 if everything went well (starts Dma engine)
-void    pb_kill(void);      //stops Dma engine and releases push buffer
+void        pb_extra_buffers(int n);//requests additional back buffers (default is 0) (call it before pb_init)
+void        pb_size(DWORD size);    //sets push buffer size (default is 512Kb) (call it before pb_init)
+DWORD       pb_get_size();
+int         pb_len(void);
+DWORD*      pb_head(void);
+int         pb_init(void);      //returns 0 if everything went well (starts Dma engine)
+void        pb_kill(void);      //stops Dma engine and releases push buffer
 
 void    pb_target_extra_buffer(int n);  //to have rendering made into a static extra buffer
 void    pb_target_back_buffer(void);    //to have rendering made into normal rotating back buffer
