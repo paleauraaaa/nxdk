@@ -97,11 +97,25 @@ BOOL D3DDevice_IsKickoffReady(void) {
 }
 
 VOID D3DDevice_KickPushBuffer(void) {
+    assert(g_pDevice->pCurrentPB == &g_pDevice->DefaultPB);
     assert(g_pDevice->DefaultPB.bCpu == FALSE);
     
     pb_end((uint32_t*)g_pDevice->DefaultPB.p);
     g_pDevice->DefaultPB.SizeNeeded = 0;
     g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
+    g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
+}
+
+VOID D3DDevice_SyncPushBuffer(void) {
+    if (g_pDevice->pCurrentPB != &g_pDevice->DefaultPB)
+        return;
+ 
+    g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
+    D3DDevice_KickPushBuffer();
+}
+
+VOID D3DDevice_ResetPushBuffer(void) {
+    pb_reset();
     g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
 }
 
@@ -746,16 +760,58 @@ D3DAPI VOID Direct3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis) {
     return D3DDevice_BlockUntilVerticalBlank();
 }
 
+// This is a hack to prevent pb_target_back_buffer from writing past the end of
+// the push buffer. By default, pbkit functions will simply write their 
+// commands to the push buffer and hope there's space.
+//
+// We handle potential out-of-bounds writes in the D3DPushBuffer_Push* 
+// functions, but pbkit functions bypass those protections, so here we figure
+// out how much space in the push buffer the function will take on its first
+// run, and then jump back to the beginning of the push buffer on subsequent
+// runs if there isn't enough space. 
+//
+// We could just calculate the size as a constant based on the source for these
+// functions, but that approach breaks if more commands are added later. The 
+// biggest problem with this approach is that the value is only calculated 
+// once, so in theory if the function pushes differing amounts of commands
+// per run, we run the risk of the value here being too low, but there's
+// really no good way to insulate against that. Most likely, this will have
+// to suffice until we gut these pbkit functions out and implement their 
+// functionality directly in D3D.
+static int g_pb_target_back_buffer_size = 0;
 HRESULT D3DDevice_BeginScene(void) {
     if (g_pDevice->bInScene == TRUE) 
         return D3DERR_INVALIDCALL;
 
     g_pDevice->bInScene = TRUE;
 
+    PVOID p = g_pDevice->DefaultPB.p;
+    if (g_pb_target_back_buffer_size > 0 && 
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+            <= g_pb_target_back_buffer_size)
+    {
+        HRESULT hr = D3DPushBuffer_PushJump(
+            &g_pDevice->DefaultPB,
+            g_pDevice->DefaultPB.resource.pContiguousMemory,
+            FALSE);
+        // D3DERR_BUFFERTOOSMALL means we're at the end of the push buffer,
+        // but Direct3D::CreateDevice already inserted a jump back to the head
+        // of the push buffer at the end, so we don't have to insert one
+        // here.
+        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
+        D3DDevice_ResetPushBuffer();
+        
+    }
     pb_target_back_buffer();
-    g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
-    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
-    g_pDevice->DefaultPB.SizeNeeded = 0;
+    D3DDevice_SyncPushBuffer();
+    if (g_pb_target_back_buffer_size == 0) {
+        g_pb_target_back_buffer_size = 
+            (DWORD)g_pDevice->DefaultPB.p - (DWORD)p;
+        // pbkit might have reset back to the beginning of the push buffer. If
+        // so, this value is definitely high, but better safe than sorry.
+        if (g_pb_target_back_buffer_size < 0)
+            g_pb_target_back_buffer_size = -g_pb_target_back_buffer_size;
+    }
     return D3D_OK;
 }
 
@@ -777,18 +833,37 @@ D3DAPI HRESULT Direct3DDevice8_EndScene(LPDIRECT3DDEVICE8 pThis) {
     return D3DDevice_EndScene();
 }
 
+// See g_pb_target_back_buffer_size/D3DDevice_BeginScene for an explanation.
+static int g_pb_finished_size = 0;
 HRESULT D3DDevice_Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) {
     // TODO: implement
     if (pSourceRect || pDestRect)
         return E_NOTIMPL;
     
     D3DDevice_KickPushBuffer();
+    PVOID p = g_pDevice->DefaultPB.p;
+    if (g_pb_finished_size > 0 && 
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+            <= g_pb_finished_size)
+    {
+        HRESULT hr = D3DPushBuffer_PushJump(
+            &g_pDevice->DefaultPB,
+            g_pDevice->DefaultPB.resource.pContiguousMemory, 
+            FALSE);
+        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
+        D3DDevice_ResetPushBuffer();
+        
+    }
     while (pb_finished()) {
         /* Not ready to swap yet */
     }
-    g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
-    g_pDevice->DefaultPB.SizeNeeded = 0;
-    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
+    D3DDevice_SyncPushBuffer();
+    if (g_pb_finished_size == 0) {
+        g_pb_finished_size = 
+            (DWORD)g_pDevice->DefaultPB.p - (DWORD)p;
+        if (g_pb_finished_size < 0)
+            g_pb_finished_size = -g_pb_finished_size;
+    }
         
     g_pDevice->CurrentSurface = 
         (g_pDevice->CurrentSurface + 1) % g_pDevice->MaxSurfaces;
@@ -942,13 +1017,30 @@ D3DAPI HRESULT Direct3DDevice8_DrawPrimitive(LPDIRECT3DDEVICE8 pThis,
     return D3DDevice_DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
 }
 
+// See g_pb_target_back_buffer_size/D3DDevice_BeginScene for an explanation.
+static int g_pb_set_viewport_size = 0;
 HRESULT D3DDevice_SetViewport(CONST D3DVIEWPORT8* pViewport) {
+    PVOID p = g_pDevice->DefaultPB.p;
+    if (g_pb_set_viewport_size > 0 && 
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+            <= g_pb_set_viewport_size)
+    {
+        HRESULT hr = D3DPushBuffer_PushJump(
+            &g_pDevice->DefaultPB,
+            g_pDevice->DefaultPB.resource.pContiguousMemory, 
+            FALSE);
+        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
+        D3DDevice_ResetPushBuffer();
+        
+    }
     pb_set_viewport(pViewport->X, pViewport->Y, pViewport->Width, 
                     pViewport->Height, pViewport->MinZ, pViewport->MaxZ);
-    g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
-    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
-    g_pDevice->DefaultPB.SizeNeeded = 0;
-
+    D3DDevice_SyncPushBuffer();
+    if (g_pb_set_viewport_size == 0) {
+        g_pb_set_viewport_size = (DWORD)g_pDevice->DefaultPB.p - (DWORD)p;
+        if (g_pb_set_viewport_size < 0)
+            g_pb_set_viewport_size = -g_pb_set_viewport_size;
+    }
     g_pDevice->Viewport = *pViewport;
     return D3D_OK;
 }

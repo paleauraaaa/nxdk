@@ -179,6 +179,7 @@ HRESULT D3DPushBuffer_PushN(
 HRESULT D3DPushBuffer_PushA(
     D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n, BOOL bLoop);
 HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop);
+DWORD D3DPushBuffer_BytesRemaining(D3DPushBuffer* pThis);
 // ============================================================================
 
 struct D3DBaseTexture;

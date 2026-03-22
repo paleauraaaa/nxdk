@@ -482,6 +482,12 @@ HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop) {
         pThis, D3D_NV2A_PFIFO_ENCODE_JUMP(vaddr), bLoop);
 }
 
+DWORD D3DPushBuffer_BytesRemaining(D3DPushBuffer* pThis) {
+    assert((DWORD)pThis->p > (DWORD)pThis->resource.pContiguousMemory);
+    DWORD offset = (DWORD)pThis->p - (DWORD)pThis->resource.pContiguousMemory;
+    return pThis->Size * sizeof(DWORD) - offset;
+}
+
 BOOL D3D_VerifyMethod(DWORD method) {
     if (method == 0)
         return FALSE;
