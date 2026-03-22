@@ -509,8 +509,8 @@
 #   define NV097_SET_TEXCOORD3_2S                             0x00001610
 #   define NV097_SET_TEXCOORD3_4S                             0x00001630
 #   define NV097_BREAK_VERTEX_BUFFER_CACHE                    0x00001710
-#   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET(n)             (0x00001720 * n*4)
-#   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT(n)             (0x00001760 * n*4)
+#   define NV097_SET_VERTEX_DATA_ARRAY_OFFSET(n)             (0x00001720 + n*4)
+#   define NV097_SET_VERTEX_DATA_ARRAY_FORMAT(n)             (0x00001760 + n*4)
 #       define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE            0x0000000F
 #           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D     0
 #           define NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1         1
