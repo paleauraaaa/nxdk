@@ -217,8 +217,6 @@ HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd,
                                 float fData1, float fData2,
                                 float fData3, float fData4,
                                 BOOL bIncrement, BOOL bLoop);
-HRESULT D3DPushBuffer_PushN(
-    D3DPushBuffer* pThis, DWORD dwData, SIZE_T n, BOOL bLoop);
 HRESULT D3DPushBuffer_PushA(
     D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n, BOOL bLoop);
 HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop);
