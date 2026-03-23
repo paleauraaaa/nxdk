@@ -114,6 +114,11 @@ VOID D3DDevice_SyncPushBuffer(void) {
     D3DDevice_KickPushBuffer();
 }
 
+D3DAPI VOID Direct3DDevice8_SyncPushBuffer(LPDIRECT3DDEVICE8 pThis) {
+    assert(pThis == &g_pDevice->iface);
+    D3DDevice_SyncPushBuffer();
+}
+
 VOID D3DDevice_ResetPushBuffer(void) {
     pb_reset();
     g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
@@ -1073,7 +1078,7 @@ HRESULT D3DDevice_SetVertexShaderInputDirect(
         pData += pStreamInputs[i].Offset;
         pData += pInput->Offset;
         D3DDevice_PushCmd(NV097_SET_VERTEX_DATA_ARRAY_OFFSET(i),
-                         (uint32_t)pData & 0x03ffffff);
+                          (uint32_t)pData & 0x03ffffff);
     }
 
     return D3D_OK;
@@ -1377,12 +1382,11 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
     HRESULT hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_LOAD, Address);
     if(FAILED(hr)) return hr;
 
-
     int i = 0;
     for (; pFunction[i] != D3DVS_END() && Address + i < 136; i += 4) {
-        hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM, 4);
-        if(FAILED(hr)) return hr;
-        hr = D3DDevice_PushA(&pFunction[i], 4);
+        hr = D3DDevice_PushCmd4f(NV097_SET_TRANSFORM_PROGRAM, 
+                                 pFunction[i],   pFunction[i+1], 
+                                 pFunction[i+2], pFunction[i+3], TRUE);
         if(FAILED(hr)) return hr;
     }
 

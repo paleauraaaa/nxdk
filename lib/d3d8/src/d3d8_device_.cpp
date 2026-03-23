@@ -437,3 +437,10 @@ D3DAPI VOID IDirect3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis) {
     pThis->KickPushBuffer();
 }
 
+D3DAPI VOID D3DDevice::SyncPushBuffer() {
+    return Direct3DDevice8_SyncPushBuffer(this);
+}
+
+D3DAPI VOID IDirect3DDevice8_SyncPushBuffer(LPDIRECT3DDEVICE8 pThis) {
+    pThis->SyncPushBuffer();
+}

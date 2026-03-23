@@ -38,7 +38,7 @@ int D3D_FormatBPP(D3DFORMAT fmt) {
         return 16;
     default:
         assert(false);
-        return 0; 
+        return 0;
     }
 }
 
@@ -103,8 +103,8 @@ HRESULT Direct3D_CheckDeviceType(D3DFORMAT DisplayFormat,
     return D3D_OK;
 }
 
-D3DAPI HRESULT Direct3D8_CheckDeviceType(LPDIRECT3D8 pThis, UINT Adapter, 
-                                   D3DDEVTYPE CheckType, 
+D3DAPI HRESULT Direct3D8_CheckDeviceType(LPDIRECT3D8 pThis, UINT Adapter,
+                                   D3DDEVTYPE CheckType,
                                    D3DFORMAT DisplayFormat,
                                    D3DFORMAT BackBufferFormat, BOOL Windowed)
 {
@@ -154,8 +154,8 @@ HRESULT Direct3D_EnumAdapterModes(UINT Mode, D3DDISPLAYMODE* pMode)  {
     return D3D_OK;
 }
 
-D3DAPI HRESULT Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter, 
-                                          UINT Mode, D3DDISPLAYMODE* pMode) 
+D3DAPI HRESULT Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter,
+                                          UINT Mode, D3DDISPLAYMODE* pMode)
 {
     assert(pThis == &g_pD3D->iface);
 #if NXDK_DEBUG
@@ -167,13 +167,13 @@ D3DAPI HRESULT Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter,
     return Direct3D_EnumAdapterModes(Mode, pMode);
 }
 
-HRESULT Direct3D_GetAdapterDisplayMode(D3DDISPLAYMODE* pMode) 
+HRESULT Direct3D_GetAdapterDisplayMode(D3DDISPLAYMODE* pMode)
 {
     memcpyp(pMode, &g_pD3D->DisplayModes[g_pD3D->CurrentDisplayMode]);
     return D3D_OK;
 }
 
-D3DAPI HRESULT Direct3D8_GetAdapterDisplayMode(LPDIRECT3D8 pThis, UINT Adapter, 
+D3DAPI HRESULT Direct3D8_GetAdapterDisplayMode(LPDIRECT3D8 pThis, UINT Adapter,
                                                D3DDISPLAYMODE* pMode)
 {
     assert(pThis == &g_pD3D->iface);
@@ -191,10 +191,10 @@ HRESULT Direct3D_CheckDepthStencilMatch(D3DFORMAT DepthStencilFormat)
     return DepthStencilFormat == D3DFMT_D24S8 ? D3D_OK : D3DERR_NOTAVAILABLE;
 }
 
-D3DAPI HRESULT Direct3D8_CheckDepthStencilMatch(LPDIRECT3D8 pThis, UINT Adapter, 
-                                          D3DDEVTYPE DeviceType, 
-                                          D3DFORMAT AdapterFormat, 
-                                          D3DFORMAT RenderTargetFormat, 
+D3DAPI HRESULT Direct3D8_CheckDepthStencilMatch(LPDIRECT3D8 pThis, UINT Adapter,
+                                          D3DDEVTYPE DeviceType,
+                                          D3DFORMAT AdapterFormat,
+                                          D3DFORMAT RenderTargetFormat,
                                           D3DFORMAT DepthStencilFormat)
 {
     assert(pThis == &g_pD3D->iface);
@@ -212,7 +212,7 @@ D3DAPI HRESULT Direct3D8_CheckDepthStencilMatch(LPDIRECT3D8 pThis, UINT Adapter,
     return Direct3D_CheckDepthStencilMatch(DepthStencilFormat);
 }
 
-HRESULT Direct3D_GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType, 
+HRESULT Direct3D_GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType,
                                D3DCAPS8* pCaps)
 {
 #if NXDK_DEBUG
@@ -238,7 +238,7 @@ HRESULT Direct3D_GetDeviceCaps(UINT Adapter, D3DDEVTYPE DeviceType,
     return E_NOTIMPL;
 }
 
-D3DAPI HRESULT Direct3D8_GetDeviceCaps(LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType, 
+D3DAPI HRESULT Direct3D8_GetDeviceCaps(LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType,
                                  D3DCAPS8* pCaps)
 {
     assert(pThis == &g_pD3D->iface);
@@ -250,7 +250,7 @@ HRESULT Direct3D_SetPushBufferSize(DWORD PushBufferSize, DWORD KickOffSize) {
     if (PushBufferSize < 64*1024)
         return D3DERR_INVALIDCALL;
 
-    if ((PushBufferSize % KickOffSize != 0) || 
+    if ((PushBufferSize % KickOffSize != 0) ||
         (PushBufferSize / KickOffSize < 4))
     {
         return D3DERR_INVALIDCALL;
@@ -261,9 +261,9 @@ HRESULT Direct3D_SetPushBufferSize(DWORD PushBufferSize, DWORD KickOffSize) {
     return D3D_OK;
 }
 
-D3DAPI HRESULT Direct3D8_SetPushBufferSize(LPDIRECT3D8 pThis, 
-                                     DWORD PushBufferSize, 
-                                     DWORD KickOffSize) 
+D3DAPI HRESULT Direct3D8_SetPushBufferSize(LPDIRECT3D8 pThis,
+                                     DWORD PushBufferSize,
+                                     DWORD KickOffSize)
 {
     assert(pThis == &g_pD3D->iface);
     return Direct3D_SetPushBufferSize(PushBufferSize, KickOffSize);
@@ -280,7 +280,7 @@ BOOL Direct3D_IsDisplayModeValid(D3DDISPLAYMODE* pMode, int* pIndex) {
             if (pMode->Width  == g_pD3D->DisplayModes[i].Width  &&
                 pMode->Height == g_pD3D->DisplayModes[i].Height &&
                 pMode->Format == g_pD3D->DisplayModes[i].Format &&
-                pMode->Flags  == g_pD3D->DisplayModes[i].Flags) 
+                pMode->Flags  == g_pD3D->DisplayModes[i].Flags)
             {
                 if (pIndex)
                     *pIndex = i;
@@ -303,36 +303,36 @@ BOOL Direct3D_IsDisplayModeValid(D3DDISPLAYMODE* pMode, int* pIndex) {
 
 #if NXDK_DEBUG
 HRESULT D3D_PresentParameters_Validate(
-    D3DPRESENT_PARAMETERS* pPresentationParameters) 
+    D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
     D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pPresentationParameters == NULL));
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,
         (pPresentationParameters->Windowed != FALSE));
 
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,
         (pPresentationParameters->BackBufferCount > 2))
 
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, pPresentationParameters->Flags & 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, pPresentationParameters->Flags &
         (D3DPRESENTFLAG_FIELD | D3DPRESENTFLAG_10X11PIXELASPECTRATIO |
          D3DPRESENTFLAG_EMULATE_REFRESH_RATE));
 
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
-        ((pPresentationParameters->Flags & D3DPRESENTFLAG_PROGRESSIVE) && 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,
+        ((pPresentationParameters->Flags & D3DPRESENTFLAG_PROGRESSIVE) &&
          (pPresentationParameters->Flags & D3DPRESENTFLAG_INTERLACED)));
 
-    // D3DPRESENT_INTERVAL_FOUR is invalid on Xbox, 
+    // D3DPRESENT_INTERVAL_FOUR is invalid on Xbox,
     // and any higher values aren't valid D3DPRESENT values.
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
-        (pPresentationParameters->FullScreen_PresentationInterval > 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,
+        (pPresentationParameters->FullScreen_PresentationInterval >
          D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE));
-    
+
 
     if (pPresentationParameters->EnableAutoDepthStencil == TRUE) {
         HRESULT hr = Direct3D_CheckDepthStencilMatch(
             pPresentationParameters->AutoDepthStencilFormat);
         D3D_ASSERT_IF(hr, FAILED(hr));
 
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pPresentationParameters->DepthStencilSurface != NULL));
     }
 
@@ -342,63 +342,63 @@ HRESULT D3D_PresentParameters_Validate(
     if (Height == 0) Height = 480;
     D3DFORMAT Format = pPresentationParameters->BackBufferFormat;
     if (Format == D3DFMT_UNKNOWN) Format = D3DFMT_A8R8G8B8;
-    // Ensure the BufferSurfaces are all either NULL, or non-NULL 
+    // Ensure the BufferSurfaces are all either NULL, or non-NULL
     // *and* contiguous.
     if (pPresentationParameters->BufferSurfaces[0] != NULL) {
-         D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+         D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pPresentationParameters->BufferSurfaces[1] == NULL));
 
-        D3DSurface* pBufferSurface0 = 
+        D3DSurface* pBufferSurface0 =
             (D3DSurface*)pPresentationParameters->BufferSurfaces[0];
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface0->desc.Size == 0));
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pBufferSurface0->desc.Width  != Width ||
              pBufferSurface0->desc.Height != Height));
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface0->desc.Format != Format))
 
-        D3DSurface* pBufferSurface1 = 
+        D3DSurface* pBufferSurface1 =
             (D3DSurface*)pPresentationParameters->BufferSurfaces[1];
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface1->desc.Size == 0))
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pBufferSurface1->desc.Width  != Width ||
              pBufferSurface1->desc.Height != Height));
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pBufferSurface1->desc.Format != Format));
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
-            (((DWORD)pBufferSurface0->resource.pContiguousMemory 
-                + pBufferSurface0->desc.Size 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
+            (((DWORD)pBufferSurface0->resource.pContiguousMemory
+                + pBufferSurface0->desc.Size
             != (DWORD)pBufferSurface1->resource.pContiguousMemory)));
 
 
         if (pPresentationParameters->BackBufferCount == 2) {
-            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL,
                 (pPresentationParameters->BufferSurfaces[2] == NULL));
-            
-            D3DSurface* pBufferSurface2 = 
+
+            D3DSurface* pBufferSurface2 =
                 (D3DSurface*)pPresentationParameters->BufferSurfaces[2];
-            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL,
                 (pBufferSurface2->desc.Size == 0));
-            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL,
                 (pBufferSurface2->desc.Width  != Width ||
                  pBufferSurface2->desc.Height != Height));
-            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL,
                 (pBufferSurface2->desc.Format != Format));
-            D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
-                (((DWORD)pBufferSurface1->resource.pContiguousMemory 
-                    + pBufferSurface1->desc.Size 
+            D3D_ASSERT_IF(D3DERR_INVALIDCALL,
+                (((DWORD)pBufferSurface1->resource.pContiguousMemory
+                    + pBufferSurface1->desc.Size
                 != (DWORD)pBufferSurface2->resource.pContiguousMemory)));
         }
-    } 
+    }
     else {
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pPresentationParameters->BufferSurfaces[1] != NULL))
 
-        D3D_ASSERT_IF(D3DERR_INVALIDCALL, 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL,
             (pPresentationParameters->BackBufferCount == 2 &&
              pPresentationParameters->BufferSurfaces[2] != NULL));
     }
 
     if (pPresentationParameters->DepthStencilSurface != NULL) {
-        D3DSurface* pDSSurf = 
+        D3DSurface* pDSSurf =
             (D3DSurface*)pPresentationParameters->DepthStencilSurface;
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, (pDSSurf->desc.Width  < Width ||
             pDSSurf->desc.Height < Height));
@@ -436,18 +436,18 @@ DWORD D3D_FormatToColorFormat(D3DFORMAT Format) {
 }
 
 HRESULT Direct3D_ResetDevice(
-    D3DPRESENT_PARAMETERS* pPresentationParameters) 
+    D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
     // TODO: This function's current implementation doesn't free the old
     // framebuffers if they were user-supplied, nor account for switching
     // between user-supplied and default framebuffers if the previous
-    // CreateDevice call's pPresentationParameters and this function's 
+    // CreateDevice call's pPresentationParameters and this function's
     // pPresentationParameters differ in that respect, nor account
     // for resizing the framebuffers in either case.
     //
     // The easy solution here would be to call pb_kill and then execute
     // CreateDevice again, but beyond being inefficient, this will result in
-    // a new call to pb_init, and pb_init will clobber the existing render 
+    // a new call to pb_init, and pb_init will clobber the existing render
     // state, which resetting the device should not do.
     //
     // tl;dr the current implementation is unsafe to call in any circumstance
@@ -458,7 +458,7 @@ HRESULT Direct3D_ResetDevice(
     if (bpp == 0)
         return D3DERR_INVALIDCALL;
 #endif // NXDK_DEBUG
-    
+
     D3DDISPLAYMODE mode;
     mode.Width          = pPresentationParameters->BackBufferWidth;
     mode.Height         = pPresentationParameters->BackBufferHeight;
@@ -470,7 +470,7 @@ HRESULT Direct3D_ResetDevice(
         int refresh = pPresentationParameters->FullScreen_RefreshRateInHz;
         BOOL b = XVideoSetMode(
             pPresentationParameters->BackBufferWidth,
-            pPresentationParameters->BackBufferHeight, 
+            pPresentationParameters->BackBufferHeight,
             bpp, refresh);
 #if NXDK_DEBUG
         if (b  == FALSE)
@@ -479,9 +479,9 @@ HRESULT Direct3D_ResetDevice(
         (void)b;
 #endif // NXDK_DEBUG
         g_pD3D->CurrentDisplayMode = i;
-        D3D_DebugPrintf("Set video mode %ux%u%c@%uHz (%dbpp).\n", 
-                        mode.Width, mode.Height, 
-                        (mode.Flags & D3DPRESENTFLAG_INTERLACED) ? 
+        D3D_DebugPrintf("Set video mode %ux%u%c@%uHz (%dbpp).\n",
+                        mode.Width, mode.Height,
+                        (mode.Flags & D3DPRESENTFLAG_INTERLACED) ?
                             'i' : 'p', mode.RefreshRate, bpp);
     }
 #if NXDK_DEBUG
@@ -493,8 +493,8 @@ HRESULT Direct3D_ResetDevice(
     if (pBackBuffer0) {
         // pb_init targets the second surface as the initial backbuffer,
         // but D3D expects pPresentationParameters->BufferSurfaces[0] to
-        // be targeted first. 
-        pPresentationParameters->BufferSurfaces[0] = 
+        // be targeted first.
+        pPresentationParameters->BufferSurfaces[0] =
             pPresentationParameters->BufferSurfaces[1];
         pPresentationParameters->BufferSurfaces[1] = pBackBuffer0;
         D3DSurface* pBufferSurface = (D3DSurface*)pBackBuffer0;
@@ -502,12 +502,12 @@ HRESULT Direct3D_ResetDevice(
     }
 
     if (pPresentationParameters->DepthStencilSurface) {
-        D3DSurface* pDSSurf = 
+        D3DSurface* pDSSurf =
             (D3DSurface*)pPresentationParameters->DepthStencilSurface;
         g_pDevice->pDepthStencilSurface = (D3DSurface*)pDSSurf;
         pb_set_ds_addr(pDSSurf->resource.pContiguousMemory);
     }
-    
+
     UINT BackBufferCount = pPresentationParameters->BackBufferCount;
     if (BackBufferCount == 0)
         BackBufferCount = 1;
@@ -542,17 +542,17 @@ BOOL D3D_IsDepthStencilFormatFixed(D3DFORMAT Format) {
 }
 
 HRESULT Direct3D_CreateDevice(
-    DWORD BehaviorFlags, 
+    DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
 #if NXDK_DEBUG
-    HRESULT hr = Direct3D_CreateDevice_Validate(BehaviorFlags, 
+    HRESULT hr = Direct3D_CreateDevice_Validate(BehaviorFlags,
                                                 pPresentationParameters);
     D3D_ASSERT_IF(hr, FAILED(hr));
-#else 
+#else
     HRESULT hr = D3D_OK;
 #endif // NXDK_DEBUG
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, (g_pDevice != NULL)) 
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, (g_pDevice != NULL))
     if (g_pDevice)
         D3D_ASSERT_IF(D3DERR_INVALIDCALL, g_pDevice->refcount.c != 0);
 
@@ -592,7 +592,7 @@ HRESULT Direct3D_CreateDevice(
 
     for (int i = 0; i < BackBufferCount + 1; i++) {
         if (pPresentationParameters->BufferSurfaces[i] != NULL) {
-            g_pDevice->pSurfaces[i] = 
+            g_pDevice->pSurfaces[i] =
                 (D3DSurface*)pPresentationParameters->BufferSurfaces[i];
             continue;
         }
@@ -604,16 +604,16 @@ HRESULT Direct3D_CreateDevice(
         }
 
         D3D_CreateSurface(
-            pPresentationParameters->BackBufferWidth, 
-            pPresentationParameters->BackBufferHeight, 
+            pPresentationParameters->BackBufferWidth,
+            pPresentationParameters->BackBufferHeight,
             pPresentationParameters->BackBufferFormat,
-            0, 
+            0,
             pPresentationParameters->MultiSampleType,
             (PVOID)pb_fb_addr(i),
             NULL,
             g_pDevice->pSurfaces[i]);
     }
-        
+
     if (pPresentationParameters->EnableAutoDepthStencil) {
         D3D_DebugPrintf("Creating ZStencil surface.\n");
         g_pDevice->pDepthStencilSurface = malloc(sizeof(D3DSurface));
@@ -623,10 +623,10 @@ HRESULT Direct3D_CreateDevice(
         }
 
         D3D_CreateSurface(
-            pPresentationParameters->BackBufferWidth, 
-            pPresentationParameters->BackBufferHeight, 
+            pPresentationParameters->BackBufferWidth,
+            pPresentationParameters->BackBufferHeight,
             pPresentationParameters->AutoDepthStencilFormat,
-            D3DUSAGE_DEPTHSTENCIL, 
+            D3DUSAGE_DEPTHSTENCIL,
             pPresentationParameters->MultiSampleType,
             (PVOID)pb_ds_addr(),
             NULL,
@@ -643,33 +643,38 @@ HRESULT Direct3D_CreateDevice(
 
     pb_reset();
     D3D_DebugPrintf("Creating default push buffer.\n");
-    g_pDevice->DefaultPB.iface.lpVtbl = g_pPushBufferVtbl;
-    D3D_CreateResource(D3DRTYPE_PUSHBUFFER, 0, 
-                       NULL, &g_pDevice->DefaultPB.resource);
-    g_pDevice->DefaultPB.Size = pb_get_size() / sizeof(DWORD);
-    g_pDevice->DefaultPB.SizeNeeded = 0;
-    g_pDevice->DefaultPB.bCpu = FALSE;
-    g_pDevice->DefaultPB.resource.pContiguousMemory = (PDWORD)pb_begin();
-    D3D_ASSERT_IF(D3DERR_DRIVERINTERNALERROR, 
-                  g_pDevice->DefaultPB.resource.pContiguousMemory == NULL);
-    g_pDevice->DefaultPB.p = g_pDevice->DefaultPB.resource.pContiguousMemory;
-    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
+    hr = D3D_CreatePushBuffer(pb_get_size() / sizeof(DWORD), FALSE,
+                              pb_begin(), &g_pDevice->DefaultPB);
+    D3D_ASSERT_IF(hr, FAILED(hr));
     g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
 
     // Insert a jump back to the beginning of the push buffer at the end.
-    *(g_pDevice->DefaultPB.p + g_pDevice->DefaultPB.Size - 1) = 
+    *(g_pDevice->DefaultPB.p + g_pDevice->DefaultPB.Size - 1) =
         D3D_NV2A_PFIFO_ENCODE_JUMP(g_pDevice->DefaultPB.p);
 
+
+    // From this point on, all pbkit calls that manipulate the push buffer
+    // (pb_end, pb_reset, etc., and any functions that transitively
+    // call them) should be followed IMMEDIATELY by a call to
+    // D3DDevice_SyncPushBuffer.
+    //
+    // Failure to do so will desynchronize our tracking of the push buffer
+    // state, and result in any number of bad things, including malformed
+    // commands being sent to the GPU, corruption of good GPU commands, and
+    // writes past the end of the push buffer.
+    //
+    // MAKE SURE D3DDevice_SyncPushBuffer IS CALLED.
+
     g_pDevice->LastPresentVBlankCount  = 0;
-    g_pDevice->PresentInterval = 
+    g_pDevice->PresentInterval =
         pPresentationParameters->FullScreen_PresentationInterval;
 
     DWORD ZFormat = D3D_IsDepthStencilFormatFixed(
-        g_pDevice->pDepthStencilSurface->desc.Format) ? 
-                    NV097_SET_CONTROL0_Z_FORMAT_FIXED : 
+        g_pDevice->pDepthStencilSurface->desc.Format) ?
+                    NV097_SET_CONTROL0_Z_FORMAT_FIXED :
                     NV097_SET_CONTROL0_Z_FORMAT_FLOAT;
     D3D_DebugPrintf("Setting Control0.\n");
-    g_pDevice->Control0 = 
+    g_pDevice->Control0 =
         NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE | ZFormat;
     hr = D3DDevice_PushCmd(NV097_SET_CONTROL0, g_pDevice->Control0);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
@@ -682,10 +687,10 @@ HRESULT Direct3D_CreateDevice(
     }
 
     D3D_DebugPrintf("Setting execution mode.\n");
-    hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_EXECUTION_MODE, 
-            MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE, 
+    hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_EXECUTION_MODE,
+            MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE,
                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM)
-                | MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE, 
+                | MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE,
                   NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV));
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
@@ -698,7 +703,7 @@ HRESULT Direct3D_CreateDevice(
     Viewport.Height = pPresentationParameters->BackBufferHeight;
     Viewport.MinZ   = 0.2f;
     Viewport.MaxZ   = 1000.0f;
-    
+
     hr = IDirect3DDevice8_SetViewport(&g_pDevice->iface, &Viewport);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
@@ -729,18 +734,18 @@ failed:
 }
 
 D3DAPI HRESULT Direct3D8_CreateDevice(
-    LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType, 
-    HWND hFocusWindow, DWORD BehaviorFlags, 
+    LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType,
+    HWND hFocusWindow, DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS* pPresentationParameters,
     LPDIRECT3DDEVICE8* ppReturnedDevice)
 {
     assert(pThis == &g_pD3D->iface);
 #if NXDK_DEBUG
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   (Adapter != D3DADAPTER_DEFAULT));
-    D3D_ASSERT_IF(D3DERR_INVALIDDEVICE, (DeviceType != D3DDEVTYPE_HAL));
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   (hFocusWindow != NULL));
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   Adapter != D3DADAPTER_DEFAULT);
+    D3D_ASSERT_IF(D3DERR_INVALIDDEVICE, DeviceType != D3DDEVTYPE_HAL);
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL,   hFocusWindow != NULL);
 #endif // NXDK_DEBUG
-    HRESULT hr = Direct3D_CreateDevice(BehaviorFlags, 
+    HRESULT hr = Direct3D_CreateDevice(BehaviorFlags,
                                        pPresentationParameters);
     *ppReturnedDevice = &g_pDevice->iface;
     assert(SUCCEEDED(hr));
@@ -755,18 +760,18 @@ UINT Direct3D_EnumDisplayModes(int bpp) {
     VIDEO_MODE vm;
     void* p = NULL;
     while(XVideoListModes(&vm, bpp, REFRESH_DEFAULT, &p)) {
-        D3DDISPLAYMODE* pDisplayMode = 
+        D3DDISPLAYMODE* pDisplayMode =
             &g_pD3D->DisplayModes[g_pD3D->DisplayModeCount];
-        DWORD dwFlags = (vm.interlaced == TRUE ? D3DPRESENTFLAG_INTERLACED 
+        DWORD dwFlags = (vm.interlaced == TRUE ? D3DPRESENTFLAG_INTERLACED
                                                : D3DPRESENTFLAG_PROGRESSIVE)
                         | (vm.width == 640 ? 0 : D3DPRESENTFLAG_WIDESCREEN);
 
         D3DFORMAT Format = D3DFMT_UNKNOWN;
         if (bpp == 32)
             Format = D3DFMT_LIN_A8R8G8B8;
-        else if (bpp == 16) 
+        else if (bpp == 16)
             Format = D3DFMT_LIN_R5G6B5;
-        else if (bpp == 15) 
+        else if (bpp == 15)
             Format = D3DFMT_LIN_X1R5G5B5;
 
         pDisplayMode->Width       = vm.width;
@@ -812,10 +817,10 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
 
     g_pDeviceVtbl->AddRef                    = Direct3DDevice8_AddRef;
     g_pDeviceVtbl->Release                   = Direct3DDevice8_Release;
-    g_pDeviceVtbl->BlockUntilVerticalBlank = 
+    g_pDeviceVtbl->BlockUntilVerticalBlank =
         Direct3DDevice8_BlockUntilVerticalBlank;
     g_pDeviceVtbl->CreateImageSurface = Direct3DDevice8_CreateImageSurface;
-    g_pDeviceVtbl->CreateDepthStencilSurface = 
+    g_pDeviceVtbl->CreateDepthStencilSurface =
         Direct3DDevice8_CreateDepthStencilSurface;
     g_pDeviceVtbl->CreateVertexBuffer = Direct3DDevice8_CreateVertexBuffer;
     g_pDeviceVtbl->CreatePushBuffer          = Direct3DDevice8_CreatePushBuffer;
@@ -829,11 +834,11 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->CreateCubeTexture = Direct3DDevice8_CreateCubeTexture;
     g_pDeviceVtbl->SetRenderState            = Direct3DDevice8_SetRenderState;
     g_pDeviceVtbl->SetTextureStageState = Direct3DDevice8_SetTextureStageState;
-    g_pDeviceVtbl->SetVertexShaderInputDirect = 
+    g_pDeviceVtbl->SetVertexShaderInputDirect =
         Direct3DDevice8_SetVertexShaderInputDirect;
-    g_pDeviceVtbl->LoadVertexShaderProgram = 
+    g_pDeviceVtbl->LoadVertexShaderProgram =
         Direct3DDevice8_LoadVertexShaderProgram;
-    g_pDeviceVtbl->SetPixelShaderProgram = 
+    g_pDeviceVtbl->SetPixelShaderProgram =
         Direct3DDevice8_SetPixelShaderProgram;
     g_pDeviceVtbl->Clear                     = Direct3DDevice8_Clear;
     g_pDeviceVtbl->SetScissors               = Direct3DDevice8_SetScissors;
@@ -844,12 +849,13 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->InsertFence               = Direct3DDevice8_InsertFence;
     g_pDeviceVtbl->BlockOnFence              = Direct3DDevice8_BlockOnFence;
     g_pDeviceVtbl->IsFencePending            = Direct3DDevice8_IsFencePending;
-    g_pDeviceVtbl->SetVertexShaderConstant = 
+    g_pDeviceVtbl->SetVertexShaderConstant =
         Direct3DDevice8_SetVertexShaderConstant;
-    g_pDeviceVtbl->SetPixelShaderConstant = 
+    g_pDeviceVtbl->SetPixelShaderConstant =
         Direct3DDevice8_SetPixelShaderConstant;
     g_pDeviceVtbl->GetPushBuffer = Direct3DDevice8_GetPushBuffer;
     g_pDeviceVtbl->KickPushBuffer = Direct3DDevice8_KickPushBuffer;
+    g_pDeviceVtbl->SyncPushBuffer = Direct3DDevice8_SyncPushBuffer;
 
     g_pResourceVtbl = malloc(sizeof(*g_pResourceVtbl));
     if (g_pResourceVtbl == NULL) goto failed;
@@ -896,7 +902,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pCubeTextureVtbl->GetLevelDesc      = D3DCubeTexture_GetLevelDesc;
     g_pCubeTextureVtbl->LockRect          = D3DCubeTexture_LockRect;
     g_pCubeTextureVtbl->UnlockRect        = D3DCubeTexture_UnlockRect;
-    g_pCubeTextureVtbl->GetCubeMapSurface = 
+    g_pCubeTextureVtbl->GetCubeMapSurface =
         D3DCubeTexture_GetCubeMapSurface;
 
     g_pSurfaceVtbl = malloc(sizeof(*g_pSurfaceVtbl));
@@ -911,7 +917,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pSurfaceVtbl->GetDesc               = D3DSurface_GetDesc;
     g_pSurfaceVtbl->LockRect              = D3DSurface_LockRect;
     g_pSurfaceVtbl->UnlockRect            = D3DSurface_UnlockRect;
-     
+
     g_pVertexBufferVtbl = malloc(sizeof(*g_pVertexBufferVtbl));
     if (g_pVertexBufferVtbl == NULL) goto failed;
     g_pVertexBufferVtbl->AddRef           = D3DVertexBuffer_AddRef;
@@ -919,7 +925,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pVertexBufferVtbl->GetType          = D3DVertexBuffer_GetType;
     g_pVertexBufferVtbl->Register         = D3DVertexBuffer_Register;
     g_pVertexBufferVtbl->IsBusy           = D3DVertexBuffer_IsBusy;
-    g_pVertexBufferVtbl->BlockUntilNotBusy = 
+    g_pVertexBufferVtbl->BlockUntilNotBusy =
         D3DVertexBuffer_BlockUntilNotBusy;
     g_pVertexBufferVtbl->GetDesc          = D3DVertexBuffer_GetDesc;
     g_pVertexBufferVtbl->Lock             = D3DVertexBuffer_Lock;
@@ -937,7 +943,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pPushBufferVtbl->GetData            = D3DPushBuffer_GetData;
 
     g_pD3D->DisplayModeCount = 0;
-    
+
     Direct3D_EnumDisplayModes(15);
     Direct3D_EnumDisplayModes(16);
     Direct3D_EnumDisplayModes(32);
@@ -947,7 +953,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pD3D->CurrentDisplayMode = 0;
     D3DDISPLAYMODE* pDM = &g_pD3D->DisplayModes[g_pD3D->CurrentDisplayMode];
     // set the current mode to whatever the last retrieved mode was
-    if (XVideoSetMode(pDM->Width, pDM->Height, 
+    if (XVideoSetMode(pDM->Width, pDM->Height,
                       D3D_FormatBPP(pDM->Format), pDM->RefreshRate) == FALSE)
     {
         assert(false);

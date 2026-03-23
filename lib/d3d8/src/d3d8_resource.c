@@ -1016,6 +1016,7 @@ HRESULT D3D_CreatePushBuffer(
         }
         pPB->p = pPB->resource.pContiguousMemory;
     }
+    pPB->pLastPush = pPB->p;
     return D3D_OK;
 }
 

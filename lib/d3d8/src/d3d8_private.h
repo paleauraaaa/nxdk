@@ -4,18 +4,18 @@
 //
 // Anything contained herein is intended to be private to the outside world,
 // but public within the D3D implementation. Some of these functions will be
-// "exported" via Direct3D's vtable, but their declarations or definitions 
+// "exported" via Direct3D's vtable, but their declarations or definitions
 // need not be exposed to facilitate that.
 //
 // The general design pattern of this implementation is that all IDirect3D*8
-// interfaces are implemented by a D3D* object (e.g. IDirect3DDevice8 is 
-// implemented by D3DDevice, etc.), with C-friendly (e.g. the IDirect3D8_* 
-// functions defined below) and C++-friendly (e.g. IDirect3D8's C++ member 
+// interfaces are implemented by a D3D* object (e.g. IDirect3DDevice8 is
+// implemented by D3DDevice, etc.), with C-friendly (e.g. the IDirect3D8_*
+// functions defined below) and C++-friendly (e.g. IDirect3D8's C++ member
 // functions) wrappers that call into the object's vtable, where pointers
 // to the actual implementation functions are placed on object creation.
 //
-// Direct3D and D3DDevice are unique in that they act as singleton objects 
-// since it's never valid for more than one of each of those to exist at a 
+// Direct3D and D3DDevice are unique in that they act as singleton objects
+// since it's never valid for more than one of each of those to exist at a
 // time, and as such their implementations are a bit messier.
 
 #pragma once
@@ -54,7 +54,7 @@
         pb_show_debug_screen();                             \
         assert(false && D3D_STRINGIFY(__VA_ARGS__));        \
         return ret;                                         \
-    }                                      
+    }
 
 #define memcpyp(dest, src) ({                                                 \
     _Static_assert(sizeof(*(src)) == sizeof(*dest),                           \
@@ -87,7 +87,7 @@ typedef struct Direct3D IMPLEMENTS(IDirect3D8) {
     // IDirect3D8 methods
     virtual D3DAPI UINT GetAdapterCount() override;
     virtual D3DAPI HRESULT GetAdapterIdentifier(
-        UINT Adapter, DWORD Flags, 
+        UINT Adapter, DWORD Flags,
         D3DADAPTER_IDENTIFIER8* pIdentifier) override;
     virtual D3DAPI UINT GetAdapterModeCount(UINT Adapter) override;
     virtual D3DAPI HRESULT EnumAdapterModes(
@@ -98,7 +98,7 @@ typedef struct Direct3D IMPLEMENTS(IDirect3D8) {
         UINT Adapter, D3DDEVTYPE CheckType, D3DFORMAT DisplayFormat,
         D3DFORMAT BackBufferFormat, BOOL Windowed) override;
     virtual D3DAPI HRESULT CheckDeviceFormat(
-        UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, 
+        UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat,
         DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat) override;
     virtual D3DAPI HRESULT CheckDeviceMultiSampleType(
         UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SurfaceFormat,
@@ -113,14 +113,21 @@ typedef struct Direct3D IMPLEMENTS(IDirect3D8) {
     virtual D3DAPI HRESULT SetPushBufferSize(
         DWORD PushBufferSize, DWORD KickOffSize) override;
     virtual D3DAPI HRESULT CreateDevice(
-        UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, 
+        UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow,
         DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters,
         LPDIRECT3DDEVICE8* ppReturnedDeviceInterface) override;
 #endif // __cplusplus
+    // Size in bytes at which D3D will "kick" the push buffer to the GPU,
+    // submitting all commands written since the last kick. Defaults
+    // to 32KB.
     DWORD           KickOffSize;
+    // Size in bytes of the push buffer. Must be at least 64KB and a
+    // multiple of KickOffSize. Defaults to 512KB.
     DWORD           PushBufferSize;
+    // Display modes supported by the adapter, as retrieved by XVideo.
     D3DDISPLAYMODE  DisplayModes[51];
     UINT            DisplayModeCount;
+    // Index into DisplayModes.
     UINT            CurrentDisplayMode;
 } Direct3D;
 
@@ -128,33 +135,33 @@ D3DAPI ULONG    Direct3D8_AddRef(LPDIRECT3D8 pThis);
 D3DAPI ULONG    Direct3D8_Release(LPDIRECT3D8 pThis);
 D3DAPI UINT     Direct3D8_GetAdapterCount(LPDIRECT3D8 pThis);
 D3DAPI HMONITOR Direct3D8_GetAdapterMonitor(LPDIRECT3D8 pThis, UINT Adapter);
-D3DAPI HRESULT  Direct3D8_CheckDeviceType(LPDIRECT3D8 pThis, UINT Adapter, 
-                                    D3DDEVTYPE CheckType, 
+D3DAPI HRESULT  Direct3D8_CheckDeviceType(LPDIRECT3D8 pThis, UINT Adapter,
+                                    D3DDEVTYPE CheckType,
                                     D3DFORMAT DisplayFormat,
                                     D3DFORMAT BackBufferFormat, BOOL Windowed);
-D3DAPI HRESULT Direct3D8_CheckDepthStencilMatch(LPDIRECT3D8 pThis, 
+D3DAPI HRESULT Direct3D8_CheckDepthStencilMatch(LPDIRECT3D8 pThis,
                                                  UINT Adapter,
-                                                 D3DDEVTYPE DeviceType, 
-                                                 D3DFORMAT AdapterFormat, 
-                                                 D3DFORMAT RenderTargetFormat, 
+                                                 D3DDEVTYPE DeviceType,
+                                                 D3DFORMAT AdapterFormat,
+                                                 D3DFORMAT RenderTargetFormat,
                                                  D3DFORMAT DepthStencilFormat);
 D3DAPI UINT  Direct3D8_GetAdapterModeCount(LPDIRECT3D8 pThis, UINT Adapter);
-D3DAPI HRESULT  Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter, 
+D3DAPI HRESULT  Direct3D8_EnumAdapterModes(LPDIRECT3D8 pThis, UINT Adapter,
                                             UINT Mode, D3DDISPLAYMODE* pMode);
-D3DAPI HRESULT  Direct3D8_GetAdapterDisplayMode(LPDIRECT3D8 pThis, 
-                                                 UINT Adapter, 
-                                                 D3DDISPLAYMODE* pMode);                       
-D3DAPI HRESULT  Direct3D8_SetPushBufferSize(LPDIRECT3D8 pThis, 
-                                             DWORD PushBufferSize, 
-                                             DWORD KickOffSize);   
+D3DAPI HRESULT  Direct3D8_GetAdapterDisplayMode(LPDIRECT3D8 pThis,
+                                                 UINT Adapter,
+                                                 D3DDISPLAYMODE* pMode);
+D3DAPI HRESULT  Direct3D8_SetPushBufferSize(LPDIRECT3D8 pThis,
+                                             DWORD PushBufferSize,
+                                             DWORD KickOffSize);
 D3DAPI HRESULT Direct3D8_CreateDevice(
-    LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType, 
-    HWND hFocusWindow, DWORD BehaviorFlags, 
+    LPDIRECT3D8 pThis, UINT Adapter, D3DDEVTYPE DeviceType,
+    HWND hFocusWindow, DWORD BehaviorFlags,
     D3DPRESENT_PARAMETERS* pPresentationParameters,
-    LPDIRECT3DDEVICE8* ppReturnedDevice);   
-D3DAPI HRESULT Direct3D8_GetDeviceCaps(LPDIRECT3D8 pThis, 
-                                        UINT Adapter, 
-                                        D3DDEVTYPE DeviceType, 
+    LPDIRECT3DDEVICE8* ppReturnedDevice);
+D3DAPI HRESULT Direct3D8_GetDeviceCaps(LPDIRECT3D8 pThis,
+                                        UINT Adapter,
+                                        D3DDEVTYPE DeviceType,
                                         D3DCAPS8* pCaps);
 
 #ifdef __cplusplus

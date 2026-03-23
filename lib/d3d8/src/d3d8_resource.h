@@ -1,6 +1,6 @@
-// This file contains the internal definitions of D3DResource and the objects 
+// This file contains the internal definitions of D3DResource and the objects
 // that inherit from it (D3DSurface, D3DTexture, etc.), and the definitions for
-// their interfaces. 
+// their interfaces.
 
 // Anything contained herein is intended to be private to the outside world,
 // but public within the D3D implementation. Some of these functions will be
@@ -13,7 +13,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus   
+#endif // __cplusplus
 
 #ifndef __cplusplus
 extern IDirect3DResourceVtbl8*      g_pResourceVtbl;
@@ -43,12 +43,40 @@ ULONG D3DRefcount_Release(D3DRefcount *pThis);
 typedef struct D3DResourceInner {
     D3DRefcount        refcount;
     D3DRESOURCETYPE    type;
+    // Indicates the resource was registeed by the user and not created by D3D.
+    // D3D should therefore not destroy it.
     BOOL               bManuallyRegistered;
+    // Physical address of pContiguousMemory.
     DWORD              Data;
+    // Virtual address of a block of contiguous, non-cached memory sufficiently
+    // large for the resource. Can be allocated by D3D or the user (it's the
+    // user's responsibility to ensure the allocation is contiguous and
+    // non-cahced.)
     PVOID              pContiguousMemory;
+    // Set to the current fence when any GPU operations are issued on the
+    // resource. Set to 0 on initialization, and D3DFENCE_IN_USE when the
+    // resource is attached to the device (SetTexture, etc.). D3DFENCE_IN_USE
+    // makes the fence effectively "unreachable", and therefore IsBusy will
+    // always return TRUE and BlockUntilNotBusy will block until the fence is
+    // set to a different value (e.g. no longer attached to the device.)
+    //
+    // DO NOT BLOCK ON A RESOURCE ATTACHED TO THE DEVICE UNLESS YOU WANT TO
+    // INFINITE LOOP.
     DWORD              Fence;
 } D3DResourceInner;
 
+// Represents a resource used by the GPU (texture, vertex buffer,
+// rendering surface, etc.). Largely useless on its own, but it serves as the
+// base of all objects used by the GPU.
+//
+// The GPU does not have access to the CPU's page tables or any other means of
+// address translation, and it instead operates directly on physical memory.
+// This requires all GPU objects to be allocated in contiguous physical pages,
+// and the memory has to be write-combined/non-cached on the CPU side to
+// prevent coherency issues.
+//
+// D3D_AllocContiguousMemory provides a simple method to allocate this memory
+// correctly.
 typedef struct D3DResource IMPLEMENTS(IDirect3DResource8) {
 #ifndef __cplusplus
     IDirect3DResource8 iface;
@@ -67,7 +95,7 @@ D3DEXTERN D3DAPI ULONG D3DResource_AddRef(LPDIRECT3DRESOURCE8 pThis);
 D3DEXTERN D3DAPI ULONG D3DResource_Release(LPDIRECT3DRESOURCE8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DResource_GetType(
     LPDIRECT3DRESOURCE8 pThis);
-D3DEXTERN D3DAPI VOID D3DResource_Register(LPDIRECT3DRESOURCE8 pThis, 
+D3DEXTERN D3DAPI VOID D3DResource_Register(LPDIRECT3DRESOURCE8 pThis,
                                            PVOID pBase);
 D3DEXTERN D3DAPI VOID D3DResource_BlockUntilNotBusy(LPDIRECT3DRESOURCE8 pThis);
 D3DEXTERN D3DAPI BOOL D3DResource_IsBusy(LPDIRECT3DRESOURCE8 pThis);
@@ -75,6 +103,21 @@ D3DEXTERN D3DAPI BOOL D3DResource_IsBusy(LPDIRECT3DRESOURCE8 pThis);
 
 // ============================================================================
 
+// Represents a buffer into which GPU commands are recorded. These buffers
+// can be recorded and played back to the GPU to avoid the CPU overhead of
+// executing the same APIs again.
+//
+// Under the hood, the GPU has only one "real" push buffer, which is where GPU
+// commands are pushed when no user-supplied push buffer is targeted. However,
+// the GPU can jump freely beyond this push buffer, so running another push
+// buffer can be accomplished simply via jumping to it and then jumping back
+// to the main push buffer at the end.
+//
+// Alternatively, push buffers can be recorded into a CPU-side push buffer and
+// then memcpy'd into the main push buffer on demand. For large buffers this is
+// a slow process, an effect only amplified with successive runs (as it has to
+// be copied in full each time), but for small batches of commands, it can be
+// faster than the "jump" method.
 typedef struct D3DPushBuffer IMPLEMENTS(IDirect3DPushBuffer8) {
 #ifndef __cplusplus
     IDirect3DPushBuffer8 iface;
@@ -100,14 +143,14 @@ D3DEXTERN D3DAPI ULONG D3DPushBuffer_AddRef(LPDIRECT3DPUSHBUFFER8 pThis);
 D3DEXTERN D3DAPI ULONG D3DPushBuffer_Release(LPDIRECT3DPUSHBUFFER8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DPushBuffer_GetType(
     LPDIRECT3DPUSHBUFFER8 pThis);
-D3DEXTERN D3DAPI VOID D3DPushBuffer_Register(LPDIRECT3DPUSHBUFFER8 pThis, 
+D3DEXTERN D3DAPI VOID D3DPushBuffer_Register(LPDIRECT3DPUSHBUFFER8 pThis,
                                              PVOID pBase);
 D3DEXTERN D3DAPI VOID D3DPushBuffer_BlockUntilNotBusy(
     LPDIRECT3DPUSHBUFFER8 pThis);
 D3DEXTERN D3DAPI BOOL D3DPushBuffer_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis);
-D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetSize(LPDIRECT3DPUSHBUFFER8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetSize(LPDIRECT3DPUSHBUFFER8 pThis,
                                                UINT* pSize);
-D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetData(LPDIRECT3DPUSHBUFFER8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DPushBuffer_GetData(LPDIRECT3DPUSHBUFFER8 pThis,
                                                CONST DWORD** ppData);
 HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
 
@@ -146,32 +189,32 @@ HRESULT D3DPushBuffer_Push1(
 HRESULT D3DPushBuffer_PushCmd(
     D3DPushBuffer* pThis, DWORD cmd, DWORD dwData, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmdA(
-    D3DPushBuffer* pThis, DWORD cmd, 
-    CONST DWORD* pdwData, SIZE_T n, 
+    D3DPushBuffer* pThis, DWORD cmd,
+    CONST DWORD* pdwData, SIZE_T n,
     BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd2(
-    D3DPushBuffer* pThis, DWORD cmd, 
-    DWORD dwData1, DWORD dwData2, 
+    D3DPushBuffer* pThis, DWORD cmd,
+    DWORD dwData1, DWORD dwData2,
     BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd3(
-    D3DPushBuffer* pThis, DWORD cmd, 
-    DWORD dwData1, DWORD dwData2, DWORD dwData3, 
+    D3DPushBuffer* pThis, DWORD cmd,
+    DWORD dwData1, DWORD dwData2, DWORD dwData3,
     BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushCmd4(
-    D3DPushBuffer* pThis, DWORD cmd, 
-    DWORD dwData1, DWORD dwData2, 
-    DWORD dwData3, DWORD dwData4, 
+    D3DPushBuffer* pThis, DWORD cmd,
+    DWORD dwData1, DWORD dwData2,
+    DWORD dwData3, DWORD dwData4,
     BOOL bIncrement, BOOL bLoop);
-HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd, 
+HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd,
                                float fData, BOOL bLoop);
-HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, 
+HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd,
+                                float fData1, float fData2,
                                 BOOL bIncrement, BOOL bLoop);
-HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, 
+HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd,
+                                float fData1, float fData2,
                                 float fData3, BOOL bIncrement, BOOL bLoop);
-HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, 
-                                float fData1, float fData2, 
+HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd,
+                                float fData1, float fData2,
                                 float fData3, float fData4,
                                 BOOL bIncrement, BOOL bLoop);
 HRESULT D3DPushBuffer_PushN(
@@ -200,31 +243,31 @@ typedef struct D3DSurface IMPLEMENTS(IDirect3DSurface8) {
         LPDIRECT3DBASETEXTURE8* ppContainer, REFIID riid) override;
     virtual D3DAPI HRESULT GetDesc(D3DSURFACE_DESC* pDesc) override;
     virtual D3DAPI HRESULT LockRect(
-        D3DLOCKED_RECT* pLockedRect, 
+        D3DLOCKED_RECT* pLockedRect,
         CONST RECT* pRect, DWORD Flags) override;
     virtual D3DAPI HRESULT UnlockRect() override;
 #endif // __cplusplus
     D3DResourceInner  resource;
     D3DSURFACE_DESC   desc;
     D3DRectLock       lock;
-    D3DBaseTexture*   pContainer; 
+    D3DBaseTexture*   pContainer;
 } D3DSurface;
 
 D3DEXTERN D3DAPI ULONG D3DSurface_AddRef(LPDIRECT3DSURFACE8 pThis);
 D3DEXTERN D3DAPI ULONG D3DSurface_Release(LPDIRECT3DSURFACE8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DSurface_GetType(LPDIRECT3DSURFACE8 pThis);
-D3DEXTERN D3DAPI VOID D3DSurface_Register(LPDIRECT3DSURFACE8 pThis, 
+D3DEXTERN D3DAPI VOID D3DSurface_Register(LPDIRECT3DSURFACE8 pThis,
                                           PVOID pBase);
 D3DEXTERN D3DAPI BOOL D3DSurface_IsBusy(LPDIRECT3DSURFACE8 pThis);
 D3DEXTERN D3DAPI VOID D3DSurface_BlockUntilNotBusy(LPDIRECT3DSURFACE8 pThis);
 D3DEXTERN D3DAPI HRESULT D3DSurface_GetContainer(
-    LPDIRECT3DSURFACE8 pThis, 
+    LPDIRECT3DSURFACE8 pThis,
     LPDIRECT3DBASETEXTURE8* ppContainer,
     REFIID riid);
-D3DEXTERN D3DAPI HRESULT D3DSurface_GetDesc(LPDIRECT3DSURFACE8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DSurface_GetDesc(LPDIRECT3DSURFACE8 pThis,
                                             D3DSURFACE_DESC* pDesc);
-D3DEXTERN D3DAPI HRESULT D3DSurface_LockRect(LPDIRECT3DSURFACE8 pThis, 
-                                             D3DLOCKED_RECT* pLockedRect, 
+D3DEXTERN D3DAPI HRESULT D3DSurface_LockRect(LPDIRECT3DSURFACE8 pThis,
+                                             D3DLOCKED_RECT* pLockedRect,
                                              CONST RECT* pRect, DWORD Flags);
 D3DEXTERN D3DAPI HRESULT D3DSurface_UnlockRect(LPDIRECT3DSURFACE8 pThis);
 // ============================================================================
@@ -233,7 +276,7 @@ D3DEXTERN D3DAPI HRESULT D3DSurface_UnlockRect(LPDIRECT3DSURFACE8 pThis);
 typedef struct D3DVertexBuffer IMPLEMENTS(IDirect3DVertexBuffer8) {
 #ifndef __cplusplus
     IDirect3DVertexBuffer8 iface;
-#else 
+#else
     virtual D3DAPI ULONG   AddRef() override;
     virtual D3DAPI ULONG   Release() override;
     virtual D3DAPI D3DRESOURCETYPE GetType() override;
@@ -243,7 +286,7 @@ typedef struct D3DVertexBuffer IMPLEMENTS(IDirect3DVertexBuffer8) {
     virtual D3DAPI HRESULT GetDesc(
         D3DVERTEXBUFFER_DESC* pDesc) override;
     virtual D3DAPI HRESULT Lock(
-        UINT OffsetToLock, UINT SizeToLock, 
+        UINT OffsetToLock, UINT SizeToLock,
         BYTE** ppbData, DWORD Flags) override;
     virtual D3DAPI HRESULT Unlock() override;
 #endif // __cplusplus
@@ -260,11 +303,11 @@ D3DEXTERN D3DAPI VOID D3DVertexBuffer_Register(
 D3DEXTERN D3DAPI BOOL D3DVertexBuffer_IsBusy(LPDIRECT3DVERTEXBUFFER8 pThis);
 D3DEXTERN D3DAPI VOID D3DVertexBuffer_BlockUntilNotBusy(
     LPDIRECT3DVERTEXBUFFER8 pThis);
-D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_GetDesc(LPDIRECT3DVERTEXBUFFER8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_GetDesc(LPDIRECT3DVERTEXBUFFER8 pThis,
                                 D3DVERTEXBUFFER_DESC* pDesc);
-D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_Lock(LPDIRECT3DVERTEXBUFFER8 pThis, 
-                                              UINT OffsetToLock, 
-                                              UINT SizeToLock, BYTE** ppbData, 
+D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_Lock(LPDIRECT3DVERTEXBUFFER8 pThis,
+                                              UINT OffsetToLock,
+                                              UINT SizeToLock, BYTE** ppbData,
                                               DWORD Flags);
 D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis);
 // ============================================================================
@@ -272,6 +315,7 @@ D3DEXTERN D3DAPI HRESULT D3DVertexBuffer_Unlock(LPDIRECT3DVERTEXBUFFER8 pThis);
 // ============================================================================
 typedef struct D3DBaseTextureInner {
     D3DResourceInner resource;
+    // Number of mipmaps the texture contains + 1 for the base level.
     DWORD            dwLevelCount;
 } D3DBaseTextureInner;
 
@@ -294,7 +338,7 @@ D3DEXTERN D3DAPI ULONG D3DBaseTexture_AddRef(LPDIRECT3DBASETEXTURE8 pThis);
 D3DEXTERN D3DAPI ULONG D3DBaseTexture_Release(LPDIRECT3DBASETEXTURE8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DBaseTexture_GetType(
     LPDIRECT3DBASETEXTURE8 pThis);
-D3DEXTERN D3DAPI VOID D3DBaseTexture_Register(LPDIRECT3DBASETEXTURE8 pThis, 
+D3DEXTERN D3DAPI VOID D3DBaseTexture_Register(LPDIRECT3DBASETEXTURE8 pThis,
                                               PVOID pBase);
 D3DEXTERN D3DAPI BOOL D3DBaseTexture_IsBusy(LPDIRECT3DBASETEXTURE8 pThis);
 D3DEXTERN D3DAPI VOID D3DBaseTexture_BlockUntilNotBusy(
@@ -320,7 +364,7 @@ typedef struct D3DTexture IMPLEMENTS(IDirect3DTexture8) {
     virtual D3DAPI HRESULT GetSurfaceLevel(
         UINT Level, LPDIRECT3DSURFACE8* ppSurfaceLevel) override;
     virtual D3DAPI HRESULT LockRect(
-        UINT Level, D3DLOCKED_RECT* pLockedRect, 
+        UINT Level, D3DLOCKED_RECT* pLockedRect,
         CONST RECT* pRect, DWORD Flags) override;
     virtual D3DAPI HRESULT UnlockRect(UINT Level) override;
 #endif // __cplusplus
@@ -332,22 +376,22 @@ typedef struct D3DTexture IMPLEMENTS(IDirect3DTexture8) {
 D3DEXTERN D3DAPI ULONG D3DTexture_AddRef(LPDIRECT3DTEXTURE8 pThis);
 D3DEXTERN D3DAPI ULONG D3DTexture_Release(LPDIRECT3DTEXTURE8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DTexture_GetType(LPDIRECT3DTEXTURE8 pThis);
-D3DEXTERN D3DAPI VOID D3DTexture_Register(LPDIRECT3DTEXTURE8 pThis, 
+D3DEXTERN D3DAPI VOID D3DTexture_Register(LPDIRECT3DTEXTURE8 pThis,
                                           PVOID pBase);
 D3DEXTERN D3DAPI BOOL D3DTexture_IsBusy(LPDIRECT3DTEXTURE8 pThis);
 D3DEXTERN D3DAPI VOID D3DTexture_BlockUntilNotBusy(LPDIRECT3DTEXTURE8 pThis);
 D3DEXTERN D3DAPI DWORD D3DTexture_GetLevelCount(LPDIRECT3DTEXTURE8 pThis);
-D3DEXTERN D3DAPI HRESULT D3DTexture_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis, 
-                                                 UINT Level, 
+D3DEXTERN D3DAPI HRESULT D3DTexture_GetLevelDesc(LPDIRECT3DTEXTURE8 pThis,
+                                                 UINT Level,
                                                  D3DSURFACE_DESC* pDesc);
 D3DEXTERN D3DAPI HRESULT D3DTexture_GetSurfaceLevel(
     LPDIRECT3DTEXTURE8 pThis, UINT Level, LPDIRECT3DSURFACE8* ppSurfaceLevel);
-D3DEXTERN D3DAPI HRESULT D3DTexture_LockRect(LPDIRECT3DTEXTURE8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DTexture_LockRect(LPDIRECT3DTEXTURE8 pThis,
                                              UINT Level,
-                                             D3DLOCKED_RECT* pLockedRect, 
+                                             D3DLOCKED_RECT* pLockedRect,
                                              CONST RECT* pRect,
                                              DWORD Flags);
-D3DEXTERN D3DAPI HRESULT D3DTexture_UnlockRect(LPDIRECT3DTEXTURE8 pThis, 
+D3DEXTERN D3DAPI HRESULT D3DTexture_UnlockRect(LPDIRECT3DTEXTURE8 pThis,
                                                UINT Level);
 // ============================================================================
 
@@ -366,12 +410,12 @@ typedef struct D3DCubeTexture IMPLEMENTS(IDirect3DCubeTexture8) {
     virtual D3DAPI HRESULT GetLevelDesc(
         UINT Level, D3DSURFACE_DESC* pDesc) override;
     virtual D3DAPI HRESULT LockRect(
-        D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT* pLockedRect, 
+        D3DCUBEMAP_FACES FaceType, UINT Level, D3DLOCKED_RECT* pLockedRect,
         CONST RECT* pRect, DWORD Flags) override;
     virtual D3DAPI HRESULT UnlockRect(
         D3DCUBEMAP_FACES FaceType, UINT Level) override;
     virtual D3DAPI HRESULT GetCubeMapSurface(
-        D3DCUBEMAP_FACES FaceType, UINT Level, 
+        D3DCUBEMAP_FACES FaceType, UINT Level,
         LPDIRECT3DSURFACE8* ppCubeMapSurface) override;
 #endif // __cplusplus
     D3DBaseTextureInner     base;
@@ -382,7 +426,7 @@ D3DEXTERN D3DAPI ULONG D3DCubeTexture_AddRef(LPDIRECT3DCUBETEXTURE8 pThis);
 D3DEXTERN D3DAPI ULONG D3DCubeTexture_Release(LPDIRECT3DCUBETEXTURE8 pThis);
 D3DEXTERN D3DAPI D3DRESOURCETYPE D3DCubeTexture_GetType(
     LPDIRECT3DCUBETEXTURE8 pThis);
-D3DEXTERN D3DAPI VOID D3DCubeTexture_Register(LPDIRECT3DCUBETEXTURE8 pThis, 
+D3DEXTERN D3DAPI VOID D3DCubeTexture_Register(LPDIRECT3DCUBETEXTURE8 pThis,
                                               PVOID pBase);
 D3DEXTERN D3DAPI BOOL D3DCubeTexture_IsBusy(LPDIRECT3DCUBETEXTURE8 pThis);
 D3DEXTERN D3DAPI VOID D3DCubeTexture_BlockUntilNotBusy(
@@ -392,34 +436,34 @@ D3DEXTERN D3DAPI DWORD D3DCubeTexture_GetLevelCount(
 D3DEXTERN D3DAPI HRESULT D3DCubeTexture_GetLevelDesc(
     LPDIRECT3DCUBETEXTURE8 pThis, UINT Level, D3DSURFACE_DESC* pDesc);
 D3DEXTERN D3DAPI HRESULT D3DCubeTexture_LockRect(LPDIRECT3DCUBETEXTURE8 pThis,
-                                                 D3DCUBEMAP_FACES FaceType, 
-                                                 UINT Level, 
+                                                 D3DCUBEMAP_FACES FaceType,
+                                                 UINT Level,
                                                  D3DLOCKED_RECT* pLockedRect,
-                                                 CONST RECT* pRect, 
+                                                 CONST RECT* pRect,
                                                  DWORD Flags);
-D3DEXTERN D3DAPI HRESULT D3DCubeTexture_UnlockRect(LPDIRECT3DCUBETEXTURE8 pThis, 
-                                                   D3DCUBEMAP_FACES FaceType, 
+D3DEXTERN D3DAPI HRESULT D3DCubeTexture_UnlockRect(LPDIRECT3DCUBETEXTURE8 pThis,
+                                                   D3DCUBEMAP_FACES FaceType,
                                                    UINT Level);
 D3DEXTERN D3DAPI HRESULT D3DCubeTexture_GetCubeMapSurface(
-    LPDIRECT3DCUBETEXTURE8 pThis, D3DCUBEMAP_FACES FaceType, 
+    LPDIRECT3DCUBETEXTURE8 pThis, D3DCUBEMAP_FACES FaceType,
     UINT Level, LPDIRECT3DSURFACE8* ppCubeMapSurface);
 // ============================================================================
 
-VOID D3D_CreateResource(D3DRESOURCETYPE type, DWORD Data, 
-                        PVOID pContiguousMemory, 
+VOID D3D_CreateResource(D3DRESOURCETYPE type, DWORD Data,
+                        PVOID pContiguousMemory,
                         D3DResourceInner* pResource);
 HRESULT D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
-                          DWORD Usage, D3DMULTISAMPLE_TYPE MultiSampleType, 
+                          DWORD Usage, D3DMULTISAMPLE_TYPE MultiSampleType,
                           PVOID pContiguousMemory,
                           D3DBaseTexture* pContainer,
                           D3DSurface* pSurf);
 HRESULT D3D_CreatePushBuffer(
     DWORD Size, BOOL bCpu, PVOID pContiguousMemory, D3DPushBuffer* pPB);
-HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels, 
-                          DWORD Usage, D3DFORMAT Format, 
+HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels,
+                          DWORD Usage, D3DFORMAT Format,
                           PVOID pContiguousMemory,
                           D3DTexture* pTex);
-HRESULT D3D_CreateCubeTexture(UINT EdgeLength, UINT Levels, 
+HRESULT D3D_CreateCubeTexture(UINT EdgeLength, UINT Levels,
                               D3DFORMAT Format, PVOID pContiguousMemory,
                               D3DCubeTexture* pTex);
 
