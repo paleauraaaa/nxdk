@@ -104,7 +104,7 @@ int main(void)
         p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, 96);
 
         /* Send the transformation matrix */
-        pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, 16);
+        pb_push(p++, NV097_SET_TRANSFORM_CONSTANT(0), 16);
         memcpy(p, m_viewport, 16*4); p+=16;
 
         pb_end(p);

@@ -461,7 +461,7 @@
 #   define NV097_SET_COLOR_KEY_COLOR                          0x00000AE0
 #   define NV097_SET_VIEWPORT_SCALE                           0x00000AF0
 #   define NV097_SET_TRANSFORM_PROGRAM                        0x00000B00
-#   define NV097_SET_TRANSFORM_CONSTANT                       0x00000B80
+#   define NV097_SET_TRANSFORM_CONSTANT(n)                   (0x00000B80 + ((n)*4))
 #   define NV097_SET_VERTEX3F                                 0x00001500
 #   define NV097_SET_BACK_LIGHT_AMBIENT_COLOR                 0x00000C00
 #   define NV097_SET_BACK_LIGHT_DIFFUSE_COLOR                 0x00000C0C

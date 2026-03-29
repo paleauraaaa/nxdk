@@ -91,9 +91,6 @@ public:
     virtual D3DAPI VOID            BlockUntilNotBusy() = 0;
     virtual D3DAPI BOOL            IsBusy() = 0;
 #endif // __cplusplus
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 };
 
 D3DAPI ULONG IDirect3DResource8_AddRef(LPDIRECT3DRESOURCE8 pThis);
@@ -130,9 +127,6 @@ typedef struct IDirect3DBaseTextureVtbl8 {
 D3DINTERFACE IDirect3DBaseTexture8 INHERITS(IDirect3DResource8) {
 #ifndef __cplusplus
     LPDIRECT3DBASETEXTUREVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI DWORD GetLevelCount() = 0;
@@ -191,9 +185,6 @@ typedef struct IDirect3DTextureVtbl8 {
 D3DINTERFACE IDirect3DTexture8 INHERITS(IDirect3DBaseTexture8) {
 #ifndef __cplusplus
     LPDIRECT3DTEXTUREVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI HRESULT GetLevelDesc(UINT Level,
@@ -273,9 +264,6 @@ typedef struct IDirect3DCubeTextureVtbl8 {
 D3DINTERFACE IDirect3DCubeTexture8 INHERITS(IDirect3DBaseTexture8) {
 #ifndef __cplusplus
     LPDIRECT3DCUBETEXTUREVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI HRESULT GetLevelDesc(
@@ -347,9 +335,6 @@ typedef struct IDirect3DSurfaceVtbl8 {
 D3DINTERFACE IDirect3DSurface8 INHERITS(IDirect3DResource8) {
 #ifndef __cplusplus
     LPDIRECT3DSURFACEVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI HRESULT GetContainer(
@@ -413,9 +398,6 @@ typedef struct IDirect3DVertexBufferVtbl8 {
 D3DINTERFACE IDirect3DVertexBuffer8 INHERITS(IDirect3DResource8) {
 #ifndef __cplusplus
     LPDIRECT3DVERTEXBUFFERVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI HRESULT GetDesc(D3DVERTEXBUFFER_DESC* pDesc) = 0;
@@ -473,9 +455,6 @@ typedef struct IDirect3DPushBufferVtbl8 {
 D3DINTERFACE IDirect3DPushBuffer8 INHERITS(IDirect3DResource8) {
 #ifndef __cplusplus
     LPDIRECT3DPUSHBUFFERVTBL8 lpVtbl;
-    DWORD Common;
-    DWORD Data;
-    DWORD Lock;
 #else
 public:
     virtual D3DAPI HRESULT GetSize(UINT *pSize)  = 0;
@@ -492,8 +471,22 @@ D3DAPI VOID IDirect3DPushBuffer8_Register(LPDIRECT3DPUSHBUFFER8 pThis,
 D3DAPI VOID IDirect3DPushBuffer8_BlockUntilNotBusy(
     LPDIRECT3DPUSHBUFFER8 pThis);
 D3DAPI BOOL IDirect3DPushBuffer8_IsBusy(LPDIRECT3DPUSHBUFFER8 pThis);
+
+// For the default push buffer: size (in DWORDs) of the CURRENT BATCH of
+// commands yet to be sent to the GPU. Only guaranteed to be valid until the
+// next KickPushBuffer or until the next command is pushed.
+//
+// For user-recorded push buffers: size (in DWORDs) of all commands pushed
+// to the push buffer. Valid until a new command is pushed.
 D3DAPI HRESULT IDirect3DPushBuffer8_GetSize(LPDIRECT3DPUSHBUFFER8 pThis,
                                             UINT* pSize);
+
+// For the default push buffer: pointer to the CURRENT BATCH of commands
+// awaiting submission to the GPU. Only guaranteed to be valid until the
+// next KickPushBuffer or until the next command is pushed.
+//
+// For user-recorded push buffers: pointer to the beginning of the push buffer.
+// Valid for the object's lifetime.
 D3DAPI HRESULT IDirect3DPushBuffer8_GetData(LPDIRECT3DPUSHBUFFER8 pThis,
                                             CONST DWORD** ppData);
 #ifdef NXDK_DEBUG
@@ -501,6 +494,7 @@ HRESULT D3DPushBuffer_DebugDump(
     LPDIRECT3DPUSHBUFFER8 pThis, DWORD* pdwData, SIZE_T n);
 #endif // NXDK_DEBUG
 HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
+DWORD D3DPushBuffer_BytesRemaining(LPDIRECT3DPUSHBUFFER8 pThis);
 // ============================================================================
 
 // ============================================================================
@@ -787,6 +781,8 @@ D3DAPI VOID IDirect3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis);
 // that call them transitively.) DO NOT FORGET TO CALL THIS, or bad things
 // will happen.
 D3DAPI VOID IDirect3DDevice8_SyncPushBuffer(LPDIRECT3DDEVICE8 pThis);
+
+HRESULT D3DDevice_ResetPushBufferToHead(void);
 
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;

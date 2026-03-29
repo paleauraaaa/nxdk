@@ -1,6 +1,7 @@
 #include "d3d8.h"
 #include "d3d8_private.h"
 #include "d3d8_device.h"
+#include "winerror.h"
 #include "d3d8_resource.h"
 
 #include <assert.h>
@@ -181,7 +182,7 @@ HRESULT D3DPushBuffer_Push1(
     D3DPushBuffer* pThis, DWORD dwData, BOOL bLoop)
 {
     D3DPushData data[] = { { .d = dwData} };
-    return D3DPushBuffer_Push(pThis, data, 1, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 1, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushA(
@@ -197,7 +198,7 @@ HRESULT D3DPushBuffer_PushCmd(
 
     D3DPushData data[2] = { { .d = method }, { .d = dwData } };
 
-    return D3DPushBuffer_Push(pThis, &data, 2, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 2, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd2(
@@ -213,7 +214,7 @@ HRESULT D3DPushBuffer_PushCmd2(
         { .d = method }, { .d = dwData1 }, { .d = dwData2 }
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 3, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 3, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd3(
@@ -228,7 +229,7 @@ HRESULT D3DPushBuffer_PushCmd3(
         { .d = method }, { .d = dwData1 }, { .d = dwData2 }, { .d = dwData3 }
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 4, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 4, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd4(
@@ -245,7 +246,7 @@ HRESULT D3DPushBuffer_PushCmd4(
         { .d = dwData3 }, { .d = dwData4 }
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 5, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 5, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmdA(
@@ -255,10 +256,15 @@ HRESULT D3DPushBuffer_PushCmdA(
     if (bIncrement == FALSE)
         cmd = NV2A_SUPPRESS_COMMAND_INCREMENT(cmd);
 
-    DWORD method = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, 4);
-    HRESULT hr = D3DPushBuffer_Push1(pThis, method, bLoop);
-    if (FAILED(hr)) return hr;
-    return D3DPushBuffer_PushA(pThis, pdwData, n, bLoop);
+    // TODO: don't allocate here.
+    DWORD method = D3D_NV2A_PFIFO_ENCODE_3D_METHOD(cmd, n);
+    PD3DPUSHDATA pData = malloc((n + 1) * sizeof(*pData));
+    D3D_ASSERT_IF(E_OUTOFMEMORY, pData == NULL);
+    pData[0].d = method;
+    memcpy(&pData[1], pdwData, n * sizeof(DWORD));
+    HRESULT hr = D3DPushBuffer_Push(pThis, pData, n + 1, bLoop);
+    free(pData);
+    return hr;
 }
 
 HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd,
@@ -268,7 +274,7 @@ HRESULT D3DPushBuffer_PushCmdf(D3DPushBuffer* pThis, DWORD cmd,
 
     D3DPushData data[2] = { { .d = method }, { .f = fData } };
 
-    return D3DPushBuffer_Push(pThis, &data, 2, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 2, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd,
@@ -284,7 +290,7 @@ HRESULT D3DPushBuffer_PushCmd2f(D3DPushBuffer* pThis, DWORD cmd,
         { .d = method }, { .f = fData1 }, { .f = fData2 }
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 3, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 3, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
@@ -300,7 +306,7 @@ HRESULT D3DPushBuffer_PushCmd3f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
         { .d = method }, { .f = fData1 }, { .f = fData2 }, { .f = fData3 }
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 4, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 4, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
@@ -318,7 +324,7 @@ HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd, float fData1,
         { .f = fData3 }, { .f = fData3 },
     };
 
-    return D3DPushBuffer_Push(pThis, &data, 5, bLoop);
+    return D3DPushBuffer_Push(pThis, &data[0], 5, bLoop);
 }
 
 HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop) {
@@ -326,10 +332,11 @@ HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop) {
         pThis, D3D_NV2A_PFIFO_ENCODE_JUMP(vaddr), bLoop);
 }
 
-DWORD D3DPushBuffer_BytesRemaining(D3DPushBuffer* pThis) {
-    assert((DWORD)pThis->p > (DWORD)pThis->resource.pContiguousMemory);
-    DWORD offset = (DWORD)pThis->p - (DWORD)pThis->resource.pContiguousMemory;
-    return pThis->Size * sizeof(DWORD) - offset;
+DWORD D3DPushBuffer_BytesRemaining(LPDIRECT3DPUSHBUFFER8 pThis) {
+    D3DPushBuffer* pPB = (D3DPushBuffer*)pThis;
+    assert((DWORD)pPB->p > (DWORD)pPB->resource.pContiguousMemory);
+    DWORD offset = (DWORD)pPB->p - (DWORD)pPB->resource.pContiguousMemory;
+    return pPB->Size * sizeof(DWORD) - offset;
 }
 
 BOOL D3D_VerifyMethod(DWORD method) {
@@ -832,6 +839,21 @@ HRESULT D3D_CreateSurface(UINT Width, UINT Height, D3DFORMAT Format,
     return D3D_OK;
 }
 
+// Creates a push buffer, allocating if pContiguousMemory == NULL. Infallible
+// if pContiguousMemory != NULL.
+//
+// Parameters:
+// * Size - Size of the push buffer in DWORDs. If pContiguousMemory != NULL, it
+// is the caller's responsibility to ensure the allocation is large enough.
+// * bCpu - Determines whether the push buffer will be run by being copied
+// directly into the active push buffer (TRUE), or by jumping to the push
+// buffer and then back (FALSE). For small push buffers, bCpu == TRUE is
+// likely to be faster, but for larger push buffers and/or push buffers that
+// are commonly reused, bCpu == FALSE is likely to be faster.
+// * pContiguousMemory - Optional pointer to contiguous memory where the push
+// buffer is to reside. Must be NULL if bCpu == TRUE. If non-NULL, it is the
+// caller's responsibility to ensure the allocation is large enough.
+// * pPB - Out parameter to receive the push buffer.
 HRESULT D3D_CreatePushBuffer(
     DWORD Size, BOOL bCpu, PVOID pContiguousMemory, D3DPushBuffer* pPB)
 {

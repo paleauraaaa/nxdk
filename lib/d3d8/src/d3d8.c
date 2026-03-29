@@ -14,6 +14,7 @@
 #include "d3d8_device.h"
 
 PVOID D3D_AllocContiguousMemory(DWORD Size, DWORD Alignment) {
+    // TODO: 128MB support.
     return MmAllocateContiguousMemoryEx(Size, 0, 0x03FFB000, Alignment,
                                         PAGE_READWRITE | PAGE_WRITECOMBINE);
 }
@@ -311,10 +312,6 @@ HRESULT D3D_PresentParameters_Validate(
 
     D3D_ASSERT_IF(D3DERR_INVALIDCALL,
         (pPresentationParameters->BackBufferCount > 2))
-
-    D3D_ASSERT_IF(D3DERR_INVALIDCALL, pPresentationParameters->Flags &
-        (D3DPRESENTFLAG_FIELD | D3DPRESENTFLAG_10X11PIXELASPECTRATIO |
-         D3DPRESENTFLAG_EMULATE_REFRESH_RATE));
 
     D3D_ASSERT_IF(D3DERR_INVALIDCALL,
         ((pPresentationParameters->Flags & D3DPRESENTFLAG_PROGRESSIVE) &&
@@ -645,7 +642,6 @@ HRESULT Direct3D_CreateDevice(
     D3D_DebugPrintf("Creating default push buffer.\n");
     hr = D3D_CreatePushBuffer(pb_get_size() / sizeof(DWORD), FALSE,
                               pb_begin(), &g_pDevice->DefaultPB);
-    D3D_ASSERT_IF(hr, FAILED(hr));
     g_pDevice->pCurrentPB = &g_pDevice->DefaultPB;
 
     // Insert a jump back to the beginning of the push buffer at the end.
@@ -687,6 +683,12 @@ HRESULT Direct3D_CreateDevice(
     }
 
     D3D_DebugPrintf("Setting execution mode.\n");
+
+    hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_START, 0);
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
+
     hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_EXECUTION_MODE,
             MASK(NV097_SET_TRANSFORM_EXECUTION_MODE_MODE,
                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM)
@@ -696,15 +698,21 @@ HRESULT Direct3D_CreateDevice(
         goto failed;
     }
 
+    hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
+    D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
+        goto failed;
+    }
+    D3DDevice_KickPushBuffer();
+
     D3DVIEWPORT8 Viewport;
     Viewport.X      = 0;
     Viewport.Y      = 0;
     Viewport.Width  = pPresentationParameters->BackBufferWidth;
     Viewport.Height = pPresentationParameters->BackBufferHeight;
-    Viewport.MinZ   = 0.2f;
-    Viewport.MaxZ   = 1000.0f;
+    Viewport.MinZ   = 0.0f;
+    Viewport.MaxZ   = 65536.0f;
 
-    hr = IDirect3DDevice8_SetViewport(&g_pDevice->iface, &Viewport);
+    hr = D3DDevice_SetViewport(&Viewport);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
@@ -717,6 +725,7 @@ HRESULT Direct3D_CreateDevice(
     }
 
     D3D_DebugPrintf("Device state init successful.\n");
+    D3DDevice_KickPushBuffer();
     return D3D_OK;
 
 failed:
@@ -953,15 +962,12 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pD3D->CurrentDisplayMode = 0;
     D3DDISPLAYMODE* pDM = &g_pD3D->DisplayModes[g_pD3D->CurrentDisplayMode];
     // set the current mode to whatever the last retrieved mode was
-    if (XVideoSetMode(pDM->Width, pDM->Height,
-                      D3D_FormatBPP(pDM->Format), pDM->RefreshRate) == FALSE)
-    {
-        assert(false);
-        return NULL;
-    }
+    D3D_ASSERT_IF(NULL, XVideoSetMode(pDM->Width, pDM->Height,
+                                      D3D_FormatBPP(pDM->Format),
+                                      pDM->RefreshRate) == FALSE);
 
-    g_pD3D->KickOffSize    = 16 * 1024;
-    g_pD3D->PushBufferSize = 64 * 1024;
+    g_pD3D->KickOffSize     =  32 * 1024;
+    g_pD3D->PushBufferSize  = 512 * 1024;
     return &g_pD3D->iface;
 
 failed:

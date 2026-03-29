@@ -1,7 +1,8 @@
 /*
  * This sample provides a very basic demonstration of 3D rendering on the Xbox,
- * using D3D8 from C.
+ * using pbkit. Based on the pbkit demo sources.
  */
+#include <assert.h>
 #include <hal/video.h>
 #include <hal/xbox.h>
 #include <math.h>
@@ -10,13 +11,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <xboxkrnl/xboxkrnl.h>
 #include <hal/debug.h>
 #include <windows.h>
 #include <d3d8.h>
+#include <stdarg.h>
 
-static uint32_t *alloc_vertices;
 static uint32_t  num_vertices;
+static float     m_viewport[4][4];
 
 typedef struct {
     float pos[3];
@@ -36,30 +39,64 @@ static const ColoredVertex verts[] = {
     {{ 1.0, -1.0,  1.0}, { 0.0,  0.0,  1.0}},
 };
 
-#define MASK(mask, val) (((val) << (__builtin_ffs(mask)-1)) & (mask))
+#define MASK(mask, val) (((val) << (ffs(mask)-1)) & (mask))
+
+static void matrix_viewport(float out[4][4], float x, float y, float width, float height, float z_min, float z_max);
+
+static void debug_printf(const char* fmt, ...) {
+    char buf[4096];
+    va_list va;
+    va_start(va, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, va);
+    va_end(va);
+    debugPrint("%s", fmt);
+    OutputDebugStringA(buf);
+}
 
 /* Main program function */
 int main(void)
 {
-    uint32_t *p;
-    int       i, status;
     int       start, last, now;
     int       fps, frames, frames_total;
 
-    LPDIRECT3D8 d3d8 = Direct3DCreate8(D3D_SDK_VERSION);
-    if (d3d8 == NULL) {
-        debugPrint("Direct3DCreate8 failed\n");
+    LPDIRECT3D8 pD3D = Direct3DCreate8(D3D_SDK_VERSION);
+    if (pD3D == NULL) {
+        debug_printf("Direct3DCreate8 Error\n");
         Sleep(2000);
         return 1;
     }
 
+    debug_printf("D3D8 successfully created.\n");
+
     D3DDISPLAYMODE mode;
-    HRESULT hr = IDirect3D8_GetAdapterDisplayMode(
-        d3d8, D3DADAPTER_DEFAULT, &mode);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3D8::GetAdapterDisplayMode failed\n");
+    mode.Width          = 640;
+    mode.Height         = 480;
+    mode.RefreshRate    = 60;
+    mode.Format         = D3DFMT_LIN_A8R8G8B8;
+    mode.Flags          = 0;
+    HRESULT hr = D3D_OK;
+    for (int i = 0; i < IDirect3D8_GetAdapterModeCount(pD3D, D3DADAPTER_DEFAULT); i++) {
+        D3DDISPLAYMODE found_mode;
+        hr = IDirect3D8_EnumAdapterModes(pD3D, D3DADAPTER_DEFAULT, i, &found_mode);
+        if (FAILED(hr)) {
+            debug_printf("IDirect3D8::EnumAdapterModes failed: %d\n", hr);
+            Sleep(2000);
+            return 2;
+        }
+        if (found_mode.Width == mode.Width &&
+            found_mode.Height == mode.Height &&
+            found_mode.RefreshRate == mode.RefreshRate &&
+            found_mode.Format == mode.Format)
+        {
+            memcpy(&mode, &found_mode, sizeof(mode));
+            break;
+        }
+    }
+
+    if (mode.Flags == 0) {
+        debug_printf("Failed to find suitable adapter mode.\n");
         Sleep(2000);
-        return 1;
+        return 2;
     }
 
     D3DPRESENT_PARAMETERS d3dpp;
@@ -67,158 +104,146 @@ int main(void)
     d3dpp.BackBufferWidth                 = mode.Width;
     d3dpp.BackBufferHeight                = mode.Height;
     d3dpp.BackBufferFormat                = mode.Format;
-    d3dpp.BackBufferCount                 = 1;
+    d3dpp.BackBufferCount                 = 2;
     d3dpp.MultiSampleType                 = D3DMULTISAMPLE_NONE;
     d3dpp.SwapEffect                      = D3DSWAPEFFECT_DISCARD;
     d3dpp.FullScreen_RefreshRateInHz      = mode.RefreshRate;
-    d3dpp.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+    d3dpp.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_ONE;
     d3dpp.Flags                           = mode.Flags;
     d3dpp.EnableAutoDepthStencil          = TRUE;
     d3dpp.AutoDepthStencilFormat          = D3DFMT_D24S8;
 
-    LPDIRECT3DDEVICE8 d3ddev = NULL;
-    hr = IDirect3D8_CreateDevice(d3d8, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, 
-                                 NULL, D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                 &d3dpp, &d3ddev);
+    debug_printf("Creating device.\n");
+    LPDIRECT3DDEVICE8 pDevice = NULL;
+    hr = IDirect3D8_CreateDevice(pD3D, D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL,
+                                 NULL,
+                                 D3DCREATE_HARDWARE_VERTEXPROCESSING |
+                                 D3DCREATE_PUREDEVICE,
+                                 &d3dpp, &pDevice);
     if(FAILED(hr)) {
-        debugPrint("IDirect3D8::CreateDevice failed\n");
-        Sleep(2000);
+        debug_printf("IDirect3D8::CreateDevice failed: %d\n", hr);
+        pb_show_debug_screen();
+        Sleep(INFINITE);
+        return 1;
+    }
+    debug_printf("Device creation successful!\n");
+
+    /* Setup vertex shader */
+    uint32_t vs_program[] = {
+        #include "vs.inl"
+        D3DVS_END(),
+    };
+
+    debug_printf("Loading vertex shader program.\n");
+    IDirect3DDevice8_SyncPushBuffer(pDevice);
+    hr = IDirect3DDevice8_LoadVertexShaderProgram(pDevice, vs_program, 0);
+    if(FAILED(hr)) {
+        debug_printf("IDirect3D8::LoadVertexShaderProgram failed: %d\n", hr);
+        Sleep(INFINITE);
+    }
+
+    /* Setup fragment shader */
+    D3DPIXELSHADERDEF PSDef = {
+        #include "ps.inl"
+    };
+    hr = IDirect3DDevice8_SetPixelShaderProgram(pDevice, &PSDef);
+    if(FAILED(hr)) {
+        debug_printf("IDirect3D8::SetPixelShaderProgram failed: %d\n", hr);
+        Sleep(INFINITE);
+    }
+
+    debug_printf("Creating vertex buffer.\n");
+    LPDIRECT3DVERTEXBUFFER8 pVB = NULL;
+    hr = IDirect3DDevice8_CreateVertexBuffer(pDevice, sizeof(verts), 0, 0, 0, &pVB);
+    if(FAILED(hr)) {
+        debug_printf("IDirect3D8::CreateVertexBuffer failed: %d\n", hr);
+        Sleep(INFINITE);
         return 1;
     }
 
+    BYTE* pBytes = NULL;
+    hr = IDirect3DVertexBuffer8_Lock(pVB, 0, 0, &pBytes, 0);
+    if(FAILED(hr)) {
+        debug_printf("IDirect3DVertexBuffer8::Lock failed: %d\n", hr);
+        Sleep(INFINITE);
+        return 1;
+    }
+    memcpy(pBytes, verts, sizeof(verts));
+    debug_printf("Vertex data copied.\n");
+    // No need to call Unlock
+
+    D3DSTREAM_INPUT input;
+    input.VertexBuffer          = pVB;
+    input.Stride                = sizeof(ColoredVertex);
+    input.Offset                = 0;
+
+    D3DVERTEXATTRIBUTEFORMAT vaf;
+    memset(&vaf, 0, sizeof(vaf));
+    vaf.Input[0].StreamIndex    = 0;
+    vaf.Input[0].Offset         = 0;
+    vaf.Input[0].Format         = D3DVSDT_FLOAT3;
+    vaf.Input[3].StreamIndex    = 0;
+    vaf.Input[3].Offset         = 3 * sizeof(float);
+    vaf.Input[3].Format         = D3DVSDT_FLOAT3;
+
     num_vertices = sizeof(verts)/sizeof(verts[0]);
+    matrix_viewport(m_viewport, 0, 0, mode.Width, mode.Height, 0, 65536.0f);
 
     /* Setup to determine frames rendered every second */
     start = now = last = GetTickCount();
     frames_total = frames = fps = 0;
+    IDirect3DDevice8_KickPushBuffer(pDevice);
 
-    D3DVIEWPORT8 viewport;
-    viewport.X      = 0;
-    viewport.Y      = 0;
-    viewport.Width  = mode.Width;
-    viewport.Height = mode.Height;
-    viewport.MinZ   = 0.0f;
-    viewport.MaxZ   = 65536.0f;
-    hr = IDirect3DDevice8_SetViewport(d3ddev, &viewport);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3DDevice8::SetViewport failed\n");
-        Sleep(2000);
-        return 1;
-    }
+    LPDIRECT3DPUSHBUFFER8 pPB = NULL;
+    IDirect3DDevice8_GetPushBuffer(pDevice, &pPB);
 
-    LPDIRECT3DVERTEXBUFFER8 vb = NULL;
-    hr = IDirect3DDevice8_CreateVertexBuffer(d3ddev, sizeof(verts), 0, 0, 0, &vb);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3DDevice8::CreateVertexBuffer failed\n");
-        Sleep(2000);
-        return 1;
-    }
-
-    BYTE* pData = NULL;
-    hr = IDirect3DVertexBuffer8_Lock(vb, 0, sizeof(verts), &pData, 0);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3DVertexBuffer8::Lock failed\n");
-        Sleep(2000);
-        return 1;
-    }
-    memcpy(pData, verts, sizeof(verts));
-    hr = IDirect3DVertexBuffer8_Unlock(vb);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3DVertexBuffer8::Unlock failed\n");
-        Sleep(2000);
-        return 1;
-    }
-
-    D3DSTREAM_INPUT input;
-    input.VertexBuffer = vb;
-    input.Stride       = sizeof(ColoredVertex);
-    input.Offset       = 0;
-
-    D3DVERTEXATTRIBUTEFORMAT vaf;
-    vaf.Input[0].StreamIndex = 0;
-    vaf.Input[0].Offset      = 0;
-    vaf.Input[0].Format      = D3DVSDT_FLOAT3;
-    vaf.Input[1].StreamIndex = 0;
-    vaf.Input[1].Offset      = 3 * sizeof(float);
-    vaf.Input[1].Format      = D3DVSDT_FLOAT3;
-
-    hr = IDirect3DDevice8_SetVertexShaderInputDirect(d3ddev, &vaf, 1, &input);
-    if(FAILED(hr)) {
-        debugPrint("IDirect3DDevice8::SetVertexShaderInputDirect failed\n");
-        Sleep(2000);
-        return 1;
-    }
-
-    uint32_t vs_program[] = {
-        #include "vs.inl"
-
-        /* Required by LoadVertexShaderProgram. */
-        D3DVS_END(),
-    };
-
-    hr = IDirect3DDevice8_LoadVertexShaderProgram(
-        d3ddev, (DWORD*)vs_program, 0);
-    if (FAILED(hr)) {
-        debugPrint("IDirect3DDevice8::LoadVertexShaderProgram failed\n");
-        Sleep(2000);
-        return 1;
-    }
-
-    D3DPIXELSHADERDEF ps_def = {
-        #include "ps.inl"
-    };
-    hr = IDirect3DDevice8_SetPixelShaderProgram(d3ddev, &ps_def);
-    if (FAILED(hr)) {
-        debugPrint("IDirect3DDevice8::SetPixelShaderProgram failed\n");
-        Sleep(2000);
-        return 1;
-    }
-
+    debug_printf("Entering frame loop...\n");
     while(1) {
-        hr = IDirect3DDevice8_BeginScene(d3ddev);
+        IDirect3DDevice8_BeginScene(pDevice);
+
+        /* Clear depth & stencil buffers */
+        // TODO: fix IDirect3DDevice8_Clear.
+        // IDirect3DDevice8_Clear(pDevice, 0, NULL, D3DCLEAR_ZSTENCIL, 0, 1.0f, 0);
+        pb_erase_depth_stencil_buffer(0, 0, mode.Width, mode.Height);
+        IDirect3DDevice8_SyncPushBuffer(pDevice);
+
+        /* Send shader constants
+         *
+         * WARNING: Changing shader source code may impact constant locations!
+         * Check the intermediate file (*.inl) for the expected locations after
+         * changing the code.
+         */
+
+        hr = IDirect3DDevice8_SetVertexShaderConstant(pDevice, 0, m_viewport, 4);
         if(FAILED(hr)) {
-            debugPrint("IDirect3DDevice8::BeginScene failed\n");
-            Sleep(2000);
-            return 1;
-        }
-        hr = IDirect3DDevice8_Clear(
-            d3ddev, 0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZSTENCIL,
-            D3DCOLOR_ARGB(0xff, 0, 0, 0), 0.0f, 0);
-        if(FAILED(hr)) {
-            debugPrint("IDirect3DDevice8::Clear failed\n");
-            Sleep(2000);
+            debug_printf("IDirect3DDevice8::SetVertexShaderConstant failed %d\n", hr);
+            Sleep(INFINITE);
             return 1;
         }
 
-        /* Begin drawing triangles */
-        hr = IDirect3DDevice8_DrawPrimitive(
-            d3ddev, D3DPT_TRIANGLELIST, 0, num_vertices / 3);
+        hr = IDirect3DDevice8_SetVertexShaderInputDirect(pDevice, &vaf, 1, &input);
         if(FAILED(hr)) {
-            debugPrint("IDirect3DDevice8::DrawPrimitive failed\n");
-            Sleep(2000);
+            debug_printf("IDirect3DDevice8::SetVertexShaderInputDirect failed %d\n", hr);
+            Sleep(INFINITE);
             return 1;
         }
 
-        /* Draw some text on the screen */
-        pb_print("Triangle Demo\n");
-        pb_print("Frames: %d\n", frames_total);
-        if (fps > 0) {
-            pb_print("FPS: %d", fps);
+        hr = IDirect3DDevice8_DrawVertices(pDevice, D3DPT_TRIANGLELIST, 0, num_vertices);
+        if(FAILED(hr)) {
+            debug_printf("IDirect3DDevice8::DrawVertices failed %d\n", hr);
+            Sleep(INFINITE);
+            return 1;
         }
-        pb_draw_text_screen();
 
-        hr = IDirect3DDevice8_EndScene(d3ddev);
+        hr = IDirect3DDevice8_EndScene(pDevice);
         if(FAILED(hr)) {
-            debugPrint("IDirect3DDevice8::EndScene failed\n");
-            Sleep(2000);
+            debug_printf("IDirect3DDevice8::EndScene failed %d\n", hr);
+            Sleep(INFINITE);
             return 1;
         }
-        hr = IDirect3DDevice8_Present(d3ddev, NULL, NULL);
-        if(FAILED(hr)) {
-            debugPrint("IDirect3DDevice8::Present failed\n");
-            Sleep(2000);
-            return 1;
-        }
+
+        IDirect3DDevice8_Present(pDevice, NULL, NULL);
+
         frames++;
         frames_total++;
 
@@ -232,10 +257,22 @@ int main(void)
     }
 
     /* Unreachable cleanup code */
+    IDirect3DVertexBuffer8_Release(pVB);
+    IDirect3DDevice8_Release(pDevice);
+    IDirect3D8_Release(pD3D);
     pb_show_debug_screen();
-    IDirect3DVertexBuffer8_Release(vb);
-    IDirect3DDevice8_Release(d3ddev);
-    IDirect3D8_Release(d3d8);
     return 0;
 }
 
+/* Construct a viewport transformation matrix */
+static void matrix_viewport(float out[4][4], float x, float y, float width, float height, float z_min, float z_max)
+{
+    memset(out, 0, 4*4*sizeof(float));
+    out[0][0] = width/2.0f;
+    out[1][1] = height/-2.0f;
+    out[2][2] = z_max - z_min;
+    out[3][3] = 1.0f;
+    out[3][0] = x + width/2.0f;
+    out[3][1] = y + height/2.0f;
+    out[3][2] = z_min;
+}

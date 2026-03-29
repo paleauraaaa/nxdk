@@ -318,6 +318,7 @@ HRESULT D3DDevice_InitDeviceState(void);
 DWORD   D3DDevice_GetCurrentFence(void);
 DWORD   D3DDevice_GetLastCompletedFence(void);
 VOID    D3DDevice_BlockOnFence(DWORD Fence);
+HRESULT D3DDevice_SetViewport(CONST D3DVIEWPORT8* pViewport);
 
 extern D3DDevice*            g_pDevice;
 #ifndef __cplusplus

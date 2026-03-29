@@ -180,7 +180,7 @@ HRESULT D3DPushBuffer_Verify(LPDIRECT3DPUSHBUFFER8 pThis, PDWORD pdwPos);
 
 #define D3D_NV2A_PFIFO_ENCODE_JUMP(vaddr) ({                                  \
     D3D_ASSERT_IF(D3DERR_INVALIDCALL, ((DWORD)vaddr & 0x00000003) != 0);      \
-    ((DWORD)vaddr | 0x00000001);                                              \
+    (MmGetPhysicalAddress((PVOID)vaddr) | 0x00000001);                        \
 })
 
 BOOL D3DPushBuffer_IsFull(LPDIRECT3DPUSHBUFFER8 pThis);
@@ -220,7 +220,7 @@ HRESULT D3DPushBuffer_PushCmd4f(D3DPushBuffer* pThis, DWORD cmd,
 HRESULT D3DPushBuffer_PushA(
     D3DPushBuffer* pThis, CONST DWORD* pdwData, SIZE_T n, BOOL bLoop);
 HRESULT D3DPushBuffer_PushJump(D3DPushBuffer* pThis, PVOID vaddr, BOOL bLoop);
-DWORD D3DPushBuffer_BytesRemaining(D3DPushBuffer* pThis);
+DWORD D3DPushBuffer_BytesRemaining(LPDIRECT3DPUSHBUFFER8 pThis);
 // ============================================================================
 
 struct D3DBaseTexture;

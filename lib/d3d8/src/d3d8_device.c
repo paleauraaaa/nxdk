@@ -10,6 +10,8 @@
 // D3DDevice.
 
 #include "d3d8_device.h"
+#include "d3d8_private.h"
+#include "d3d8types.h"
 
 #include <assert.h>
 #include <stdcountof.h>
@@ -90,19 +92,34 @@ BOOL D3DDevice_IsKickoffReady(void) {
     if (g_pDevice->pCurrentPB == NULL)
         return FALSE;
 
-    if (g_pDevice->pCurrentPB->SizeNeeded >= g_pDevice->KickOffSize)
-        return TRUE;
-    else
-        return FALSE;
+    if (g_pDevice->pCurrentPB->pLastPush == NULL) {
+        if (((DWORD)g_pDevice->pCurrentPB->p -
+            (DWORD)g_pDevice->pCurrentPB->resource.pContiguousMemory) >
+            (g_pDevice->KickOffSize * sizeof(DWORD)))
+        {
+            D3D_DebugPrintf("D3DDevice_IsKickoffReady: Yes.\n");
+            return TRUE;
+        }
+    } else {
+        if (((DWORD)g_pDevice->pCurrentPB->p -
+             (DWORD)g_pDevice->pCurrentPB->pLastPush) >
+            g_pDevice->KickOffSize * sizeof(DWORD))
+        {
+            D3D_DebugPrintf("D3DDevice_IsKickoffReady: Yes.\n");
+            return TRUE;
+        }
+    }
+
+    return FALSE;
 }
 
 VOID D3DDevice_KickPushBuffer(void) {
     assert(g_pDevice->pCurrentPB == &g_pDevice->DefaultPB);
     assert(g_pDevice->DefaultPB.bCpu == FALSE);
 
+    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
     pb_end((uint32_t*)g_pDevice->DefaultPB.p);
     g_pDevice->DefaultPB.SizeNeeded = 0;
-    g_pDevice->DefaultPB.pLastPush = g_pDevice->DefaultPB.p;
     g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
 }
 
@@ -120,8 +137,11 @@ D3DAPI VOID Direct3DDevice8_SyncPushBuffer(LPDIRECT3DDEVICE8 pThis) {
 }
 
 VOID D3DDevice_ResetPushBuffer(void) {
+    pb_end((uint32_t*)g_pDevice->DefaultPB.p);
     pb_reset();
     g_pDevice->DefaultPB.p = (PDWORD)pb_begin();
+    g_pDevice->DefaultPB.pLastPush =
+        (PDWORD)g_pDevice->DefaultPB.resource.pContiguousMemory;
 }
 
 D3DAPI VOID Direct3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis) {
@@ -205,9 +225,8 @@ HRESULT D3DDevice_PushCmdA(DWORD cmd, CONST DWORD* pdwData,
     BOOL bLoop = FALSE;
     if (g_pDevice->pCurrentPB == &g_pDevice->DefaultPB)
         bLoop = TRUE;
-    D3DPushBuffer_PushCmdA(g_pDevice->pCurrentPB, cmd,
-                           pdwData, n, bIncrement, bLoop);
-    return D3D_OK;
+    return D3DPushBuffer_PushCmdA(g_pDevice->pCurrentPB, cmd,
+                                  pdwData, n, bIncrement, bLoop);
 }
 
 HRESULT D3DDevice_PushCmd2(DWORD cmd, DWORD dwData1,
@@ -661,6 +680,12 @@ HRESULT D3DDevice_InitDeviceState(void) {
         if (FAILED(hr)) return hr;
     }
 
+    DWORD formats[16];
+    for (int i = 0; i < countof(formats); i++)
+        formats[i] = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F;
+    hr = D3DDevice_PushCmdA(NV097_SET_VERTEX_DATA_ARRAY_FORMAT(0), formats, 16, TRUE);
+    if (FAILED(hr)) return hr;
+
     D3D_DebugPrintf("Initing render state.\n");
     hr = D3DDevice_InitRenderState();
     if (FAILED(hr)) return hr;
@@ -752,6 +777,20 @@ D3DAPI VOID Direct3DDevice8_BlockUntilVerticalBlank(LPDIRECT3DDEVICE8 pThis) {
     return D3DDevice_BlockUntilVerticalBlank();
 }
 
+HRESULT D3DDevice_ResetPushBufferToHead(void) {
+    HRESULT hr = D3DPushBuffer_PushJump(
+        &g_pDevice->DefaultPB,
+        g_pDevice->DefaultPB.resource.pContiguousMemory,
+        FALSE);
+    // D3DERR_BUFFERTOOSMALL means we're at the end of the push buffer,
+    // but Direct3D::CreateDevice already inserted a jump back to the head
+    // of the push buffer at the end, so we don't have to insert one
+    // here.
+    if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
+    D3DDevice_ResetPushBuffer();
+    return hr;
+}
+
 // This is a hack to prevent pb_target_back_buffer from writing past the end of
 // the push buffer. By default, pbkit functions will simply write their
 // commands to the push buffer and hope there's space.
@@ -777,22 +816,14 @@ HRESULT D3DDevice_BeginScene(void) {
 
     g_pDevice->bInScene = TRUE;
 
+    HRESULT hr = D3D_OK;
     PVOID p = g_pDevice->DefaultPB.p;
     if (g_pb_target_back_buffer_size > 0 &&
-        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB.iface) - 1
             <= g_pb_target_back_buffer_size)
     {
-        HRESULT hr = D3DPushBuffer_PushJump(
-            &g_pDevice->DefaultPB,
-            g_pDevice->DefaultPB.resource.pContiguousMemory,
-            FALSE);
-        // D3DERR_BUFFERTOOSMALL means we're at the end of the push buffer,
-        // but Direct3D::CreateDevice already inserted a jump back to the head
-        // of the push buffer at the end, so we don't have to insert one
-        // here.
-        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
-        D3DDevice_ResetPushBuffer();
-
+        hr = D3DDevice_ResetPushBufferToHead();
+        if (FAILED(hr)) return hr;
     }
     pb_target_back_buffer();
     D3DDevice_SyncPushBuffer();
@@ -835,16 +866,12 @@ HRESULT D3DDevice_Present(CONST RECT* pSourceRect, CONST RECT* pDestRect) {
     D3DDevice_KickPushBuffer();
     PVOID p = g_pDevice->DefaultPB.p;
     if (g_pb_finished_size > 0 &&
-        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB.iface) - 1
             <= g_pb_finished_size)
     {
-        HRESULT hr = D3DPushBuffer_PushJump(
-            &g_pDevice->DefaultPB,
-            g_pDevice->DefaultPB.resource.pContiguousMemory,
-            FALSE);
-        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
-        D3DDevice_ResetPushBuffer();
 
+        HRESULT hr = D3DDevice_ResetPushBufferToHead();
+        if (FAILED(hr)) return hr;
     }
     while (pb_finished()) {
         /* Not ready to swap yet */
@@ -1014,17 +1041,13 @@ static int g_pb_set_viewport_size = 0;
 HRESULT D3DDevice_SetViewport(CONST D3DVIEWPORT8* pViewport) {
     PVOID p = g_pDevice->DefaultPB.p;
     if (g_pb_set_viewport_size > 0 &&
-        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB) - 1
+        D3DPushBuffer_BytesRemaining(&g_pDevice->DefaultPB.iface) - 1
             <= g_pb_set_viewport_size)
     {
-        HRESULT hr = D3DPushBuffer_PushJump(
-            &g_pDevice->DefaultPB,
-            g_pDevice->DefaultPB.resource.pContiguousMemory,
-            FALSE);
-        if (FAILED(hr) && hr != D3DERR_BUFFERTOOSMALL) return hr;
-        D3DDevice_ResetPushBuffer();
-
+        HRESULT hr = D3DDevice_ResetPushBufferToHead();
+        if (FAILED(hr)) return hr;
     }
+
     pb_set_viewport(pViewport->X, pViewport->Y, pViewport->Width,
                     pViewport->Height, pViewport->MinZ, pViewport->MaxZ);
     D3DDevice_SyncPushBuffer();
@@ -1049,20 +1072,23 @@ HRESULT D3DDevice_SetVertexShaderInputDirect(
     UINT StreamCount,
     D3DSTREAM_INPUT *pStreamInputs)
 {
-    for (int i = 0, j = 0; i < StreamCount; i++) {
+    for (int i = 0, j = 0; i < 16; i++) {
         D3DVERTEXSHADERINPUT* pInput = &pVAF->Input[i];
         if (pInput->Format == 0)
             continue;
 
+        D3D_ASSERT_IF(D3DERR_INVALIDCALL, pInput->StreamIndex > StreamCount);
+        D3DSTREAM_INPUT* pStreamInput = &pStreamInputs[pInput->StreamIndex];
         D3DDevice_PushCmd(NV097_SET_VERTEX_DATA_ARRAY_FORMAT(i),
             MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE |
                 NV097_SET_VERTEX_DATA_ARRAY_FORMAT_SIZE,
                 pInput->Format) |
             MASK(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_STRIDE,
-                pStreamInputs[i].Stride));
-        D3DVertexBuffer* vb = (D3DVertexBuffer*)pStreamInputs[i].VertexBuffer;
-        BYTE* pData = vb->resource.pContiguousMemory;
-        pData += pStreamInputs[i].Offset;
+                pStreamInput->Stride));
+        D3DVertexBuffer* pVB =
+            (D3DVertexBuffer*)pStreamInput->VertexBuffer;
+        BYTE* pData = pVB->resource.pContiguousMemory;
+        pData += pStreamInputs->Offset;
         pData += pInput->Offset;
         D3DDevice_PushCmd(NV097_SET_VERTEX_DATA_ARRAY_OFFSET(i),
                           (uint32_t)pData & 0x03ffffff);
@@ -1371,9 +1397,8 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
 
     int i = 0;
     for (; pFunction[i] != D3DVS_END() && Address + i < 136; i += 4) {
-        hr = D3DDevice_PushCmd4f(NV097_SET_TRANSFORM_PROGRAM,
-                                 pFunction[i],   pFunction[i+1],
-                                 pFunction[i+2], pFunction[i+3], TRUE);
+        hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_PROGRAM,
+                                &pFunction[i], 4, TRUE);
         if(FAILED(hr)) return hr;
     }
 
@@ -1970,12 +1995,12 @@ D3DAPI HRESULT Direct3DDevice8_SetPixelShaderProgram(
 HRESULT D3DDevice_ClearRect(CONST D3DRECT* pRect, DWORD Flags) {
     assert((Flags & 0x0C) == 0);
     HRESULT hr = D3DDevice_PushCmd(NV097_SET_CLEAR_RECT_HORIZONTAL,
-        MASK(NV097_SET_CLEAR_RECT_HORIZONTAL_X2, pRect->x2) |
+        MASK(NV097_SET_CLEAR_RECT_HORIZONTAL_X2, pRect->x2 - 1) |
         MASK(NV097_SET_CLEAR_RECT_HORIZONTAL_X1, pRect->x1));
 
     if (FAILED(hr)) return hr;
     hr = D3DDevice_PushCmd(NV097_SET_CLEAR_RECT_VERTICAL,
-        MASK(NV097_SET_CLEAR_RECT_VERTICAL_Y2, pRect->y2) |
+        MASK(NV097_SET_CLEAR_RECT_VERTICAL_Y2, pRect->y2 - 1) |
         MASK(NV097_SET_CLEAR_RECT_VERTICAL_Y1, pRect->y1));
     if (FAILED(hr)) return hr;
     return D3DDevice_PushCmd(NV097_CLEAR_SURFACE, Flags & 0xF3);
@@ -2000,17 +2025,17 @@ HRESULT D3DDevice_Clear(DWORD Count, CONST D3DRECT* pRects, DWORD Flags,
     }
 
     if ((Flags & D3DCLEAR_ZSTENCIL) && g_pDevice->ZStencilClearDirty) {
+        Z *= D3DZ_MAX_D24S8;
         hr = D3DDevice_PushCmd(NV097_SET_ZSTENCIL_CLEAR_VALUE,
-            MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_DEPTH,
-                 (DWORD)(Z * D3DZ_MAX_D24S8)) |
+            MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_DEPTH, (DWORD)Z) |
             MASK(NV097_SET_ZSTENCIL_CLEAR_VALUE_STENCIL, Stencil));
         if (FAILED(hr)) return hr;
     }
 
-    if ((Flags & D3DCLEAR_TARGET) && g_pDevice->ColorClearDirty) {
+    // if ((Flags & D3DCLEAR_TARGET) && g_pDevice->ColorClearDirty) {
         hr = D3DDevice_PushCmd(NV097_SET_COLOR_CLEAR_VALUE, Color);
         if (FAILED(hr)) return hr;
-    }
+    // }
 
     if (pRects == NULL) {
 #if NXDK_DEBUG
@@ -2350,13 +2375,11 @@ HRESULT D3DDevice_SetVertexShaderConstant(INT Register, CONST VOID* pConstantDat
                                    Register + 96);
     if (FAILED(hr)) return hr;
 
-    for (int i = 0; i < ConstantCount; i++) {
-        hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_CONSTANT,
-                                pConstantData,
-                                4,
-                                TRUE);
-        if (FAILED(hr)) return hr;
-    }
+    hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_CONSTANT(Register * 4),
+                            pConstantData,
+                            ConstantCount * 4,
+                            TRUE);
+    if (FAILED(hr)) return hr;
     return hr;
 }
 

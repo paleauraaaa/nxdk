@@ -83,7 +83,7 @@ typedef struct _D3DADAPTER_IDENTIFIER8 {
 
 #define MAKEFOURCC(ch0, ch1, ch2, ch3)                                 \
             ((DWORD)(BYTE)(ch0) | ((DWORD)(BYTE)(ch1) << 8) |          \
-            ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24 )) 
+            ((DWORD)(BYTE)(ch2) << 16) | ((DWORD)(BYTE)(ch3) << 24 ))
 
 typedef enum _D3DFORMAT: UINT {
     D3DFMT_UNKNOWN      = 0xFFFFFFFF,
@@ -159,33 +159,30 @@ typedef enum _D3DFORMAT: UINT {
     D3DFMT_LIN_X8L8V8U8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_X8R8G8B8,
     D3DFMT_LIN_Q8W8V8U8 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_A8B8G8R8,
 
-    D3DFMT_LIN_D24S8 = 
+    D3DFMT_LIN_D24S8 =
         NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FIXED,
-    D3DFMT_LIN_F24S8 = 
+    D3DFMT_LIN_F24S8 =
         NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_X8_Y24_FLOAT,
     D3DFMT_LIN_D16 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FIXED,
     D3DFMT_LIN_F16 = NV097_SET_TEXTURE_FORMAT_COLOR_LU_IMAGE_DEPTH_Y16_FLOAT,
 
     D3DFMT_VERTEXDATA, // Arbitrary constants,
-    D3DFMT_INDEX16, // not used by the hardware.
+    D3DFMT_INDEX16,    // not used by the hardware.
 } D3DFORMAT;
 
-#define D3DPRESENTFLAG_LOCKABLE_BACKBUFFER   0x00000001L
 #define D3DPRESENTFLAG_WIDESCREEN            0x00000010L
 #define D3DPRESENTFLAG_INTERLACED            0x00000020L
 #define D3DPRESENTFLAG_PROGRESSIVE           0x00000040L
 #define D3DPRESENTFLAG_FIELD                 0x00000080L
-#define D3DPRESENTFLAG_10X11PIXELASPECTRATIO 0x00000100L
-#define D3DPRESENTFLAG_EMULATE_REFRESH_RATE  0x00000200L 
 
 #define D3DPRESENT_RATE_UNLIMITED            0x00000000L
 #define D3DPRESENT_RATE_DEFAULT              D3DPRESENT_RATE_UNLIMITED
 
 typedef struct _D3DDISPLAYMODE {
-    UINT            Width;
-    UINT            Height;
-    UINT            RefreshRate;
-    DWORD           Flags;
+    UINT            Width;          // in pixels
+    UINT            Height;         // in pixels
+    UINT            RefreshRate;    // in Hz
+    DWORD           Flags;          // D3DPRESENTFLAG_*
     D3DFORMAT       Format;
 } D3DDISPLAYMODE;
 
@@ -194,17 +191,17 @@ typedef enum _D3DDEVTYPE: UINT {
 } D3DDEVTYPE;
 
 typedef enum _D3DRESOURCETYPE: UINT {
-    D3DRTYPE_NONE,
-    D3DRTYPE_SURFACE,
-    D3DRTYPE_VOLUME,
-    D3DRTYPE_TEXTURE,
-    D3DRTYPE_VOLUMETEXTURE,
-    D3DRTYPE_CUBETEXTURE,
-    D3DRTYPE_VERTEXBUFFER,
-    D3DRTYPE_INDEXBUFFER,
-    D3DRTYPE_PUSHBUFFER,
-    D3DRTYPE_PALETTE,
-    D3DRTYPE_FIXUP,
+    D3DRTYPE_NONE,          // Invalid
+    D3DRTYPE_SURFACE,       // IDirect3DSurface8
+    D3DRTYPE_VOLUME,        // IDirect3DVolume8
+    D3DRTYPE_TEXTURE,       // IDirect3DTexture8
+    D3DRTYPE_VOLUMETEXTURE, // IDirect3DVolumeTexture8
+    D3DRTYPE_CUBETEXTURE,   // IDirect3DCubeTexture8
+    D3DRTYPE_VERTEXBUFFER,  // IDirect3DVertexBuffer8
+    D3DRTYPE_INDEXBUFFER,   // IDirect3DIndexBuffer8
+    D3DRTYPE_PUSHBUFFER,    // IDirect3DPushBuffer8
+    D3DRTYPE_PALETTE,       // IDirect3DPalette8
+    D3DRTYPE_FIXUP,         // IDirect3DFixup8
 } D3DRESOURCETYPE;
 
 typedef enum _D3DUSAGE: DWORD {
@@ -239,7 +236,7 @@ typedef enum _D3DMULTISAMPLE_TYPE: DWORD {
     D3DMULTISAMPLE_4_SAMPLES_MULTISAMPLE_LINEAR             = 0x10220000,
     D3DMULTISAMPLE_4_SAMPLES_MULTISAMPLE_GAUSSIAN           = 0x12220000,
     D3DMULTISAMPLE_4_SAMPLES_SUPERSAMPLE_LINEAR             = 0x20220000,
-    D3DMULTISAMPLE_4_SAMPLES_SUPERSAMPLE_GAUSSIAN           = 0x22220000,      
+    D3DMULTISAMPLE_4_SAMPLES_SUPERSAMPLE_GAUSSIAN           = 0x22220000,
     D3DMULTISAMPLE_4_SAMPLES = D3DMULTISAMPLE_4_SAMPLES_MULTISAMPLE_GAUSSIAN,
     D3DMULTISAMPLE_9_SAMPLES_MULTISAMPLE_GAUSSIAN           = 0x12330000,
     D3DMULTISAMPLE_9_SAMPLES_SUPERSAMPLE_GAUSSIAN           = 0x22330000,
@@ -253,11 +250,11 @@ typedef enum _D3DMULTISAMPLEMODE: UINT {
 } D3DMULTISAMPLEMODE;
 
 typedef enum _D3DTEXTUREFILTERTYPE: UINT {
-    D3DTEXF_NONE,         
-    D3DTEXF_POINT,      
-    D3DTEXF_LINEAR,       
-    D3DTEXF_ANISOTROPIC, 
-    D3DTEXF_QUINCUNX,    
+    D3DTEXF_NONE,
+    D3DTEXF_POINT,
+    D3DTEXF_LINEAR,
+    D3DTEXF_ANISOTROPIC,
+    D3DTEXF_QUINCUNX,
     D3DTEXF_GAUSSIANCUBIC,
 
     D3DTEXF_MAX,
@@ -284,13 +281,13 @@ typedef struct _D3DCAPS8 {
     DWORD   AlphaCmpCaps;
     DWORD   ShadeCaps;
     DWORD   TextureCaps;
-    DWORD   TextureFilterCaps;         
-    DWORD   CubeTextureFilterCaps;     
-    DWORD   VolumeTextureFilterCaps;   
-    DWORD   TextureAddressCaps;        
-    DWORD   VolumeTextureAddressCaps;  
+    DWORD   TextureFilterCaps;
+    DWORD   CubeTextureFilterCaps;
+    DWORD   VolumeTextureFilterCaps;
+    DWORD   TextureAddressCaps;
+    DWORD   VolumeTextureAddressCaps;
 
-    DWORD   LineCaps;                 
+    DWORD   LineCaps;
 
     DWORD   MaxTextureWidth, MaxTextureHeight;
     DWORD   MaxVolumeExtent;
@@ -321,15 +318,15 @@ typedef struct _D3DCAPS8 {
 
     float   MaxPointSize;
 
-    DWORD   MaxPrimitiveCount;     
+    DWORD   MaxPrimitiveCount;
     DWORD   MaxVertexIndex;
     DWORD   MaxStreams;
-    DWORD   MaxStreamStride;          
+    DWORD   MaxStreamStride;
 
     DWORD   VertexShaderVersion;
-    DWORD   MaxVertexShaderConst; 
+    DWORD   MaxVertexShaderConst;
     DWORD   PixelShaderVersion;
-    float   MaxPixelShaderValue;    
+    float   MaxPixelShaderValue;
 
 } D3DCAPS8;
 
@@ -341,12 +338,22 @@ typedef enum _D3DSWAPEFFECT: UINT {
 } D3DSWAPEFFECT;
 
 typedef enum _D3DPRESENT_INTERVAL: UINT {
+    // Swaps immediately, does not wait for VBlank.
     D3DPRESENT_INTERVAL_IMMEDIATE,
+    // Swaps on the next VBlank.
     D3DPRESENT_INTERVAL_ONE,
+    // Swaps on the next VBlank, or immediately if there was no swap on the
+    // last VBlank.
     D3DPRESENT_INTERVAL_ONE_OR_IMMEDIATE,
+    // Swaps every two VBlanks.
     D3DPRESENT_INTERVAL_TWO,
+    // Swaps every two VBlanks, or immediately if more than two VBlanks have
+    // elapsed since the last present.
     D3DPRESENT_INTERVAL_TWO_OR_IMMEDIATE,
+    // Swaps every three VBlanks.
     D3DPRESENT_INTERVAL_THREE,
+    // Swaps every three VBlanks, or immediately if more than three VBlanks
+    // have elapsed since the last present.
     D3DPRESENT_INTERVAL_THREE_OR_IMMEDIATE,
 
     D3DPRESENT_INTERVAL_DEFAULT = D3DPRESENT_INTERVAL_IMMEDIATE,
@@ -356,7 +363,7 @@ struct IDirect3DSurface8;
 typedef struct IDirect3DSurface8 IDirect3DSurface8, *LPDIRECT3DSURFACE8;
 
 typedef struct _D3DPRESENT_PARAMETERS_ {
-    // The following three fields must be valid for a single display mode 
+    // The following three fields must be valid for a single display mode
     // returned from IDirect3D8::EnumAdapterModes.
     UINT                BackBufferWidth;
     UINT                BackBufferHeight;
@@ -376,7 +383,7 @@ typedef struct _D3DPRESENT_PARAMETERS_ {
     BOOL                EnableAutoDepthStencil;
     // Must be a valid format as given by IDirect3D8::CheckDepthStencilMatch.
     D3DFORMAT           AutoDepthStencilFormat;
-    // Must be (D3DCREATE_HARDWARE_VERTEXPROCESSING | 
+    // Must be (D3DCREATE_HARDWARE_VERTEXPROCESSING |
     //          D3DCREATE_HARDWARE_PUREDEVICE)
     DWORD               Flags;
 
@@ -387,12 +394,12 @@ typedef struct _D3DPRESENT_PARAMETERS_ {
     // Must be a valid D3DPRESENT_INTERVAL.
     UINT                FullScreen_PresentationInterval;
 
-    // If non-NULL, BufferSurfaces will supply the initial front and back 
-    // buffer(s). The lifetime of these will not be managed by D3D, so it is 
+    // If non-NULL, BufferSurfaces will supply the initial front and back
+    // buffer(s). The lifetime of these will not be managed by D3D, so it is
     // the user's responsibility to ensure they live at least as long as the
-    // device does, and that they are freed if necessary. 
+    // device does, and that they are freed if necessary.
     // If NULL, D3D will create and manage its own framebuffers
-    // on device creation. 
+    // on device creation.
     //
     // D3D does not support "mixing" framebuffers,
     // so if BufferSurfaces[0] is non-NULL, BufferSurfaces[1] must be
@@ -400,32 +407,32 @@ typedef struct _D3DPRESENT_PARAMETERS_ {
     // non-NULL. If BufferSurfaces[0] is NULL, the other surface(s) must
     // be NULL.
     //
-    // If non-NULL, all BufferSurfaces must have been created with the same 
-    // width, height, and format as specified by BackBufferWidth, 
+    // If non-NULL, all BufferSurfaces must have been created with the same
+    // width, height, and format as specified by BackBufferWidth,
     // BackBufferHeight, and BackBufferFormat.
-    // 
-    // BufferSurfaces[0] will be the initial back buffer and therefore the 
-    // first surface drawn to. If BackBufferCount < 2, BufferSurfaces[1] will 
+    //
+    // BufferSurfaces[0] will be the initial back buffer and therefore the
+    // first surface drawn to. If BackBufferCount < 2, BufferSurfaces[1] will
     // be the initial front buffer. If BackBufferCount == 2, BufferSurfaces[1]
-    // will be the second back buffer, and BufferSurfaces[2] will be the 
+    // will be the second back buffer, and BufferSurfaces[2] will be the
     // initial front buffer.
-    // 
-    // D3D will not present the initial front buffer in either case, so its 
+    //
+    // D3D will not present the initial front buffer in either case, so its
     // contents are irrelevant and will not be drawn.
     //
-    // The contiguous memory regions used by all BufferSurfaces *should* be 
-    // contiguous with one another (i.e., coming from the same allocation, 
-    // and with no gaps in between). 
-    // Non-contiguous regions would require either the use of one tile per 
+    // The contiguous memory regions used by all BufferSurfaces *should* be
+    // contiguous with one another (i.e., coming from the same allocation,
+    // and with no gaps in between).
+    // Non-contiguous regions would require either the use of one tile per
     // surface or the non-use of tiles for framebuffers altogether.
     //
     // As an implementation detail, device creation currently does
     // not handle the case of non-contiguous BufferSurfaces and will fail.
     //
     // DepthStencilSurface need not be contiguous with BufferSurfaces, and it
-    // is permitted to be NULL or non-NULL independent of the BufferSurfaces. 
-    // If DepthStencilSurface is non-NULL and EnableAutoDepthStencil == TRUE, 
-    // device creation will fail. 
+    // is permitted to be NULL or non-NULL independent of the BufferSurfaces.
+    // If DepthStencilSurface is non-NULL and EnableAutoDepthStencil == TRUE,
+    // device creation will fail.
     // If non-NULL, DepthStencilSurface must have been created with dimensions
     // at least as large as BackBufferWidth * BackBufferHeight, and its format
     // must be a valid format as given by IDirect3D8::CheckDepthStencilMatch
@@ -444,8 +451,9 @@ typedef struct tagRECT {
 } RECT, *PRECT, *NPRECT, *LPRECT;
 
 typedef struct _D3DLOCKED_RECT {
+    // Horizontal span of the surface in bytes.
     INT                 Pitch;
-    void*               pBits;
+    PVOID               pBits;
 } D3DLOCKED_RECT;
 
 typedef enum _D3DPRIMITIVETYPE: DWORD {
@@ -467,26 +475,30 @@ typedef enum _D3DPRIMITIVETYPE: DWORD {
 #define D3DTEXTURE_ALIGNMENT        128
 #define D3DPUSHBUFFER_ALIGNMENT     4
 
+// Format describing pixel shaders on the Xbox GPU.
+//
+// The GPU does not support programmable pixel shaders like it does with vertex
+// shaders.
 typedef struct _D3DPixelShaderDef {
-   DWORD    PSAlphaInputs[8];         
-   DWORD    PSFinalCombinerInputsABCD;
-   DWORD    PSFinalCombinerInputsEFG; 
-   DWORD    PSConstant0[8];           
-   DWORD    PSConstant1[8];           
-   DWORD    PSAlphaOutputs[8];        
-   DWORD    PSRGBInputs[8];           
-   DWORD    PSCompareMode;            
-   DWORD    PSFinalCombinerConstant0;  
-   DWORD    PSFinalCombinerConstant1;  
-   DWORD    PSRGBOutputs[8];          
-   DWORD    PSCombinerCount;           
-   DWORD    PSTextureModes;            
-   DWORD    PSDotMapping;              
-   DWORD    PSInputTexture;            
+    DWORD    PSAlphaInputs[8];
+    DWORD    PSFinalCombinerInputsABCD;
+    DWORD    PSFinalCombinerInputsEFG;
+    DWORD    PSConstant0[8];
+    DWORD    PSConstant1[8];
+    DWORD    PSAlphaOutputs[8];
+    DWORD    PSRGBInputs[8];
+    DWORD    PSCompareMode;
+    DWORD    PSFinalCombinerConstant0;
+    DWORD    PSFinalCombinerConstant1;
+    DWORD    PSRGBOutputs[8];
+    DWORD    PSCombinerCount;
+    DWORD    PSTextureModes;
+    DWORD    PSDotMapping;
+    DWORD    PSInputTexture;
 
-   DWORD    PSC0Mapping;             
-   DWORD    PSC1Mapping;             
-   DWORD    PSFinalCombinerConstants;
+    DWORD    PSC0Mapping;
+    DWORD    PSC1Mapping;
+    DWORD    PSFinalCombinerConstants;
 } D3DPIXELSHADERDEF;
 
 typedef enum _D3DSHADEMODE: DWORD {
@@ -513,10 +525,10 @@ typedef enum _D3DBLEND: DWORD {
     D3DBLEND_INVDESTCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_COLOR,
     D3DBLEND_SRCALPHASAT = NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA_SATURATE,
     D3DBLEND_CONSTANTCOLOR = NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_COLOR,
-    D3DBLEND_INVCONSTANTCOLOR 
+    D3DBLEND_INVCONSTANTCOLOR
         = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_COLOR,
     D3DBLEND_CONSTANTALPHA = NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA,
-    D3DBLEND_INVCONSTANTALPHA 
+    D3DBLEND_INVCONSTANTALPHA
         = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA,
 } D3DBLEND;
 
@@ -527,18 +539,23 @@ typedef enum _D3DBLENDOP: DWORD {
     D3DBLENDOP_MIN               = NV097_SET_BLEND_EQUATION_V_MIN,
     D3DBLENDOP_MAX               = NV097_SET_BLEND_EQUATION_V_MAX,
     D3DBLENDOP_ADDSIGNED         = NV097_SET_BLEND_EQUATION_V_FUNC_ADD_SIGNED,
-    D3DBLENDOP_REVSUBTRACTSIGNED = 
+    D3DBLENDOP_REVSUBTRACTSIGNED =
         NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT_SIGNED,
 } D3DBLENDOP;
 
-typedef enum _D3DFRONT: DWORD {                
+typedef enum _D3DFRONT: DWORD {
+    // Clockwise
     D3DFRONT_CW                 = NV097_SET_FRONT_FACE_V_CW,
+    // Counter-clockwise
     D3DFRONT_CCW                = NV097_SET_FRONT_FACE_V_CCW,
 } D3DFRONT;
 
 typedef enum _D3DCULL: DWORD {
+    // Disables culling
     D3DCULL_NONE                = 0,
+    // Clockwise
     D3DCULL_CW                  = D3DFRONT_CW,
+    // Counter-clockwise
     D3DCULL_CCW                 = D3DFRONT_CCW,
 } D3DCULL;
 
@@ -605,18 +622,18 @@ typedef enum _D3DLOGICOP: DWORD {
 
 typedef enum _D3DVERTEXBLENDFLAGS: DWORD {
     D3DVBF_DISABLE           = NV097_SET_SKIN_MODE_OFF,
-    D3DVBF_1WEIGHTS          = NV097_SET_SKIN_MODE_2G,  
-    D3DVBF_2WEIGHTS          = NV097_SET_SKIN_MODE_3G,  
-    D3DVBF_3WEIGHTS          = NV097_SET_SKIN_MODE_4G,  
-    D3DVBF_2WEIGHTS2MATRICES = NV097_SET_SKIN_MODE_2,  
-    D3DVBF_3WEIGHTS3MATRICES = NV097_SET_SKIN_MODE_3,  
-    D3DVBF_4WEIGHTS4MATRICES = NV097_SET_SKIN_MODE_4,  
+    D3DVBF_1WEIGHTS          = NV097_SET_SKIN_MODE_2G,
+    D3DVBF_2WEIGHTS          = NV097_SET_SKIN_MODE_3G,
+    D3DVBF_3WEIGHTS          = NV097_SET_SKIN_MODE_4G,
+    D3DVBF_2WEIGHTS2MATRICES = NV097_SET_SKIN_MODE_2,
+    D3DVBF_3WEIGHTS3MATRICES = NV097_SET_SKIN_MODE_3,
+    D3DVBF_4WEIGHTS4MATRICES = NV097_SET_SKIN_MODE_4,
 
     D3DVBF_MAX               = D3DVBF_4WEIGHTS4MATRICES + 1,
 } D3DVERTEXBLENDFLAGS;
 
 typedef enum _D3DDEPTHCLIPCONTROL: DWORD {
-    D3DDCC_CULLPRIMITIVE    = 0x00000001, 
+    D3DDCC_CULLPRIMITIVE    = 0x00000001,
     D3DDCC_CLAMP            = 0x00000010,
     D3DDCC_IGNORE_W_SIGN    = 0x00000100,
 } D3DDEPTHCLIPCONTROL;
@@ -630,18 +647,22 @@ typedef enum _D3DDEPTHCLIPCONTROL: DWORD {
      D3DCOLORWRITEENABLE_RED  | D3DCOLORWRITEENABLE_ALPHA)
 
 typedef enum _D3DRENDERSTATETYPE: DWORD {
+    // Render states between D3DRS_PS_MIN and D3DRS_PS_MAX can be set by
+    // SetPixelShader, or directly via SetRenderState. Calling SetRenderState
+    // after SetPixelShader will invalidate that pixel shader, and calling
+    // SetPixelShader after SetRenderState will overwrite any render state.
     D3DRS_PS_MIN,
 
-    D3DRS_PSALPHAINPUTS0 = D3DRS_PS_MIN, 
-    D3DRS_PSALPHAINPUTS1, 
-    D3DRS_PSALPHAINPUTS2, 
-    D3DRS_PSALPHAINPUTS3, 
-    D3DRS_PSALPHAINPUTS4, 
-    D3DRS_PSALPHAINPUTS5, 
-    D3DRS_PSALPHAINPUTS6, 
-    D3DRS_PSALPHAINPUTS7, 
-    D3DRS_PSFINALCOMBINERINPUTSABCD, 
-    D3DRS_PSFINALCOMBINERINPUTSEFG, 
+    D3DRS_PSALPHAINPUTS0 = D3DRS_PS_MIN,
+    D3DRS_PSALPHAINPUTS1,
+    D3DRS_PSALPHAINPUTS2,
+    D3DRS_PSALPHAINPUTS3,
+    D3DRS_PSALPHAINPUTS4,
+    D3DRS_PSALPHAINPUTS5,
+    D3DRS_PSALPHAINPUTS6,
+    D3DRS_PSALPHAINPUTS7,
+    D3DRS_PSFINALCOMBINERINPUTSABCD,
+    D3DRS_PSFINALCOMBINERINPUTSEFG,
 
     // D3DRS_PSCONSTANT0_* and D3DRS_PSCONSTANT1_* must remain contiguous.
     D3DRS_PSCONSTANT0_0,
@@ -689,7 +710,7 @@ typedef enum _D3DRENDERSTATETYPE: DWORD {
     D3DRS_PSRGBOUTPUTS6,
     D3DRS_PSRGBOUTPUTS7,
     D3DRS_PSCOMBINERCOUNT,
-                                        
+
     D3DRS_PSDOTMAPPING,
     D3DRS_PSINPUTTEXTURE,
 
@@ -726,13 +747,13 @@ typedef enum _D3DRENDERSTATETYPE: DWORD {
     D3DRS_SIMPLE_MAX,
 
     D3DRS_FOGENABLE = D3DRS_SIMPLE_MAX,
-    D3DRS_FOGTABLEMODE, 
-    D3DRS_FOGSTART, 
-    D3DRS_FOGEND, 
-    D3DRS_FOGDENSITY, 
-    D3DRS_RANGEFOGENABLE, 
-    D3DRS_WRAP0, 
-    D3DRS_WRAP1, 
+    D3DRS_FOGTABLEMODE,
+    D3DRS_FOGSTART,
+    D3DRS_FOGEND,
+    D3DRS_FOGDENSITY,
+    D3DRS_RANGEFOGENABLE,
+    D3DRS_WRAP0,
+    D3DRS_WRAP1,
     D3DRS_WRAP2,
     D3DRS_WRAP3,
     D3DRS_LIGHTING,
@@ -769,20 +790,20 @@ typedef enum _D3DRENDERSTATETYPE: DWORD {
     D3DRS_FOGCOLOR,
     D3DRS_FILLMODE,
     D3DRS_BACKFILLMODE,
-    D3DRS_TWOSIDEDLIGHTING, 
+    D3DRS_TWOSIDEDLIGHTING,
     D3DRS_NORMALIZENORMALS,
-    D3DRS_ZENABLE, 
-    D3DRS_STENCILENABLE, 
+    D3DRS_ZENABLE,
+    D3DRS_STENCILENABLE,
     D3DRS_STENCILFAIL,
     D3DRS_FRONTFACE,
     D3DRS_CULLMODE,
-    D3DRS_TEXTUREFACTOR, 
+    D3DRS_TEXTUREFACTOR,
     D3DRS_ZBIAS, //
     D3DRS_LOGICOP,
     D3DRS_EDGEANTIALIAS,
     D3DRS_MULTISAMPLEANTIALIAS,
     D3DRS_MULTISAMPLEMASK,
-    D3DRS_MULTISAMPLEMODE, //
+    D3DRS_MULTISAMPLEMODE,
     D3DRS_MULTISAMPLERENDERTARGETMODE, //
     D3DRS_SHADOWFUNC,
     D3DRS_LINEWIDTH,
@@ -805,21 +826,21 @@ typedef enum _PS_CHANNEL {
 } _PS_CHANNEL;
 
 typedef enum _PS_INPUTMAPPING {
-    PS_INPUTMAPPING_UNSIGNED_IDENTITY = 
+    PS_INPUTMAPPING_UNSIGNED_IDENTITY =
         NV097_SET_COMBINER_ALPHA_ICW_A_MAP_UNSIGNED_IDENTITY,
-    PS_INPUTMAPPING_UNSIGNED_INVERT = 
+    PS_INPUTMAPPING_UNSIGNED_INVERT =
         (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_UNSIGNED_INVERT * 2) << 4,
-    PS_INPUTMAPPING_EXPAND_NORMAL = 
-        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NORMAL   * 2) << 4, 
-    PS_INPUTMAPPING_EXPAND_NEGATE  = 
-        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NEGATE   * 2) << 4, 
-    PS_INPUTMAPPING_HALFBIAS_NORMAL = 
+    PS_INPUTMAPPING_EXPAND_NORMAL =
+        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NORMAL   * 2) << 4,
+    PS_INPUTMAPPING_EXPAND_NEGATE  =
+        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_EXPAND_NEGATE   * 2) << 4,
+    PS_INPUTMAPPING_HALFBIAS_NORMAL =
         (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_HALFBIAS_NORMAL * 2) << 4,
-    PS_INPUTMAPPING_HALFBIAS_NEGATE = 
+    PS_INPUTMAPPING_HALFBIAS_NEGATE =
         (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_HALFBIAS_NEGATE * 2) << 4,
-    PS_INPUTMAPPING_SIGNED_IDENTITY = 
-        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_SIGNED_IDENTITY * 2) << 4, 
-    PS_INPUTMAPPING_SIGNED_NEGATE = 
+    PS_INPUTMAPPING_SIGNED_IDENTITY =
+        (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_SIGNED_IDENTITY * 2) << 4,
+    PS_INPUTMAPPING_SIGNED_NEGATE =
         (NV097_SET_COMBINER_ALPHA_ICW_A_MAP_SIGNED_NEGATE   * 2) << 4,
 } PS_INPUTMAPPING;
 
@@ -840,21 +861,21 @@ typedef enum _PS_REGISTER {
     PS_REGISTER_V1R0_SUM    = 0x0E,
     PS_REGISTER_EF_PROD     = 0x0F,
 
-    PS_REGISTER_ONE = 
+    PS_REGISTER_ONE =
         PS_REGISTER_ZERO | PS_INPUTMAPPING_UNSIGNED_INVERT,
-    PS_REGISTER_NEGATIVE_ONE = 
+    PS_REGISTER_NEGATIVE_ONE =
         PS_REGISTER_ZERO | PS_INPUTMAPPING_EXPAND_NORMAL,
-    PS_REGISTER_ONE_HALF = 
+    PS_REGISTER_ONE_HALF =
         PS_REGISTER_ZERO | PS_INPUTMAPPING_HALFBIAS_NEGATE,
-    PS_REGISTER_NEGATIVE_ONE_HALF = 
+    PS_REGISTER_NEGATIVE_ONE_HALF =
         PS_REGISTER_ZERO | PS_INPUTMAPPING_HALFBIAS_NORMAL,
 } PS_REGISTER;
 
 typedef struct _D3DVIEWPORT8 {
-    DWORD       X;
-    DWORD       Y;
-    DWORD       Width;
-    DWORD       Height;
+    DWORD       X;          // in pixels
+    DWORD       Y;          // in pxiels
+    DWORD       Width;      // in pixels
+    DWORD       Height;     // in pixels
     float       MinZ;
     float       MaxZ;
 } D3DVIEWPORT8;
@@ -879,47 +900,47 @@ typedef struct {
 } D3DVERTEXATTRIBUTEFORMAT;
 
 struct IDirect3DVertexBuffer8;
-typedef struct IDirect3DVertexBuffer8 IDirect3DVertexBuffer8, 
+typedef struct IDirect3DVertexBuffer8 IDirect3DVertexBuffer8,
                                       *LPDIRECT3DVERTEXBUFFER8;
-typedef struct _D3DSTREAM_INPUT { 
+typedef struct _D3DSTREAM_INPUT {
     LPDIRECT3DVERTEXBUFFER8 VertexBuffer;
     UINT Stride;
     UINT Offset;
 } D3DSTREAM_INPUT;
 
 typedef struct _D3DSURFACE_DESC {
-    D3DFORMAT           Format;
-    D3DRESOURCETYPE     Type;
-    DWORD               Usage;
-    UINT                Size;
-    D3DMULTISAMPLE_TYPE MultiSampleType;
-    UINT                Width;
-    UINT                Height;
+    D3DFORMAT               Format;
+    D3DRESOURCETYPE         Type;
+    DWORD                   Usage;
+    UINT                    Size;       // in bytes
+    D3DMULTISAMPLE_TYPE     MultiSampleType;
+    UINT                    Width;      // in pixels
+    UINT                    Height;     // in pixels
 } D3DSURFACE_DESC;
                          // elem count                data type
 #define D3DVSDT_FLOAT1      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
 #define D3DVSDT_FLOAT2      ((2 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
 #define D3DVSDT_FLOAT3      ((3 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
 #define D3DVSDT_FLOAT4      ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
-#define D3DVSDT_D3DCOLOR    ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D) 
+#define D3DVSDT_D3DCOLOR    ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D)
 #define D3DVSDT_SHORT1      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K)
 #define D3DVSDT_SHORT2      ((2 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K)
 #define D3DVSDT_SHORT3      ((3 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K)
 #define D3DVSDT_SHORT4      ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K)
 
-#define D3DVSDT_NORMSHORT1  ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1) 
-#define D3DVSDT_NORMSHORT2  ((2 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1) 
-#define D3DVSDT_NORMSHORT3  ((3 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1) 
-#define D3DVSDT_NORMSHORT4  ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1) 
+#define D3DVSDT_NORMSHORT1  ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1)
+#define D3DVSDT_NORMSHORT2  ((2 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1)
+#define D3DVSDT_NORMSHORT3  ((3 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1)
+#define D3DVSDT_NORMSHORT4  ((4 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S1)
 #define D3DVSDT_NORMPACKED3 ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_CMP)
 
 #define D3DVSDT_PBYTE1      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL)
 #define D3DVSDT_PBYTE2      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL)
 #define D3DVSDT_PBYTE3      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL)
 #define D3DVSDT_PBYTE4      ((1 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL)
-#define D3DVSDT_FLOAT2H     ((7 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)     
-                                                                                    
-#define D3DVSDT_NONE        (    0    | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)     
+#define D3DVSDT_FLOAT2H     ((7 << 4) | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
+
+#define D3DVSDT_NONE        (    0    | NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F)
 
 // pixel/vertex shader end token
 #define D3DPS_END()  0x0000FFFF
@@ -930,44 +951,44 @@ typedef enum D3DPOOL: UINT {
 } D3DPOOL;
 
 typedef enum _D3DTEXTURESTAGESTATETYPE: UINT {
-    D3DTSS_ADDRESSU,  
-    D3DTSS_ADDRESSV,  
-    D3DTSS_ADDRESSW,  
-    D3DTSS_MAGFILTER,  
-    D3DTSS_MINFILTER,  
-    D3DTSS_MIPFILTER,  
-    D3DTSS_MIPMAPLODBIAS,  
-    D3DTSS_MAXMIPLEVEL,  
-    D3DTSS_MAXANISOTROPY,  
-    D3DTSS_COLORKEYOP,  
-    D3DTSS_COLORSIGN,  
-    D3DTSS_ALPHAKILL,  
+    D3DTSS_ADDRESSU,
+    D3DTSS_ADDRESSV,
+    D3DTSS_ADDRESSW,
+    D3DTSS_MAGFILTER,
+    D3DTSS_MINFILTER,
+    D3DTSS_MIPFILTER,
+    D3DTSS_MIPMAPLODBIAS,
+    D3DTSS_MAXMIPLEVEL,
+    D3DTSS_MAXANISOTROPY,
+    D3DTSS_COLORKEYOP,
+    D3DTSS_COLORSIGN,
+    D3DTSS_ALPHAKILL,
 
     D3DTSS_DEFERRED_TEXTURE_STATE_MAX,
 
-    D3DTSS_COLOROP = D3DTSS_DEFERRED_TEXTURE_STATE_MAX,  
-    D3DTSS_COLORARG0,  
-    D3DTSS_COLORARG1,  
-    D3DTSS_COLORARG2,  
-    D3DTSS_ALPHAOP,  
-    D3DTSS_ALPHAARG0,  
-    D3DTSS_ALPHAARG1,  
-    D3DTSS_ALPHAARG2,  
-    D3DTSS_RESULTARG,  
-    D3DTSS_TEXTURETRANSFORMFLAGS,  
+    D3DTSS_COLOROP = D3DTSS_DEFERRED_TEXTURE_STATE_MAX,
+    D3DTSS_COLORARG0,
+    D3DTSS_COLORARG1,
+    D3DTSS_COLORARG2,
+    D3DTSS_ALPHAOP,
+    D3DTSS_ALPHAARG0,
+    D3DTSS_ALPHAARG1,
+    D3DTSS_ALPHAARG2,
+    D3DTSS_RESULTARG,
+    D3DTSS_TEXTURETRANSFORMFLAGS,
 
     D3DTSS_DEFERRED_MAX,
 
-    D3DTSS_BUMPENVMAT00 = D3DTSS_DEFERRED_MAX,  
-    D3DTSS_BUMPENVMAT01,  
-    D3DTSS_BUMPENVMAT11,  
-    D3DTSS_BUMPENVMAT10,  
-    D3DTSS_BUMPENVLSCALE,  
-    D3DTSS_BUMPENVLOFFSET,  
-    D3DTSS_TEXCOORDINDEX,  
-    D3DTSS_BORDERCOLOR,  
+    D3DTSS_BUMPENVMAT00 = D3DTSS_DEFERRED_MAX,
+    D3DTSS_BUMPENVMAT01,
+    D3DTSS_BUMPENVMAT11,
+    D3DTSS_BUMPENVMAT10,
+    D3DTSS_BUMPENVLSCALE,
+    D3DTSS_BUMPENVLOFFSET,
+    D3DTSS_TEXCOORDINDEX,
+    D3DTSS_BORDERCOLOR,
     D3DTSS_COLORKEYCOLOR,
-                                 
+
     D3DTSS_MAX,
 } D3DTEXTURESTAGESTATETYPE;
 
@@ -978,35 +999,35 @@ typedef enum _D3DTEXTURESTAGESTATETYPE: UINT {
     ((DWORD)(((flags)<<12)|((mux_sum)<<8)|((ab)<<4)|(cd)))
 
 typedef enum _PS_COMBINEROUTPUT {
-    PS_COMBINEROUTPUT_IDENTITY =            
+    PS_COMBINEROUTPUT_IDENTITY =
         NV097_SET_COMBINER_ALPHA_OCW_OP_NOSHIFT,
-    PS_COMBINEROUTPUT_BIAS =                
+    PS_COMBINEROUTPUT_BIAS =
         NV097_SET_COMBINER_ALPHA_OCW_OP_NOSHIFT_BIAS,
-    PS_COMBINEROUTPUT_SHIFTLEFT_1 =         
+    PS_COMBINEROUTPUT_SHIFTLEFT_1 =
         NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY1,
-    PS_COMBINEROUTPUT_SHIFTLEFT_1_BIAS =    
+    PS_COMBINEROUTPUT_SHIFTLEFT_1_BIAS =
         NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY1_BIAS,
-    PS_COMBINEROUTPUT_SHIFTLEFT_2 =        
+    PS_COMBINEROUTPUT_SHIFTLEFT_2 =
          NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTLEFTBY2,
-    PS_COMBINEROUTPUT_SHIFTRIGHT_1 =        
+    PS_COMBINEROUTPUT_SHIFTRIGHT_1 =
         NV097_SET_COMBINER_ALPHA_OCW_OP_SHIFTRIGHTBY1,
 
-    PS_COMBINEROUTPUT_AB_BLUE_TO_ALPHA =    
+    PS_COMBINEROUTPUT_AB_BLUE_TO_ALPHA =
         (NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_AB >> 12) & 0x80,
 
-    PS_COMBINEROUTPUT_CD_BLUE_TO_ALPHA =    
+    PS_COMBINEROUTPUT_CD_BLUE_TO_ALPHA =
         NV097_SET_COMBINER_COLOR_OCW_BLUETOALPHA_CD >> 12,
 
     PS_COMBINEROUTPUT_AB_MULTIPLY = 0x00,
-    PS_COMBINEROUTPUT_AB_DOT_PRODUCT =      
+    PS_COMBINEROUTPUT_AB_DOT_PRODUCT =
         NV097_SET_COMBINER_COLOR_OCW_AB_DOT_ENABLE >> 12,
 
     PS_COMBINEROUTPUT_CD_MULTIPLY = 0x00,
-    PS_COMBINEROUTPUT_CD_DOT_PRODUCT =      
+    PS_COMBINEROUTPUT_CD_DOT_PRODUCT =
         NV097_SET_COMBINER_COLOR_OCW_CD_DOT_ENABLE >> 12,
 
     PS_COMBINEROUTPUT_AB_CD_SUM = 0x00,
-    PS_COMBINEROUTPUT_AB_CD_MUX =           
+    PS_COMBINEROUTPUT_AB_CD_MUX =
         NV097_SET_COMBINER_COLOR_OCW_MUX_ENABLE >> 12,
 } PS_COMBINEROUTPUT;
 
@@ -1028,49 +1049,49 @@ typedef enum _PS_COMBINERCOUNTFLAGS {
 #define PS_TEXTUREMODES(t0,t1,t2,t3) \
     ((DWORD)(((t3)<<15)|((t2)<<10)|((t1)<<5)|(t0)))
 typedef enum _PS_TEXTUREMODES: DWORD {
-    PS_TEXTUREMODES_NONE = 
+    PS_TEXTUREMODES_NONE =
         NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PROGRAM_NONE,
-    PS_TEXTUREMODES_PROJECT2D =            
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_2D_PROJECTIVE, 
-    PS_TEXTUREMODES_PROJECT3D =           
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_3D_PROJECTIVE, 
-    PS_TEXTUREMODES_CUBEMAP =             
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CUBE_MAP, 
-    PS_TEXTUREMODES_PASSTHRU =            
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PASS_THROUGH, 
-    PS_TEXTUREMODES_CLIPPLANE =           
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CLIP_PLANE, 
-    PS_TEXTUREMODES_BUMPENVMAP =          
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP, 
-    PS_TEXTUREMODES_BUMPENVMAP_LUM =      
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP_LUMINANCE, 
-    PS_TEXTUREMODES_BRDF =                
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BRDF, 
-    PS_TEXTUREMODES_DOT_ST =              
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ST, 
-    PS_TEXTUREMODES_DOT_ZW =              
+    PS_TEXTUREMODES_PROJECT2D =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_2D_PROJECTIVE,
+    PS_TEXTUREMODES_PROJECT3D =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_3D_PROJECTIVE,
+    PS_TEXTUREMODES_CUBEMAP =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CUBE_MAP,
+    PS_TEXTUREMODES_PASSTHRU =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_PASS_THROUGH,
+    PS_TEXTUREMODES_CLIPPLANE =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_CLIP_PLANE,
+    PS_TEXTUREMODES_BUMPENVMAP =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP,
+    PS_TEXTUREMODES_BUMPENVMAP_LUM =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BUMPENVMAP_LUMINANCE,
+    PS_TEXTUREMODES_BRDF =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_BRDF,
+    PS_TEXTUREMODES_DOT_ST =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ST,
+    PS_TEXTUREMODES_DOT_ZW =
         NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_ZW,
-    PS_TEXTUREMODES_DOT_RFLCT_DIFF =      
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_DIFFUSE, 
-    PS_TEXTUREMODES_DOT_RFLCT_SPEC =      
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR, 
-    PS_TEXTUREMODES_DOT_STR_3D =          
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D, 
-    PS_TEXTUREMODES_DOT_STR_CUBE =        
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_CUBE, 
-    PS_TEXTUREMODES_DPNDNT_AR =          
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_AR, 
-    PS_TEXTUREMODES_DPNDNT_GB =            
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_GB, 
-    PS_TEXTUREMODES_DOTPRODUCT =           
-        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PRODUCT, 
-    PS_TEXTUREMODES_DOT_RFLCT_SPEC_CONST = 
+    PS_TEXTUREMODES_DOT_RFLCT_DIFF =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_DIFFUSE,
+    PS_TEXTUREMODES_DOT_RFLCT_SPEC =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR,
+    PS_TEXTUREMODES_DOT_STR_3D =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_3D,
+    PS_TEXTUREMODES_DOT_STR_CUBE =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_STR_CUBE,
+    PS_TEXTUREMODES_DPNDNT_AR =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_AR,
+    PS_TEXTUREMODES_DPNDNT_GB =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DEPENDENT_GB,
+    PS_TEXTUREMODES_DOTPRODUCT =
+        NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_PRODUCT,
+    PS_TEXTUREMODES_DOT_RFLCT_SPEC_CONST =
         NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST
 } PS_TEXTUREMODES;
 
 
 typedef enum _D3DCLEAR: DWORD {
-    D3DCLEAR_ZBUFFER  = NV097_CLEAR_SURFACE_Z,     
+    D3DCLEAR_ZBUFFER  = NV097_CLEAR_SURFACE_Z,
     D3DCLEAR_STENCIL  = NV097_CLEAR_SURFACE_STENCIL,
     D3DCLEAR_ZSTENCIL = NV097_CLEAR_SURFACE_ZSTENCIL,
     D3DCLEAR_TARGET   = NV097_CLEAR_SURFACE_COLOR,
@@ -1139,12 +1160,12 @@ typedef struct _D3DRECT {
 #define D3DTILE_PITCH_C000          0xC000
 #define D3DTILE_PITCH_E000          0xE000
 
-typedef struct _D3DTILE {                   
+typedef struct _D3DTILE {
     DWORD   Flags;
     void*   pMemory;
     DWORD   Size;
     DWORD   Pitch;
-    DWORD   ZStartTag; 
+    DWORD   ZStartTag;
     DWORD   ZOffset;
 } D3DTILE;
 
