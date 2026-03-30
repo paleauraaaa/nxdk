@@ -63,7 +63,7 @@ void InstList::Invoke()
     assert(size > 1);
     // printf("pb_push1(p, NV097_SET_SHADER_OTHER_STAGE_INPUT,\n    ");
     // printf("D3DDevice_SetRenderState(D3DRS_PSINPUTTEXTURE, PS_INPUTTEXTURE(\n");
-    printf(".PSInputTexture = PSINPUTTEXTURE(\n");
+    printf(".PSInputTexture = PS_INPUTTEXTURE(\n");
     printf("    0,\n");
     for (i=1; i<size; i++) {
         //if (i != 1) printf("    | ");
@@ -425,6 +425,6 @@ bool ts10_init_more()
         ts10_init(instring+7);
         ts10_parse();
     }
-    
+
 
   */
