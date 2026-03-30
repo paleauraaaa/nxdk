@@ -547,6 +547,10 @@ typedef struct IDirect3DDeviceVtbl8 {
     HRESULT (D3DAPI *DrawVertices)(LPDIRECT3DDEVICE8 pThis,
                                    D3DPRIMITIVETYPE PrimitiveType,
                                    UINT StartVertex, UINT VertexCount);
+    HRESULT (D3DAPI *DrawIndexedVertices)(
+        LPDIRECT3DDEVICE8 pThis,
+        D3DPRIMITIVETYPE PrimitiveType,
+        UINT VertexCount, CONST WORD *pIndexData);
     HRESULT (D3DAPI *SetViewport)(LPDIRECT3DDEVICE8 pThis,
                                   CONST D3DVIEWPORT8* pViewport);
     HRESULT (D3DAPI *SetVertexShaderInputDirect)(
@@ -639,6 +643,9 @@ public:
         D3DPRIMITIVETYPE PrimitiveType,
         UINT StartVertex,
         UINT VertexCount) = 0;
+    virtual D3DAPI HRESULT DrawIndexedVertices(
+        D3DPRIMITIVETYPE PrimitiveType,
+        UINT VertexCount, CONST WORD *pIndexData) = 0;
     virtual D3DAPI HRESULT SetViewport(
         CONST D3DVIEWPORT8* pViewport) = 0;
     virtual D3DAPI HRESULT SetVertexShaderInputDirect(
@@ -711,6 +718,10 @@ D3DAPI HRESULT IDirect3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis,
                                              D3DPRIMITIVETYPE PrimitiveType,
                                              UINT StartVertex,
                                              UINT VertexCount);
+D3DAPI HRESULT IDirect3DDevice8_DrawIndexedVertices(
+    LPDIRECT3DDEVICE8 pThis,
+    D3DPRIMITIVETYPE PrimitiveType,
+    UINT VertexCount, CONST WORD *pIndexData);
 D3DAPI HRESULT IDirect3DDevice8_SetViewport(LPDIRECT3DDEVICE8 pThis,
                                             CONST D3DVIEWPORT8* pViewport);
 D3DAPI HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
@@ -719,13 +730,13 @@ D3DAPI HRESULT IDirect3DDevice8_SetVertexShaderInputDirect(
     UINT StreamCount,
     D3DSTREAM_INPUT *pStreamInputs);
 D3DAPI HRESULT IDirect3DDevice8_CreateTexture(LPDIRECT3DDEVICE8 pThis,
-                                        UINT Width,
-                                        UINT Height,
-                                        UINT Levels,
-                                        DWORD Usage,
-                                        D3DFORMAT Format,
-                                        D3DPOOL Pool,
-                                        LPDIRECT3DTEXTURE8* ppTexture);
+                                              UINT Width,
+                                              UINT Height,
+                                              UINT Levels,
+                                              DWORD Usage,
+                                              D3DFORMAT Format,
+                                              D3DPOOL Pool,
+                                              LPDIRECT3DTEXTURE8* ppTexture);
 D3DAPI HRESULT IDirect3DDevice8_CreateCubeTexture(
     LPDIRECT3DDEVICE8 pThis, UINT EdgeLength, UINT Levels, DWORD Usage,
     D3DFORMAT Format, D3DPOOL Pool, LPDIRECT3DCUBETEXTURE8* ppCubeTexture);
@@ -783,6 +794,7 @@ D3DAPI VOID IDirect3DDevice8_KickPushBuffer(LPDIRECT3DDEVICE8 pThis);
 D3DAPI VOID IDirect3DDevice8_SyncPushBuffer(LPDIRECT3DDEVICE8 pThis);
 
 HRESULT D3DDevice_ResetPushBufferToHead(void);
+HRESULT D3DDevice_SelectVertexShaderDirect(DWORD Address);
 
 struct IDirect3D8;
 typedef struct IDirect3D8 IDirect3D8, *LPDIRECT3D8;

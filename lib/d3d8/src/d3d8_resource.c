@@ -669,7 +669,7 @@ HRESULT D3DTexture_LockRect(
         pRect->bottom == pLevel->desc.Height))
     {
         pLockedRect->Pitch = pLevel->desc.Width *
-                             D3D_FormatBytesPerPixel(texture->desc.Format);
+                             D3D_FormatBytesPerPixel(texture->pLevels[0].desc.Format);
         pLockedRect->pBits = pLevel->resource.pContiguousMemory;
     }
     else {
@@ -913,12 +913,6 @@ HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels,
     if (!pLevels)
         return E_OUTOFMEMORY;
 
-    D3DTexture* texture = malloc(sizeof(*texture));
-    if (!texture) {
-        free(pLevels);
-        return E_OUTOFMEMORY;
-    }
-
     if (pContiguousMemory == NULL) {
         pContiguousMemory =
             D3D_AllocContiguousMemory(SizeIncludingMips, D3DTEXTURE_ALIGNMENT);
@@ -926,12 +920,11 @@ HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels,
 
     if (pContiguousMemory == NULL) {
         free(pLevels);
-        free(texture);
         return D3DERR_OUTOFVIDEOMEMORY;
     }
 
-    D3D_CreateResource(D3DRTYPE_SURFACE, 0, pContiguousMemory,
-                       &texture->base.resource);
+    D3D_CreateResource(D3DRTYPE_TEXTURE, 0, pContiguousMemory,
+                       &pTex->base.resource);
 
     UINT w = Width;
     UINT h = Height;
@@ -947,12 +940,6 @@ HRESULT D3D_CreateTexture(UINT Width, UINT Height, UINT Levels,
 
     pTex->iface.lpVtbl          = g_pTextureVtbl;
     pTex->base.dwLevelCount     = Levels;
-    pTex->desc.Type             = D3DRTYPE_TEXTURE;
-    pTex->desc.Format           = Format;
-    pTex->desc.Usage            = Usage;
-    pTex->desc.Width            = Width;
-    pTex->desc.Height           = Height;
-    pTex->desc.Size             = BaseSize;
     pTex->pLevels               = pLevels;
     return D3D_OK;
 }

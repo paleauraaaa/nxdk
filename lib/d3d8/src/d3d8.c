@@ -684,7 +684,7 @@ HRESULT Direct3D_CreateDevice(
 
     D3D_DebugPrintf("Setting execution mode.\n");
 
-    hr = D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_START, 0);
+    hr = D3DDevice_SelectVertexShaderDirect(0);
     D3D_ASSERT_IF_NO_RETURN(FAILED(hr)) {
         goto failed;
     }
@@ -838,6 +838,7 @@ D3DEXTERN D3DAPI LPDIRECT3D8 Direct3DCreate8(UINT SDKVersion) {
     g_pDeviceVtbl->Present                   = Direct3DDevice8_Present;
     g_pDeviceVtbl->DrawVertices              = Direct3DDevice8_DrawVertices;
     g_pDeviceVtbl->DrawPrimitive             = Direct3DDevice8_DrawPrimitive;
+    g_pDeviceVtbl->DrawIndexedVertices       = Direct3DDevice8_DrawIndexedVertices;
     g_pDeviceVtbl->SetViewport               = Direct3DDevice8_SetViewport;
     g_pDeviceVtbl->CreateTexture             = Direct3DDevice8_CreateTexture;
     g_pDeviceVtbl->CreateCubeTexture = Direct3DDevice8_CreateCubeTexture;

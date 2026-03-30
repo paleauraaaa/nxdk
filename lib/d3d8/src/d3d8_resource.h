@@ -367,7 +367,6 @@ typedef struct D3DTexture IMPLEMENTS(IDirect3DTexture8) {
     virtual D3DAPI HRESULT UnlockRect(UINT Level) override;
 #endif // __cplusplus
     D3DBaseTextureInner base;
-    D3DSURFACE_DESC     desc;
     D3DSurface*         pLevels;
 } D3DTexture;
 

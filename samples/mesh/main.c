@@ -140,7 +140,6 @@ int main(void)
          */
 
         /* Enable texture stage 0 */
-        /* FIXME: Use constants instead of the hardcoded values below */
         p = pb_begin();
         p = pb_push2(p, NV097_SET_TEXTURE_OFFSET(0), (DWORD)texture.addr & 0x03ffffff,
             MASK(NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS, 1) |
@@ -150,7 +149,7 @@ int main(void)
             MASK(NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA, 2)
             //0x0001122a
         ); //set stage 0 texture address & format
-        p = pb_push1(p, NV097_SET_TEXTURE_CONTROL1(0), 
+        p = pb_push1(p, NV097_SET_TEXTURE_CONTROL1(0),
                         MASK(NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH, texture.pitch)); //set stage 0 texture pitch (pitch<<16)
         p = pb_push1(p, NV097_SET_TEXTURE_IMAGE_RECT(0), MASK(NV097_SET_TEXTURE_IMAGE_RECT_WIDTH, texture.width) |
                                                          MASK(NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT,texture.height)); //set stage 0 texture width & height ((witdh<<16)|height)
@@ -168,7 +167,7 @@ int main(void)
         p = pb_push1(p, NV097_SET_TEXTURE_FILTER(0),
             MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MIN_TENT_NEARESTLOD) |
             MASK(NV097_SET_TEXTURE_FILTER_MIN, NV097_SET_TEXTURE_FILTER_MIN_CONVOLUTION_2D_LOD0) |
-            MASK(NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL)
+            MASK(NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_GAUSSIAN_CUBIC)
         ); //set stage 0 texture filters (AA!)
         pb_end(p);
 
@@ -189,7 +188,7 @@ int main(void)
             MASK(NV097_SET_TEXTURE_ADDRESS_P, 3) |
             MASK(NV097_SET_TEXTURE_ADDRESS_V, 3) |
             MASK(NV097_SET_TEXTURE_ADDRESS_U, 3)); //set stage 3 texture modes (0x0W0V0U wrapping: 1=wrap 2=mirror 3=clamp 4=border 5=clamp to edge)
-        p = pb_push1(p,NV097_SET_TEXTURE_FILTER(1), 
+        p = pb_push1(p,NV097_SET_TEXTURE_FILTER(1),
             MASK(NV097_SET_TEXTURE_FILTER_MAG, NV097_SET_TEXTURE_FILTER_MIN_TENT_LOD0) |
             MASK(NV097_SET_TEXTURE_FILTER_MIN, NV097_SET_TEXTURE_FILTER_MIN_TENT_LOD0) |
             MASK(NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL, NV097_SET_TEXTURE_FILTER_CONVOLUTION_KERNEL_QUINCUNX)

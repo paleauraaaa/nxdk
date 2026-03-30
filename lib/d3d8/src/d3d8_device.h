@@ -100,6 +100,9 @@ typedef struct D3DDevice IMPLEMENTS(IDirect3DDevice8) {
     virtual D3DAPI HRESULT DrawVertices(
         D3DPRIMITIVETYPE PrimitiveType,
         UINT StartVertex, UINT PrimitiveCount) override;
+    virtual D3DAPI HRESULT DrawIndexedVertices(
+        D3DPRIMITIVETYPE PrimitiveType,
+        UINT VertexCount, CONST WORD *pIndexData) override;
     virtual D3DAPI HRESULT SetViewport(
         CONST D3DVIEWPORT8* pViewport) override;
     virtual D3DAPI HRESULT SetVertexShaderInputDirect(
@@ -232,6 +235,9 @@ D3DAPI HRESULT Direct3DDevice8_DrawVertices(LPDIRECT3DDEVICE8 pThis,
                                             D3DPRIMITIVETYPE PrimitiveType,
                                             UINT StartVertex,
                                             UINT VertexCount);
+D3DAPI HRESULT Direct3DDevice8_DrawIndexedVertices(
+    LPDIRECT3DDEVICE8 pThis, D3DPRIMITIVETYPE PrimitiveType,
+    UINT VertexCount, CONST WORD *pIndexData);
 D3DAPI HRESULT Direct3DDevice8_SetViewport(LPDIRECT3DDEVICE8 pThis,
                                            CONST D3DVIEWPORT8* pViewport);
 D3DAPI HRESULT Direct3DDevice8_SetVertexShaderInputDirect(
@@ -319,6 +325,8 @@ DWORD   D3DDevice_GetCurrentFence(void);
 DWORD   D3DDevice_GetLastCompletedFence(void);
 VOID    D3DDevice_BlockOnFence(DWORD Fence);
 HRESULT D3DDevice_SetViewport(CONST D3DVIEWPORT8* pViewport);
+HRESULT D3DDevice_SelectVertexShaderDirect(DWORD Address);
+HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture);
 
 extern D3DDevice*            g_pDevice;
 #ifndef __cplusplus

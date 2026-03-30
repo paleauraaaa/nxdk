@@ -177,7 +177,7 @@ HRESULT D3DDevice_RunPushBuffer(D3DPushBuffer* pPushBuffer) {
 
     // D3DDevice_EndPushBuffer inserted a NOP at the end of the push buffer.
     // That NOP is "fixed up" here as a jump back to the default push buffer.
-    *(pPushBuffer->p) = D3D_NV2A_PFIFO_ENCODE_JUMP(g_pDevice->DefaultPB.p);
+    *(pPushBuffer->p-1) = D3D_NV2A_PFIFO_ENCODE_JUMP(g_pDevice->DefaultPB.p);
     return D3D_OK;
 }
 
@@ -682,7 +682,7 @@ HRESULT D3DDevice_InitDeviceState(void) {
 
     DWORD formats[16];
     for (int i = 0; i < countof(formats); i++)
-        formats[i] = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F;
+        formats[i] = D3DVSDT_NONE;
     hr = D3DDevice_PushCmdA(NV097_SET_VERTEX_DATA_ARRAY_FORMAT(0), formats, 16, TRUE);
     if (FAILED(hr)) return hr;
 
@@ -694,6 +694,8 @@ HRESULT D3DDevice_InitDeviceState(void) {
     for (DWORD Stage = 0; Stage < D3DTSS_MAXSTAGES; Stage++) {
         D3D_DebugPrintf("Initing texture stage state %d.\n", Stage);
         hr = D3DDevice_InitTextureStageState(Stage);
+        if (FAILED(hr)) return hr;
+        hr = D3DDevice_SetTexture(Stage, NULL);
         if (FAILED(hr)) return hr;
     }
 
@@ -1028,12 +1030,53 @@ HRESULT D3DDevice_DrawPrimitive(D3DPRIMITIVETYPE PrimitiveType,
 }
 
 D3DAPI HRESULT Direct3DDevice8_DrawPrimitive(LPDIRECT3DDEVICE8 pThis,
-                                              D3DPRIMITIVETYPE PrimitiveType,
-                                              UINT StartVertex,
-                                              UINT PrimitiveCount)
+                                             D3DPRIMITIVETYPE PrimitiveType,
+                                             UINT StartVertex,
+                                             UINT PrimitiveCount)
 {
     assert(pThis == &g_pDevice->iface);
     return D3DDevice_DrawPrimitive(PrimitiveType, StartVertex, PrimitiveCount);
+}
+
+HRESULT D3DDevice_DrawIndexedVertices(D3DPRIMITIVETYPE PrimitiveType,
+                                      UINT VertexCount, CONST WORD *pIndexData)
+
+{
+// TODO: clean up.
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#define MAX_BATCH 120
+
+    HRESULT hr = D3D_OK;
+    for (int i = 0; i < VertexCount; ) {
+        int num_this_batch = MIN(MAX_BATCH, VertexCount-i);
+
+        hr = D3DDevice_PushCmd(NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+        D3D_ASSERT_IF(hr, FAILED(hr));
+        hr = D3DDevice_PushCmdA(NV097_ARRAY_ELEMENT16,
+                               (CONST DWORD*)&pIndexData[i],
+                                num_this_batch,
+                               (num_this_batch+1)/2);
+        D3D_ASSERT_IF(hr, FAILED(hr));
+        hr = D3DDevice_PushCmd(NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+        D3D_ASSERT_IF(hr, FAILED(hr));
+
+        i += num_this_batch;
+    }
+
+    return hr;
+
+#undef MAX_BATCH
+#undef MIN
+}
+
+D3DAPI HRESULT Direct3DDevice8_DrawIndexedVertices(
+    LPDIRECT3DDEVICE8 pThis, D3DPRIMITIVETYPE PrimitiveType,
+    UINT VertexCount, CONST WORD *pIndexData)
+{
+    assert(pThis == &g_pDevice->iface);
+    return D3DDevice_DrawIndexedVertices(PrimitiveType,
+                                         VertexCount,
+                                         pIndexData);
 }
 
 // See g_pb_target_back_buffer_size/D3DDevice_BeginScene for an explanation.
@@ -1106,6 +1149,13 @@ D3DAPI HRESULT Direct3DDevice8_SetVertexShaderInputDirect(
     assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetVertexShaderInputDirect(pVAF, StreamCount,
                                                 pStreamInputs);
+}
+
+HRESULT D3DDevice_SelectVertexShaderDirect(DWORD Address) {
+#if NXDK_DEBUG
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, Address >= 136);
+#endif // NXDK_DEBUG
+    return D3DDevice_PushCmd(NV097_SET_TRANSFORM_PROGRAM_START, Address);
 }
 
 HRESULT D3DDevice_CreateTexture(
@@ -1299,7 +1349,7 @@ HRESULT D3DDevice_SetTextureStageState_Validate(
     case D3DTSS_ADDRESSU:
     case D3DTSS_ADDRESSV:
     case D3DTSS_ADDRESSW:
-        if (Value < D3DTADDRESS_WRAP || Value >= D3DTADDRESS_MAX)
+        if (Value >= D3DTADDRESS_MAX)
             return D3DERR_INVALIDCALL;
         return D3D_OK;
     case D3DTSS_MAGFILTER:
@@ -1396,7 +1446,8 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
     if(FAILED(hr)) return hr;
 
     int i = 0;
-    for (; pFunction[i] != D3DVS_END() && Address + i < 136; i += 4) {
+    Address *= 4;
+    for (; pFunction[i] != D3DVS_END() && Address + i < (136 * 4); i += 4) {
         hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_PROGRAM,
                                 &pFunction[i], 4, TRUE);
         if(FAILED(hr)) return hr;
@@ -1408,7 +1459,7 @@ HRESULT D3DDevice_LoadVertexShaderProgram(
     // supported is 136 DWORDs). Either way, this is an error on the caller's
     // part.
 #if NXDK_DEBUG
-    if (Address + i >= 136) {
+    if (Address + i >= 136 * 4) {
         assert(false);
         return D3DERR_INVALIDCALL;
     }
@@ -1424,7 +1475,7 @@ D3DAPI HRESULT Direct3DDevice8_LoadVertexShaderProgram(
     return D3DDevice_LoadVertexShaderProgram(pFunction, Address);
 }
 
-DWORD D3D_SimpleRenderState[D3DRS_MAX] = {
+DWORD D3D_SimpleRenderState[D3DRS_SIMPLE_MAX] = {
     [D3DRS_PSALPHAINPUTS0]            = NV20_TCL_PRIMITIVE_3D_RC_IN_ALPHA(0),
     [D3DRS_PSALPHAINPUTS1]            = NV20_TCL_PRIMITIVE_3D_RC_IN_ALPHA(1),
     [D3DRS_PSALPHAINPUTS2]            = NV20_TCL_PRIMITIVE_3D_RC_IN_ALPHA(2),
@@ -1479,7 +1530,6 @@ DWORD D3D_SimpleRenderState[D3DRS_MAX] = {
     [D3DRS_PSFINALCOMBINERINPUTSEFG]  = NV20_TCL_PRIMITIVE_3D_RC_FINAL1,
     [D3DRS_PSCOMPAREMODE]             = NV097_SET_SHADER_CLIP_PLANE_MODE,
     [D3DRS_PSCOMBINERCOUNT]           = NV097_SET_COMBINER_CONTROL,
-    [D3DRS_PSTEXTUREMODES]            = NV097_SET_SHADER_STAGE_PROGRAM,
     [D3DRS_PSDOTMAPPING]              = NV097_SET_DOT_RGBMAPPING,
     [D3DRS_PSINPUTTEXTURE]            = NV097_SET_SHADER_OTHER_STAGE_INPUT,
     [D3DRS_ZFUNC]                     = NV097_SET_DEPTH_FUNC,
@@ -1495,7 +1545,6 @@ DWORD D3D_SimpleRenderState[D3DRS_MAX] = {
     [D3DRS_COLORWRITEENABLE]          = NV097_SET_COLOR_MASK,
     [D3DRS_STENCILZFAIL]              = NV097_SET_STENCIL_OP_ZFAIL,
     [D3DRS_STENCILPASS]               = NV097_SET_STENCIL_OP_ZPASS,
-    [D3DRS_STENCILFAIL]               = NV097_SET_STENCIL_OP_FAIL,
     [D3DRS_STENCILREF]                = NV097_SET_STENCIL_FUNC_REF,
     [D3DRS_STENCILMASK]               = NV097_SET_STENCIL_MASK,
     [D3DRS_SWATHWIDTH]                = NV097_SET_SWATH_WIDTH,
@@ -1669,7 +1718,7 @@ HRESULT D3DDevice_SetRenderState_Complex_Validate(D3DRENDERSTATETYPE Type,
             return D3DERR_INVALIDCALL;
         }
 
-        DWORD Stage1 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE1, Value);
+        DWORD Stage1 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE1, Value) >> 5;
         if (Stage1 >
             NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_BUMPENVMAP_LUMINANCE &&
             Stage1 < NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_DEPENDENT_AR)
@@ -1680,7 +1729,7 @@ HRESULT D3DDevice_SetRenderState_Complex_Validate(D3DRENDERSTATETYPE Type,
         if (Stage1 > NV097_SET_SHADER_STAGE_PROGRAM_STAGE1_DOT_PRODUCT)
             return D3DERR_INVALIDCALL;
 
-        DWORD Stage2 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE2, Value);
+        DWORD Stage2 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE2, Value) >> 10;
         if (Stage2 >
             NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DOT_REFLECT_DIFFUSE &&
             Stage2 < NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DEPENDENT_AR)
@@ -1691,7 +1740,7 @@ HRESULT D3DDevice_SetRenderState_Complex_Validate(D3DRENDERSTATETYPE Type,
         if (Stage2 > NV097_SET_SHADER_STAGE_PROGRAM_STAGE2_DOT_PRODUCT)
             return D3DERR_INVALIDCALL;
 
-        DWORD Stage3 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE3, Value);
+        DWORD Stage3 = MASK(NV097_SET_SHADER_STAGE_PROGRAM_STAGE3, Value) >> 15;
         if (Stage3 >
             NV097_SET_SHADER_STAGE_PROGRAM_STAGE3_DOT_REFLECT_SPECULAR_CONST)
         {
@@ -1764,8 +1813,7 @@ HRESULT D3DDevice_SetRenderState_Complex(D3DRENDERSTATETYPE Type, DWORD Value)
 {
 #if NXDK_DEBUG
     HRESULT hr = D3DDevice_SetRenderState_Complex_Validate(Type, Value);
-    assert(SUCCEEDED(hr));
-    if (FAILED(hr)) return hr;
+    D3D_ASSERT_IF(hr, FAILED(hr));
 #else
     HRESULT hr = D3D_OK;
 #endif // NXDK_DEBUG
@@ -2123,47 +2171,59 @@ D3DAPI HRESULT Direct3DDevice8_SetTile(LPDIRECT3DDEVICE8 pThis, DWORD Index,
 }
 
 HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
+#if NXDK_DEBUG
+    D3D_ASSERT_IF(D3DERR_INVALIDCALL, Stage >= D3DTSS_MAX);
+#endif // NXDK_DEBUG
+
+    HRESULT hr = D3D_OK;
     if (pTexture == NULL) {
-        g_pDevice->pTexture[Stage]->inner.resource.Fence =
-            D3DDevice_GetCurrentFence();
+        if (g_pDevice->pTexture[Stage]) {
+            g_pDevice->pTexture[Stage]->inner.resource.Fence =
+                D3DDevice_GetCurrentFence();
+            D3DBaseTexture_Release(
+                (LPDIRECT3DBASETEXTURE8)g_pDevice->pTexture[Stage]);
+            g_pDevice->pTexture[Stage] = NULL;
+        }
 
-        D3DBaseTexture_Release(
-            (LPDIRECT3DBASETEXTURE8)g_pDevice->pTexture[Stage]);
+        hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_IMAGE_RECT(Stage), 0);
+        D3D_ASSERT_IF(hr, FAILED(hr));
+        hr =  D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL1(Stage), 0);
+        D3D_ASSERT_IF(hr, FAILED(hr));
 
-        g_pDevice->pTexture[Stage] = NULL;
         g_pDevice->TextureStageState[Stage].Control0 &=
             ~NV097_SET_TEXTURE_CONTROL0_ENABLE;
         return D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage),
                                  g_pDevice->TextureStageState[Stage].Control0);
     }
 
-    D3DBaseTexture_AddRef((LPDIRECT3DBASETEXTURE8)g_pDevice->pTexture[Stage]);
     D3DBaseTexture* pOldBase = g_pDevice->pTexture[Stage];
     g_pDevice->pTexture[Stage] = pTexture;
 
     if (pOldBase != NULL)
         pOldBase->inner.resource.Fence = D3DDevice_GetCurrentFence();
 
-    D3DRESOURCETYPE Type = D3DBaseTexture_GetType(
-        (LPDIRECT3DBASETEXTURE8)pTexture);
+    D3DBaseTexture* pBase = (D3DBaseTexture*)pTexture;
+    D3DRESOURCETYPE Type = D3DBaseTexture_GetType(&pBase->iface);
     if (Type != D3DRTYPE_TEXTURE && Type != D3DRTYPE_CUBETEXTURE) {
         if (Type == D3DRTYPE_VOLUMETEXTURE)
-            return E_NOTIMPL;
+            hr = E_NOTIMPL;
         else
-            return D3DERR_INVALIDCALL;
+            hr = D3DERR_INVALIDCALL;
+
+        goto failed;
     }
 
     D3DResourceInner* pResource = &pTexture->inner.resource;
-    HRESULT hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_OFFSET(Stage),
+    hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_OFFSET(Stage),
                            (DWORD)pResource->pContiguousMemory);
-    if (FAILED(hr)) return hr;
+    if (FAILED(hr)) goto failed;
 
     LPDIRECT3DSURFACE8 pSurface = NULL;
     if (Type == D3DRTYPE_TEXTURE) {
         HRESULT hr = D3DTexture_GetSurfaceLevel(
             (LPDIRECT3DTEXTURE8)pTexture, 0, &pSurface);
 #if NXDK_DEBUG
-            if (FAILED(hr)) return hr;
+            if (FAILED(hr)) goto failed;
 #endif // NXDK_DEBUG
     }
 
@@ -2171,25 +2231,29 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
     if (Type == D3DRTYPE_TEXTURE) {
         hr = D3DSurface_GetDesc((LPDIRECT3DSURFACE8)pSurface, &desc);
 #if NXDK_DEBUG
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
 #endif // NXDK_DEBUG
     } else {
         hr = D3DCubeTexture_GetLevelDesc(
             (LPDIRECT3DCUBETEXTURE8)pTexture, 0, &desc);
 #if NXDK_DEBUG
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
 #endif // NXDK_DEBUG
     }
 
     D3DSURFACE_DESC oldDesc;
     LPDIRECT3DSURFACE8 pOldSurface = NULL;
-    D3DRESOURCETYPE oldType = D3DBaseTexture_GetType(
-        (LPDIRECT3DBASETEXTURE8)pOldBase);
+    D3DRESOURCETYPE oldType = D3DRTYPE_NONE;
+    if (pOldBase) {
+        oldType = D3DBaseTexture_GetType(
+            (LPDIRECT3DBASETEXTURE8)pOldBase);
+    }
+
     if (pOldBase != NULL && oldType == D3DRTYPE_TEXTURE) {
         hr = D3DTexture_GetSurfaceLevel(
             (LPDIRECT3DTEXTURE8)pOldBase, 0, &pOldSurface);
 #if NXDK_DEBUG
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
 #endif // NXDK_DEBUG
     }
 
@@ -2201,7 +2265,7 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
                 (LPDIRECT3DCUBETEXTURE8)pOldBase, 0, &oldDesc);
         }
 #if NXDK_DEBUG
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
 #endif // NXDK_DEBUG
     } else {
         memzrop(&oldDesc);
@@ -2211,7 +2275,7 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
         hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_IMAGE_RECT(Stage),
             MASK(NV097_SET_TEXTURE_IMAGE_RECT_WIDTH,  desc.Width) |
             MASK(NV097_SET_TEXTURE_IMAGE_RECT_HEIGHT, desc.Height));
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
     }
 
     if ((g_pDevice->TextureStageState[Stage].Control0 &
@@ -2221,15 +2285,17 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
             NV097_SET_TEXTURE_CONTROL0_ENABLE;
         hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL0(Stage),
                                g_pDevice->TextureStageState[Stage].Control0);
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
     }
 
     UINT Pitch = desc.Width * D3D_FormatBytesPerPixel(desc.Format);
-    UINT OldPitch = oldDesc.Width * D3D_FormatBytesPerPixel(oldDesc.Format);
+    UINT OldPitch = 0;
+    if (pOldSurface)
+        OldPitch = oldDesc.Width * D3D_FormatBytesPerPixel(oldDesc.Format);
     if (Pitch != OldPitch) {
         hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_CONTROL1(Stage),
             MASK(NV097_SET_TEXTURE_CONTROL1_IMAGE_PITCH, Pitch));
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
     }
 
     DWORD dwLevelCount = D3DBaseTexture_GetLevelCount(
@@ -2247,22 +2313,30 @@ HRESULT D3DDevice_SetTexture(DWORD Stage, D3DBaseTexture* pTexture) {
         DWORD CubemapEnable = 0;
         if (Type == D3DRTYPE_CUBETEXTURE)
             CubemapEnable = NV097_SET_TEXTURE_FORMAT_CUBEMAP_ENABLE;
+        UINT Dimensionality = 2;
+        if (Type == D3DRTYPE_CUBETEXTURE)
+            Dimensionality = 3;
         hr = D3DDevice_PushCmd(NV097_SET_TEXTURE_FORMAT(Stage),
             MASK(NV097_SET_TEXTURE_FORMAT_MIPMAP_LEVELS, dwLevelCount) |
             MASK(NV097_SET_TEXTURE_FORMAT_COLOR, desc.Format) |
-            MASK(NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY, 2) |
+            MASK(NV097_SET_TEXTURE_FORMAT_DIMENSIONALITY, Dimensionality) |
             MASK(NV097_SET_TEXTURE_FORMAT_CONTEXT_DMA, 2) |
             desc.Usage | CubemapEnable
         );
-        if (FAILED(hr)) return hr;
+        if (FAILED(hr)) goto failed;
     }
 
+    return hr;
+
+failed:
+    D3DBaseTexture_Release(&pTexture->iface);
+    D3D_ASSERT_IF(hr, FAILED(hr));
     return hr;
 }
 
 D3DAPI HRESULT Direct3DDevice8_SetTexture(LPDIRECT3DDEVICE8 pThis,
-                                           DWORD Stage,
-                                           LPDIRECT3DBASETEXTURE8 pTexture)
+                                          DWORD Stage,
+                                          LPDIRECT3DBASETEXTURE8 pTexture)
 {
     assert(pThis == &g_pDevice->iface);
     return D3DDevice_SetTexture(Stage, (D3DBaseTexture*)pTexture);
@@ -2375,7 +2449,7 @@ HRESULT D3DDevice_SetVertexShaderConstant(INT Register, CONST VOID* pConstantDat
                                    Register + 96);
     if (FAILED(hr)) return hr;
 
-    hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_CONSTANT(Register * 4),
+    hr = D3DDevice_PushCmdA(NV097_SET_TRANSFORM_CONSTANT,
                             pConstantData,
                             ConstantCount * 4,
                             TRUE);
